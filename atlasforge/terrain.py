@@ -234,6 +234,20 @@ def move_slope(hm):
     return out
 
 
+def discs_mask(shape, discs):
+    """Bool grid (heightmap resolution) that is True inside any disc [(x, z, radius)] (elmos).
+    Only touches each disc's bounding box, so it is fast for many small discs."""
+    out = np.zeros(shape, bool)
+    for x, z, r in discs:
+        i0, i1 = max(0, int((z - r) / SQ)), min(shape[0], int((z + r) / SQ) + 2)
+        j0, j1 = max(0, int((x - r) / SQ)), min(shape[1], int((x + r) / SQ) + 2)
+        if i1 <= i0 or j1 <= j0:
+            continue
+        ii, jj = np.mgrid[i0:i1, j0:j1]
+        out[i0:i1, j0:j1] |= (ii * SQ - z) ** 2 + (jj * SQ - x) ** 2 < r * r
+    return out
+
+
 def flatten_disc(hm, x, z, r_in, r_out, target=None):
     """Flatten a disc (elmo coordinates) to a target height (median of the core if not given)."""
     j0, i0 = x / SQ, z / SQ

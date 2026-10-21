@@ -33,8 +33,9 @@ map gadgets such as lava cliffs, lava tides and an erupting volcano.
    in Settings first; the app asks for it on the first start). The map is written to
    `Documents\Atlas Map Forge` and installed into Zero-K (the Zero-K folder is found automatically).
 
-**Settings for every template:** metal amount, tree density and erosion (rain-carved valleys on natural
-slopes; bases, metal spots, chokes and ramps stay as designed).
+**Settings for every template:** metal amount, tree density, rocks, wrecks and erosion (rain-carved
+valleys on natural slopes; bases, metal spots, chokes and ramps stay as designed). Rocks and crystals are
+3D models generated for each map; wrecks are Zero-K unit wrecks. Both give reclaimable metal.
 
 **Advanced mode** (Settings): lifts the limits of every map setting, for example map sizes from 4 to 32,
 up to 8 gates or extreme wall heights. The app warns before switching it on: such maps can be unplayable
@@ -159,6 +160,7 @@ Code layout:
 | `atlasforge.gadgets` | map gadgets (Lua) and their settings |
 | `atlasforge.install` | find Zero-K, install maps |
 | `atlasforge.erosion` | hydraulic erosion (rain droplets), protected design areas |
+| `atlasforge.models`, `decor` | procedural rock and crystal models (.s3o), feature definitions, placement of rocks and wrecks |
 | `atlasforge.watermark` | hidden watermark: embed, detect, verify |
 | `atlasforge.app` | the app: local web server (`server.py`), page (`web/`), window (pywebview) |
 

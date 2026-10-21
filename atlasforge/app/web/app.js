@@ -16,7 +16,7 @@ const S = {
   busy: false,
   img: { relief: null, reliefSize: 0, hazard: null, gates: null, reach: {} },
   grid: null,          // { nx, nz, height: Int16Array, cells: Uint8Array }
-  layers: { mexes: true, geos: true, starts: true, boxes: true, gates: true, hazard: true, grid: false },
+  layers: { mexes: true, geos: true, starts: true, boxes: true, gates: true, hazard: true, grid: false, features: true },
   route: "",
   view: { cx: 0, cy: 0, s: 0.1 },
   titleEdited: {},
@@ -56,6 +56,11 @@ function store(k, v) { try { localStorage.setItem("forge." + k, JSON.stringify(v
 function recall(k, d) { try { const v = localStorage.getItem("forge." + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const rgb = (c) => `rgb(${c[0]},${c[1]},${c[2]})`;
+
+// page errors go to the app log (app.log next to the settings) so problems can be diagnosed
+function clientLog(msg) { api("clientlog", { msg: String(msg) }).catch(() => {}); }
+window.addEventListener("error", (e) => clientLog(`error: ${e.message} at ${e.filename}:${e.lineno}`));
+window.addEventListener("unhandledrejection", (e) => clientLog(`unhandled: ${e.reason}`));
 
 // ------------------------------------------------------------------ start
 async function init() {
@@ -253,6 +258,7 @@ async function runPreview(refit) {
     refreshVersions();
     draw();
     maybeHiRes();
+    if (!runPreview.logged) { runPreview.logged = true; clientLog(`first preview shown (${m.template}, ${m.seconds} s)`); }
   } catch (e) {
     if (seq === S.seq) toast(e.message);
   } finally {
@@ -405,6 +411,7 @@ function paint() {
   if (S.layers.grid) drawGrid(ox, oy, w, h);
   if (S.layers.boxes) drawBoxes();
   if (S.layers.gates) drawGateLabels();
+  if (S.layers.features && m.features) drawFeatures(m.features);
   if (S.layers.geos) for (const g of m.geos) drawGeo(g[0], g[1]);
   if (S.layers.mexes) for (const x of m.mexes) drawMex(x);
   for (const k of m.marks) drawMark(k);
@@ -513,6 +520,25 @@ function drawMex(x) {
     ctx.textBaseline = "middle";
     ctx.fillText(x.metal.toFixed(1), sx, sy + 0.5);
   }
+}
+
+function drawFeatures(list) {
+  const r = Math.max(1.6, Math.min(7, 26 * S.view.s));
+  const cols = { rock: "#b9b2a6", crystal: "#5ff0d2", wreck: "#d08a52" };
+  ctx.save();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(0,0,0,.65)";
+  for (const [x, z, kind] of list) {
+    const [sx, sy] = toScreen(x, z);
+    ctx.fillStyle = cols[kind] || "#ccc";
+    ctx.beginPath();
+    if (kind === "wreck") ctx.rect(sx - r, sy - r * 0.7, r * 2, r * 1.4);
+    else if (kind === "crystal") { ctx.moveTo(sx, sy - r * 1.3); ctx.lineTo(sx + r, sy); ctx.lineTo(sx, sy + r * 1.3); ctx.lineTo(sx - r, sy); ctx.closePath(); }
+    else ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawGeo(x, z) {

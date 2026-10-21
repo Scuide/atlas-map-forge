@@ -29,6 +29,27 @@ jobs:
           $p = Start-Process dist\AtlasMapForge.exe -ArgumentList "--selftest","--build" -Wait -PassThru
           Get-Content selftest.log
           if ($p.ExitCode -ne 0) { exit 1 }
+      - name: Window test (the real app window must stay responsive and show a preview)
+        shell: pwsh
+        run: |
+          $env:APPDATA = "$PWD\appdata"
+          New-Item -ItemType Directory -Force "$env:APPDATA\AtlasMapForge" | Out-Null
+          '{"author": "CI"}' | Set-Content "$env:APPDATA\AtlasMapForge\config.json"
+          $env:ATLASFORGE_LOG = "$PWD\gui.log"
+          $p = Start-Process dist\AtlasMapForge.exe -PassThru
+          $bad = 0; $seen = $false
+          for ($i = 0; $i -lt 45; $i++) {
+            Start-Sleep -Seconds 2
+            $wins = Get-Process AtlasMapForge -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 }
+            if ($wins) { $seen = $true; if ($wins | Where-Object { -not $_.Responding }) { $bad++ } else { $bad = 0 } }
+            if ($bad -ge 3) { Write-Host "window not responding"; break }
+            if ((Test-Path gui.log) -and (Select-String -Path gui.log -Pattern "first preview shown" -Quiet)) { break }
+          }
+          Get-Process AtlasMapForge -ErrorAction SilentlyContinue | Stop-Process -Force
+          if (Test-Path gui.log) { Get-Content gui.log }
+          $ok = (Test-Path gui.log) -and (Select-String -Path gui.log -Pattern "first preview shown" -Quiet)
+          Write-Host "window seen: $seen, not responding polls: $bad, preview shown: $ok"
+          if ($bad -ge 3 -or -not $ok) { exit 1 }
       - uses: actions/upload-artifact@v6
         with:
           name: AtlasMapForge-windows

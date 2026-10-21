@@ -28,6 +28,10 @@ def general_params():
               group="General", help="Multiplies the value of every metal spot"),
         Param("trees", "Trees", "float", 1.0, min=0.0, max=2.0, step=0.1, adv_max=5.0, group="General",
               help="Tree density (biomes without trees stay bare)"),
+        Param("rocks", "Rocks", "float", 0.5, min=0.0, max=2.0, step=0.1, adv_max=6.0, group="General",
+              help="Rock clusters with reclaimable metal (glowing crystals on alien and moon maps)"),
+        Param("wrecks", "Wrecks", "float", 0.3, min=0.0, max=2.0, step=0.1, adv_max=6.0, group="General",
+              help="Battlefield wrecks of Zero-K units between the bases (reclaimable metal)"),
         Param("erosion", "Erosion", "float", 0.6, min=0.0, max=1.5, step=0.1, adv_max=4.0, group="General",
               help="Rain-carved gullies and valleys on natural slopes; bases, metal spots, chokes and walls "
                    "stay as designed"),

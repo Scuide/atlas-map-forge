@@ -2,6 +2,14 @@
 
 ## 0.4.0 - unreleased
 
+- Rocks and crystals: every map carries its own procedural 3D models (.s3o) and feature definitions;
+  rock clusters gather at slopes, glowing crystals on alien and moon maps; all reclaimable.
+- Battlefield wrecks of Zero-K units between the bases (reclaimable metal). New general settings "Rocks"
+  and "Wrecks"; the check report lists the reclaim metal; the app shows them (layer "Features").
+- Textures: snow only on gentle slopes with rocks poking through, sediment bands, light rims and dark
+  cracks on rock, scree at the foot of cliffs, wet sand and foam at the water line, shallow water
+  gradient, driven paths on carved ramps.
+- Faster previews (noise and masks computed separably, about 2x faster overall).
 - Hidden watermark in every map: a keyed pattern over the heightmap (about 0.04 elmos, invisible) plus a
   record in the lowest height bits (tool version, template, seed, build date, build id). `atlasforge verify
   map.sdz` and "Check a map file" in the app's Settings tell whether a map was made with Atlas Map Forge.

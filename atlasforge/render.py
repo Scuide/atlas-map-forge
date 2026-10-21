@@ -13,7 +13,7 @@ from .formats import bmp_bytes, dds_bytes, png_bytes
 from .materials import GENERATORS
 from .noise import periodic_noise, smoothstep, value_noise
 
-PAINT_LAYERS = ("ice", "scorch", "lava", "concrete", "molten")
+PAINT_LAYERS = ("ice", "scorch", "lava", "concrete", "molten", "path")
 CRACK_RES = 2      # samples per heightmap square for the lava crack field
 MAT_VERSION = 1
 
@@ -26,9 +26,14 @@ def build_texture_fields(hm):
     n /= np.linalg.norm(n, axis=-1, keepdims=True)
     ao = np.clip((hm - ndimage.gaussian_filter(hm, 14)) / 45.0, -1, 1)      # coarse hollows/domes
     cav = hm - ndimage.gaussian_filter(hm, 1.5)                               # fine edges/gullies
+    # scree: loose rock gathers at the foot of cliffs (gentle ground just below steep ground)
+    cliff = ndimage.gaussian_filter((sl > 38).astype(np.float32), 3.0)       # only real cliffs, not gullies
+    below = np.clip((ndimage.maximum_filter(hm, 11) - hm - 25.0) / 50.0, 0, 1)
+    foot = np.clip((cliff - 0.12) * 2.6, 0, 1) * (1 - smoothstep(18, 32, sl)) * below
     F = dict(sl=sl.astype(np.float32), n=n.astype(np.float32), ao=ao.astype(np.float32),
              cav=cav.astype(np.float32))
-    F["stack"] = np.dstack([hm.astype(np.float32), F["sl"], F["ao"], F["cav"], F["n"]]).astype(np.float32)
+    F["stack"] = np.dstack([hm.astype(np.float32), F["sl"], F["ao"], F["cav"], F["n"],
+                            foot.astype(np.float32)]).astype(np.float32)
     return F
 
 
@@ -65,7 +70,7 @@ def bilerp(a, ys, xs):
 
 
 def mix(a, b, t):
-    return a + (b - a) * t[..., None]
+    return a + (b - a) * (t[..., None] if np.ndim(t) else t)
 
 
 def crack_field(n, rng, res=CRACK_RES):
@@ -99,7 +104,7 @@ def render_rgb(F, r0, r1, Wpx, biome, water_h, NB, decals, emis_out=None):
     ys, xs1 = (rows + 0.5) / TEX_PER_SQ, (cols + 0.5) / TEX_PER_SQ
     xx = np.broadcast_to(xs1[None, :], (len(rows), Wpx))
     st = bilerp(F["stack"], ys, xs1)
-    h, s, ao, cav, nx_, ny, nz_ = [st[..., k] for k in range(7)]
+    h, s, ao, cav, nx_, ny, nz_, foot = [st[..., k] for k in range(8)]
     nF = NB.sample(NB.F, r0, r1, Wpx, 1)
     nM = NB.sample(NB.M, r0, r1, Wpx, 4)
     nL = NB.sample(NB.L, r0, r1, Wpx, 16)
@@ -118,24 +123,54 @@ def render_rgb(F, r0, r1, Wpx, biome, water_h, NB, decals, emis_out=None):
     col *= (1 + 0.06 * nL[..., None] * np.array([1.0, 0.4, -0.6], np.float32))
     col *= (1 + 0.35 * biome.get("grain", 0.09) * nF + 0.05 * nM)[..., None]
     # peaks
-    col = mix(col, C["peak"], smoothstep(biome["peak_level"] - 0.04, biome["peak_level"] + 0.04, tn + 0.03 * nF))
+    snow = smoothstep(biome["peak_level"] - 0.04, biome["peak_level"] + 0.04, tn + 0.03 * nF)
+    snow *= 1 - smoothstep(26, 40, s + 6 * nM)                  # steep faces stay rock
+    snowc = C["peak"] * (1 + 0.03 * nF + 0.05 * nM - 0.06 * np.clip(-cav / 4.0, 0, 1))[..., None]
+    snowc = mix(snowc, snowc * np.array([0.86, 0.9, 1.0], np.float32), np.clip(-ao, 0, 1) * 0.8)  # blue shade in hollows
+    poke = smoothstep(0.9, 1.5, nR + 0.6 * nM + 0.4 * np.clip(cav / 4.0, 0, 1)) * 0.75     # rocks poke through
+    snowc = mix(snowc, C["rock"] * (1 + 0.15 * nR)[..., None], poke)
+    col = mix(col, snowc, snow)
     # shore and underwater
-    sh = 1 - smoothstep(water_h + 2, water_h + 10 + 5 * nL, h)
-    shore = C["shore"] * (1 + 0.06 * nF + 0.05 * np.sin(xx * 3.1 + nM * 4))[..., None]
+    sh = 1 - smoothstep(water_h + 4, water_h + 14 + 6 * nL, h)
+    shore = C["shore"] * (1 + 0.05 * nF + 0.05 * nM)[..., None]
     col = mix(col, shore, sh)
-    uw = 1 - smoothstep(water_h - 35, water_h + 1, h)
-    col = mix(col, C["bed"] * (1 + 0.08 * nM)[..., None], uw)
+    wet = (1 - smoothstep(water_h + 0.5, water_h + 4 + 1.5 * nM, h)) * smoothstep(water_h - 2, water_h + 0.5, h)
+    col = mix(col, shore * 0.72, wet * 0.8)                                       # wet sand at the water line
+    foam = np.exp(-((h - water_h - 0.6) / 0.9) ** 2) * (0.5 + 0.5 * smoothstep(-0.5, 1.0, nF))
+    foam *= smoothstep(1.0, 4.0, s) * (1 - smoothstep(15, 30, s))                  # only where the shore has a slope
+    col = mix(col, np.array([235, 236, 230], np.float32), foam * 0.25)
+    uw = 1 - smoothstep(water_h - 40, water_h + 0.5, h)
+    depth = np.clip((water_h - h) / 60.0, 0, 1)
+    bed = mix(C["bed"] * (1 + 0.08 * nM)[..., None], C["shore"] * 0.8, (1 - smoothstep(0.0, 0.35, depth)) * 0.6)
+    bed = bed * (1 - 0.35 * depth)[..., None]                                     # deeper = darker
+    col = mix(col, bed, uw)
     # rock by slope
     sn = s + 5 * nM + 2 * nF
-    strata = 0.5 + 0.5 * np.sin(h * 0.32 + nR * 1.4 + nM)
-    rock = mix(np.broadcast_to(C["rock"], h.shape + (3,)).copy(), C["cliff"], strata * 0.55)
-    rock *= (1 + 0.16 * nR + 0.1 * nF)[..., None]
+    # scree (loose rock) at the foot of cliffs, before the rock itself
+    scree = mix(np.broadcast_to(C["rock"], h.shape + (3,)).copy(), C["shore"], 0.25)
+    scree *= (1 + 0.22 * nF + 0.08 * nR)[..., None]
+    col = mix(col, scree, np.clip(foot * (0.75 + 0.35 * nM), 0, 0.85))
+    bands = np.sin(h * 0.42 + nR * 1.1 + 0.6 * nM)                               # sediment layers along the height
+    strata = 0.5 + 0.5 * bands
+    rock = mix(np.broadcast_to(C["rock"], h.shape + (3,)).copy(), C["cliff"], strata * 0.5)
+    rock *= (1 + 0.12 * nR + 0.04 * nF + 0.06 * (1 - smoothstep(0.0, 0.25, np.abs(bands))))[..., None]
+    rim = np.clip(cav / 5.0, 0, 1)                                               # weathered light edges
+    crev = np.clip(-cav / 5.0, 0, 1)                                             # dark cracks and gullies
+    rock = mix(rock, rock * 1.22 + 12, rim * 0.6)
+    rock = mix(rock, rock * 0.55, crev * 0.7)
     col = mix(col, rock, smoothstep(19, 28, sn))
-    col = mix(col, C["cliff"] * (1 + 0.18 * nR + 0.08 * nF)[..., None], smoothstep(32, 44, sn) * 0.75)
+    cl = C["cliff"] * (1 + 0.14 * nR + 0.04 * nF)[..., None]
+    cl = mix(cl, cl * 1.25 + 10, rim * 0.5)
+    cl = mix(cl, cl * 0.6, crev * 0.6)
+    col = mix(col, cl, smoothstep(32, 44, sn) * 0.75)
     # paint layers (designed areas): glacier ice, scorch marks (flood line), lava crust, concrete, open lava
     if "paint" in F:
         pl = bilerp(F["paint"], ys, xs1)
-        ice, scorch, lava, conc, molten = (pl[..., k] for k in range(5))
+        ice, scorch, lava, conc, molten, path = (pl[..., k] for k in range(6))
+        if path.max() > 0:      # driven paths on ramps and fords: compacted, lighter ground with ruts
+            pc = mix(np.broadcast_to(C["patch"], h.shape + (3,)).copy(), C["shore"], 0.45)
+            pc *= (1 + 0.06 * nF + 0.08 * nM - 0.08 * np.clip(-cav / 3.0, 0, 1))[..., None]
+            col = mix(col, pc, np.clip(path * (0.75 + 0.2 * nM), 0, 0.85) * (1 - smoothstep(24, 34, s)))
         if conc.max() > 0:      # concrete (dam wall): light grey, 32 elmo joint grid, light stains
             zz_ = ys[:, None] * SQ
             xx_ = xx * SQ

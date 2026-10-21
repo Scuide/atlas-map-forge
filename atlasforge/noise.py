@@ -3,16 +3,30 @@ import numpy as np
 from scipy import ndimage
 
 
+def _bspline_weights(pos, n):
+    """Dense (len(pos), n) matrix of cubic B-spline weights for sample positions inside [1, n - 3]."""
+    i0 = np.floor(pos).astype(np.int64)
+    t = (pos - i0).astype(np.float64)
+    w = np.stack([(1 - t) ** 3 / 6, (3 * t ** 3 - 6 * t ** 2 + 4) / 6, (-3 * t ** 3 + 3 * t ** 2 + 3 * t + 1) / 6,
+                  t ** 3 / 6], 1)
+    m = np.zeros((len(pos), n))
+    rows = np.arange(len(pos))
+    for k in range(4):
+        np.add.at(m, (rows, np.clip(i0 - 1 + k, 0, n - 1)), w[:, k])
+    return m
+
+
 def value_noise(shape, cells, rng):
-    """Smooth noise (cubic interpolation) with about `cells` cells across the shorter axis."""
+    """Smooth noise (cubic interpolation) with about `cells` cells across the shorter axis.
+    Same result as ndimage.map_coordinates(order=3) on the sample grid, computed separably (much faster)."""
     h, w = shape
     gh = int(cells * h / min(h, w)) + 4
     gw = int(cells * w / min(h, w)) + 4
     g = rng.standard_normal((gh, gw)).astype(np.float32)
-    ys = np.linspace(1, gh - 3, h, dtype=np.float32)
-    xs = np.linspace(1, gw - 3, w, dtype=np.float32)
-    yy, xx = np.meshgrid(ys, xs, indexing="ij")
-    return ndimage.map_coordinates(g, [yy, xx], order=3, mode="reflect")
+    ys = np.linspace(1, gh - 3, h, dtype=np.float32).astype(np.float64)
+    xs = np.linspace(1, gw - 3, w, dtype=np.float32).astype(np.float64)
+    c = ndimage.spline_filter(g.astype(np.float64), order=3, mode="reflect")
+    return (_bspline_weights(ys, gh) @ c @ _bspline_weights(xs, gw).T).astype(np.float32)
 
 
 def fbm(shape, rng, base=3.0, octaves=6, gain=0.5, lac=2.0):

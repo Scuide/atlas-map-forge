@@ -135,6 +135,7 @@ class Forge:
             d = forge.make(tid, data.get("values") or {}, seed=seed, log=log.append, advanced=C.load().advanced)
             ok, lines = forge.check(d)
         did = uuid.uuid4().hex[:12]
+        print(f"preview {tid} seed {seed}: {time.time() - t0:.1f} s", flush=True)
         self.designs[did] = Entry(d, ok, lines)
         while len(self.designs) > KEEP_DESIGNS:
             self.designs.popitem(last=False)
@@ -164,6 +165,8 @@ class Forge:
             has_blocked=bool(d.blocked is not None and d.blocked.any()),
             height=[float(d.hm.min()), float(d.hm.max())],
             metal_total=round(float(sum(m["metal"] for m in d.mexes)), 1),
+            features=[[round(x), round(z), "crystal" if n.startswith("forge_crystal") else
+                       "rock" if n.startswith("forge_rock") else "wreck"] for (n, x, z, _r) in d.features],
         ))
 
     def entry(self, did):
@@ -413,6 +416,7 @@ def make_handler(forge_state, quiet=True):
                 data = json.loads(self.rfile.read(n) or b"{}")
                 route = u.path[len("/api/"):]
                 fn = {"preview": forge_state.preview, "build": forge_state.build,
+                      "clientlog": lambda d: (print("page:", str(d.get("msg", ""))[:500], flush=True), {"ok": True})[1],
                       "config": forge_state.set_config, "verify": forge_state.verify,
                       "open": lambda d: forge_state.open_path(d["path"])}.get(route)
                 if fn is None:

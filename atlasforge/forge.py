@@ -34,18 +34,20 @@ def make(template_id, values=None, seed=1, log=print, advanced=False):
     return d
 
 
+def biome_key(d):
+    """Name of the design's biome ("" if it is a custom palette)."""
+    from .biomes import BIOMES
+    if d.values.get("biome"):
+        return str(d.values["biome"])
+    return next((k for k, b in BIOMES.items() if all(d.biome.get(x) == y for x, y in b.items())), "")
+
+
 def _protect_mask(d):
     """Parts of a design erosion must not touch."""
-    from .terrain import slope_deg
-    n = d.hm.shape
-    zz, xx = np.mgrid[0:n[0], 0:n[1]].astype(np.float32) * SQ
+    from .terrain import discs_mask, slope_deg
     prot = slope_deg(d.hm) > 40                                  # designed walls and cliffs stay crisp
-    for p in d.starts:
-        prot |= np.hypot(xx - p[0], zz - p[1]) < 720
-    for m in d.mexes:
-        prot |= np.hypot(xx - m["x"], zz - m["z"]) < 140
-    for g in d.geos:
-        prot |= np.hypot(xx - g[0], zz - g[1]) < 150
+    prot |= discs_mask(d.hm.shape, [(p[0], p[1], 720) for p in d.starts] + [(m["x"], m["z"], 140) for m in d.mexes]
+                       + [(g[0], g[1], 150) for g in d.geos])
     for _, gm in d.gates or []:
         prot |= gm
     for extra in (d.keep_clear, d.blocked, d.hazard):
@@ -72,6 +74,12 @@ def _apply_general(d, v):
             strength = 0
         if strength != v["erosion"]:
             d.notes.append(f"Erosion lowered to {strength:.2f} so every base and metal spot stays reachable")
+    if v.get("rocks", 0) > 0 or v.get("wrecks", 0) > 0:
+        from .decor import place
+        mr, mw, parts = place(d, v.get("rocks", 0), v.get("wrecks", 0), seed=d.seed, biome_name=biome_key(d))
+        if mr or mw:
+            where = "on the map" if parts == 1 else ("per side" if parts == 2 else "per quarter")
+            d.notes.append(f"Reclaim {where}: {mr:.0f} metal in rocks, {mw:.0f} metal in wrecks")
     if v.get("metal", 1.0) != 1.0:
         for m in d.mexes:
             m["metal"] = round(m["metal"] * v["metal"], 2)
@@ -180,11 +188,17 @@ def build(design, outdir=".", config=None, title=None, version=1, name=None, log
     """Write the .sdz. Map name = config.map_name(title or design.title, version) unless name is given."""
     cfg = config or ForgeConfig()
     name = name or cfg.map_name(title or design.title, version)
+    paint = design.paint
+    if design.keep_clear is not None and (paint is None or "path" not in paint):
+        core = ndimage.binary_erosion(design.keep_clear, iterations=6)      # driven lane of carved ramps
+        if core.any():
+            lane = np.clip(ndimage.gaussian_filter(core.astype(np.float32), 2.5) * 1.3, 0, 1) * 0.6
+            paint = dict(paint or {}, path=lane)
     rng = design.build_rng()
     return build_archive(name, design.hm, design.sym, design.starts, design.mexes, design.geos, design.biome, rng,
                          outdir, cfg.describe(design.description), config=cfg, log=log, preview=preview,
                          extra=dict(template=design.template, seed=design.seed),
                          tree_block=design.tree_block, startboxes=design.startboxes, extra_files=design.extra_files,
-                         features=design.features, random_trees=design.random_trees, paint=design.paint,
+                         features=design.features, random_trees=design.random_trees, paint=paint,
                          preview_marks=design.marks, preview_start_colors=design.start_colors,
                          keep_clear=design.keep_clear)

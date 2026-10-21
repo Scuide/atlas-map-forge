@@ -118,8 +118,9 @@ class MyTemplate(Template):
 
 - `size_param(choices, default, adv_smallest)` and `biome_param(default)` are the standard map size and
   biome controls. `adv_smallest` = smallest size your template can still build without crashing.
-- **Do not** add `metal`, `trees` or `erosion`: every template gets them automatically
-  (`general_params()`); `forge.make` applies them after your `make()`.
+- **Do not** add `metal`, `trees`, `rocks`, `wrecks` or `erosion`: every template gets them automatically
+  (`general_params()`); `forge.make` applies them after your `make()`. Rocks and wrecks keep away from
+  starts, metal spots, `gates`, `keep_clear`, `hazard` and `blocked`, so register those areas.
 - Make as much adjustable as is sensible (counts, widths, heights, timings, on/off features). The user
   wants many settings; give every numeric setting a generous advanced range.
 

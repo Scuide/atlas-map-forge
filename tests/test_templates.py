@@ -17,7 +17,7 @@ def test_template_designs_and_checks(tid):
     img = forge.preview(d, size=256)
     assert img.size == (256, 256)
     for path, code in d.extra_files.items():
-        assert path.startswith(("mapconfig/", "LuaRules/Gadgets/")), path
+        assert path.startswith(("mapconfig/", "LuaRules/Gadgets/", "features/", "objects3d/", "unittextures/")), path
 
 
 def test_parameters_are_checked():

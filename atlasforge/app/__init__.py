@@ -13,20 +13,25 @@ from .server import serve
 
 
 class _JsApi:
-    """Functions the page can call through pywebview (window.pywebview.api.*)."""
+    """Functions the page can call through pywebview (window.pywebview.api.*).
+
+    Keep every attribute private (leading underscore): pywebview walks all public attributes of this
+    object recursively to build the JavaScript API. A public reference to the window made it walk the
+    whole native window object from a background thread, which froze the app on Windows
+    ("Not responding")."""
 
     def __init__(self):
-        self.window = None
+        self._window = None
 
     def pick_file(self, start=""):
         import webview
-        res = self.window.create_file_dialog(webview.OPEN_DIALOG, directory=start or "",
+        res = self._window.create_file_dialog(webview.OPEN_DIALOG, directory=start or "",
                                              file_types=("Zero-K maps (*.sdz;*.sd7;*.smf)", "All files (*.*)"))
         return res[0] if res else ""
 
     def pick_folder(self, start=""):
         import webview
-        res = self.window.create_file_dialog(webview.FOLDER_DIALOG, directory=start or "")
+        res = self._window.create_file_dialog(webview.FOLDER_DIALOG, directory=start or "")
         return res[0] if res else ""
 
 
@@ -42,7 +47,7 @@ def run(port=0, window=True, quiet=True):
                   "(pip install atlas-map-forge[app] for the app window)")
         if webview is not None:
             api = _JsApi()
-            api.window = webview.create_window("Atlas Map Forge", url_t, js_api=api, width=1560, height=980,
+            api._window = webview.create_window("Atlas Map Forge", url_t, js_api=api, width=1560, height=980,
                                                min_size=(1100, 720), background_color="#121316")
             webview.start()
             srv.shutdown()
