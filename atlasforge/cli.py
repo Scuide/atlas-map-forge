@@ -1,5 +1,6 @@
 """Command line: atlasforge <command> ...
 
+  atlasforge app                                         open the app window
   atlasforge templates                                   list templates and their parameters
   atlasforge preview chokepoint --set gates=4 --seed 3   quick preview image + check report
   atlasforge build volcano --set bomb_rate=1.2 --title "Ember Atoll" --install
@@ -200,6 +201,11 @@ def main(argv=None):
     p.add_argument("--author"); p.add_argument("--prefix"); p.add_argument("--badge", choices=C.BADGES)
     p.add_argument("--no-credit", action="store_true", help="do not append 'Made with Atlas Map Forge'")
     p.set_defaults(func=_cmd_config)
+
+    p = sub.add_parser("app", help="open the Atlas Map Forge app (window with a large map preview)")
+    p.add_argument("--browser", action="store_true", help="open in the web browser instead of an app window")
+    p.add_argument("--port", type=int, default=0, help="local port (default: any free port)")
+    p.set_defaults(func=lambda a: __import__("atlasforge.app", fromlist=["run"]).run(port=a.port, window=not a.browser))
 
     p = sub.add_parser("find-zerok", help="show the Zero-K folders that were found")
     p.set_defaults(func=_cmd_find)

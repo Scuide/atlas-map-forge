@@ -24,7 +24,7 @@ can build its controls automatically:
 
 Fast preview (heightmap, metal spots, start points) in a few seconds, plain-English check report.
 
-## 0.3 - Windows app
+## 0.3 - Windows app (done, first Windows build pending)
 
 - Web interface in its own window, optimised for looking at the map: large zoomable preview,
   overlays for metal spots, start boxes and the routes each unit class can take.

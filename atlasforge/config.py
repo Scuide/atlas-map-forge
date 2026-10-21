@@ -33,6 +33,8 @@ class ForgeConfig:
     prefix: str = "Forge"            # map names become "<prefix> <title> v<version>"; empty = no prefix
     badge: str = "forge"             # minimap badge in the map browser: "forge" or "none"
     credit: bool = True              # append "Made with Atlas Map Forge." to the description
+    zerok: str = ""                  # Zero-K folder for installing maps; empty = find automatically
+    outdir: str = ""                 # where built maps are written; empty = default_outdir()
 
     def map_name(self, title, version=1):
         base = f"{self.prefix} {title}".strip() if self.prefix else title
@@ -49,6 +51,13 @@ class ForgeConfig:
             if any(c in v for c in '"\\\n'):
                 raise ValueError(f"{field} must not contain quotes, backslashes or line breaks")
         return self
+
+
+def default_outdir():
+    """Default folder for built maps: Documents/Atlas Map Forge (Windows) or ~/AtlasMapForge."""
+    if sys.platform.startswith("win"):
+        return os.path.join(os.path.expanduser("~"), "Documents", "Atlas Map Forge")
+    return os.path.join(os.path.expanduser("~"), "AtlasMapForge")
 
 
 def config_path():

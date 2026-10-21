@@ -1,0 +1,787 @@
+"use strict";
+/* Atlas Map Forge - app page. Talks to the local server (server.py). */
+
+const $ = (id) => document.getElementById(id);
+const TOKEN = window.FORGE_TOKEN || new URLSearchParams(location.search).get("t") || "";
+const CLASS_NAMES = { tanks: "Tanks", bots: "Bots", spiders: "Spiders", amphibians: "Amph", hovers: "Hover" };
+const TEAM_COLORS = ["#4dff6a", "#ff4d4d", "#5aa0ff", "#ffd23c"];
+
+const S = {
+  info: null,          // /api/state
+  tpl: null,           // selected template info
+  values: {},          // per template id: parameter values
+  seeds: {},
+  map: null,           // last preview response
+  seq: 0,
+  busy: false,
+  img: { relief: null, reliefSize: 0, hazard: null, gates: null, reach: {} },
+  grid: null,          // { nx, nz, height: Int16Array, cells: Uint8Array }
+  layers: { mexes: true, geos: true, starts: true, boxes: true, gates: true, hazard: true, grid: false },
+  route: "",
+  view: { cx: 0, cy: 0, s: 0.1 },
+  titleEdited: {},
+  titles: {},
+  job: null,
+};
+
+// ------------------------------------------------------------------ helpers
+async function api(path, body) {
+  const opt = { headers: { "X-Forge-Token": TOKEN } };
+  if (body !== undefined) {
+    opt.method = "POST";
+    opt.headers["Content-Type"] = "application/json";
+    opt.body = JSON.stringify(body);
+  }
+  const r = await fetch("/api/" + path, opt);
+  const ct = r.headers.get("Content-Type") || "";
+  if (!r.ok) {
+    let msg = r.statusText;
+    try { msg = (await r.json()).error || msg; } catch (e) { /* not json */ }
+    throw new Error(msg);
+  }
+  if (ct.startsWith("application/json")) return r.json();
+  if (ct.startsWith("image/")) return createImageBitmap(await r.blob());
+  return r.arrayBuffer();
+}
+const layerUrl = (name, size) => `layer/${S.map.id}/${name}` + (size ? `?size=${size}` : "");
+
+function toast(msg, ms = 5000) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.remove("hidden");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.add("hidden"), ms);
+}
+function store(k, v) { try { localStorage.setItem("forge." + k, JSON.stringify(v)); } catch (e) { /* storage off */ } }
+function recall(k, d) { try { const v = localStorage.getItem("forge." + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const rgb = (c) => `rgb(${c[0]},${c[1]},${c[2]})`;
+
+// ------------------------------------------------------------------ start
+async function init() {
+  try {
+    S.info = await api("state");
+  } catch (e) {
+    $("empty").textContent = "Could not reach the forge: " + e.message;
+    return;
+  }
+  $("ver").textContent = "v" + S.info.version;
+  S.values = recall("values", {});
+  S.seeds = recall("seeds", {});
+  S.titles = recall("titles", {});
+  S.titleEdited = recall("titleEdited", {});
+  for (const [k, v] of Object.entries(recall("layers", {}))) if (k in S.layers) S.layers[k] = v;
+  syncToolbar();
+  renderGallery();
+  renderWho();
+  const last = recall("template", S.info.templates[0].id);
+  selectTemplate(S.info.templates.find((t) => t.id === last) ? last : S.info.templates[0].id);
+}
+
+function renderWho() {
+  const c = S.info.settings.config;
+  $("who").textContent = `Author: ${c.author}` + (c.prefix ? `  ·  Prefix: ${c.prefix}` : "");
+  $("author-note").classList.toggle("hidden", c.author && c.author !== "Unknown");
+}
+
+// ------------------------------------------------------------------ gallery and controls
+function renderGallery() {
+  const g = $("gallery");
+  g.innerHTML = "";
+  for (const t of S.info.templates) {
+    const b = document.createElement("button");
+    b.className = "tpl";
+    b.dataset.id = t.id;
+    b.title = t.description;
+    b.innerHTML = `<img src="thumbs/${t.id}.jpg" alt=""><span>${esc(t.title)}</span>`;
+    b.onclick = () => selectTemplate(t.id);
+    g.appendChild(b);
+  }
+}
+
+function selectTemplate(id) {
+  S.tpl = S.info.templates.find((t) => t.id === id);
+  store("template", id);
+  for (const b of document.querySelectorAll(".tpl")) b.classList.toggle("on", b.dataset.id === id);
+  $("tpl-title").textContent = S.tpl.title;
+  $("tpl-desc").textContent = S.tpl.description;
+  const vals = Object.assign({}, ...S.tpl.params.map((p) => ({ [p.key]: p.default })), S.values[id] || {});
+  for (const k of Object.keys(vals)) if (!S.tpl.params.some((p) => p.key === k)) delete vals[k];
+  S.values[id] = vals;
+  $("seed").value = S.seeds[id] || 7;
+  renderParams();
+  $("title").value = S.titles[id] || S.tpl.title;
+  schedulePreview(0, true);
+}
+
+function renderParams() {
+  const box = $("params");
+  box.innerHTML = "";
+  const vals = S.values[S.tpl.id];
+  for (const p of S.tpl.params) {
+    const f = document.createElement("div");
+    f.className = "field";
+    const help = p.help ? `<div class="help">${esc(p.help)}</div>` : "";
+    if (p.kind === "bool") {
+      f.innerHTML = `<label class="switch"><input type="checkbox"><span></span>${esc(p.label)}</label>${help}`;
+      const cb = f.querySelector("input");
+      cb.checked = !!vals[p.key];
+      cb.onchange = () => setValue(p.key, cb.checked);
+    } else if (p.kind === "choice") {
+      f.innerHTML = `<label>${esc(p.label)}</label><div class="chips"></div>${help}`;
+      const chips = f.querySelector(".chips");
+      for (const c of p.choices) {
+        const b = document.createElement("button");
+        b.dataset.v = String(c);
+        let label = esc(c);
+        if (p.key === "size") label = `${c}&times;${c}`;
+        if (p.key === "biome" && S.info.biomes[c]) {
+          label = `<span class="sw">${S.info.biomes[c].map((x) => `<i style="background:${rgb(x)}"></i>`).join("")}</span>` + label;
+        }
+        b.innerHTML = label;
+        b.classList.toggle("on", String(vals[p.key]) === String(c));
+        b.onclick = () => {
+          for (const o of chips.children) o.classList.toggle("on", o === b);
+          setValue(p.key, c);
+        };
+        chips.appendChild(b);
+      }
+    } else {
+      const fmt = (v) => (p.kind === "float" ? Number(v).toFixed(1) : String(v));
+      f.innerHTML = `<label>${esc(p.label)} <span class="val"></span></label>
+        <input type="range" min="${p.min}" max="${p.max}" step="${p.step || (p.kind === "float" ? 0.1 : 1)}">${help}`;
+      const r = f.querySelector("input");
+      const out = f.querySelector(".val");
+      r.value = vals[p.key];
+      out.textContent = fmt(vals[p.key]) + (p.key === "mexes" && Number(vals[p.key]) === 0 ? " (auto)" : "");
+      r.oninput = () => { out.textContent = fmt(r.value) + (p.key === "mexes" && Number(r.value) === 0 ? " (auto)" : ""); };
+      r.onchange = () => setValue(p.key, p.kind === "float" ? parseFloat(r.value) : parseInt(r.value, 10));
+    }
+    box.appendChild(f);
+  }
+}
+
+function setValue(k, v) {
+  S.values[S.tpl.id][k] = v;
+  store("values", S.values);
+  if ($("auto").checked) schedulePreview(250);
+}
+
+// ------------------------------------------------------------------ preview
+let pvTimer = null;
+function schedulePreview(ms, refit = false) {
+  clearTimeout(pvTimer);
+  pvTimer = setTimeout(() => runPreview(refit), ms);
+}
+
+async function runPreview(refit) {
+  const seq = ++S.seq;
+  const seed = Math.max(1, parseInt($("seed").value, 10) || 1);
+  S.seeds[S.tpl.id] = seed;
+  store("seeds", S.seeds);
+  const veilT = setTimeout(() => $("veil").classList.add("on"), 120);
+  S.busy = true;
+  updateBuildButton();
+  try {
+    const prev = S.map;
+    const m = await api("preview", { template: S.tpl.id, values: S.values[S.tpl.id], seed });
+    if (seq !== S.seq) return;                                 // a newer preview is on its way
+    const [relief, height, cells, hazard, gates] = await Promise.all([
+      api(`layer/${m.id}/relief?size=1024`),
+      api(`layer/${m.id}/height`),
+      api(`layer/${m.id}/cells`),
+      m.has_hazard ? api(`layer/${m.id}/hazard`) : null,
+      m.gates.length ? api(`layer/${m.id}/gates`) : null,
+    ]);
+    if (seq !== S.seq) return;
+    S.map = m;
+    S.img = { relief, reliefSize: 1024, hazard, gates, reach: {} };
+    S.grid = { nx: m.grid[0], nz: m.grid[1], height: new Int16Array(height), cells: new Uint8Array(cells) };
+    $("empty").classList.add("hidden");
+    $("readout").innerHTML = "Scroll to zoom, drag to move";
+    const sameFrame = prev && prev.W === m.W && prev.H === m.H && !refit;
+    if (!sameFrame) fit();
+    if (S.route) await loadRoute(S.route);
+    renderReport();
+    renderFacts();
+    updateLegend();
+    if (!S.titleEdited[S.tpl.id]) $("title").value = m.title;
+    refreshVersions();
+    draw();
+    maybeHiRes();
+  } catch (e) {
+    if (seq === S.seq) toast(e.message);
+  } finally {
+    clearTimeout(veilT);
+    if (seq === S.seq) {
+      $("veil").classList.remove("on");
+      S.busy = false;
+      updateBuildButton();
+    }
+  }
+}
+
+function renderReport() {
+  const m = S.map;
+  const b = $("check-badge");
+  b.textContent = m.ok ? "OK" : "PROBLEMS";
+  b.className = "badge " + (m.ok ? "ok" : "bad");
+  $("report").innerHTML = m.lines.map((l) => {
+    const bad = /\bNO\b|not connected|unreachable for tanks: [1-9]/.test(l);
+    const info = /^(Spiders|Amphibians|Hovers)/.test(l.trim()) && /\bNO\b/.test(l);
+    return `<li class="${info ? "info" : bad ? "no" : ""}">${esc(l.replace(/\s{2,}/g, " "))}</li>`;
+  }).join("");
+}
+
+function renderFacts() {
+  const m = S.map;
+  const players = m.teams.map((t) => t.length).join(" vs ");
+  const rows = [
+    ["Size", `${m.size[0]} × ${m.size[1]}  (${m.W} elmos)`],
+    ["Biome", m.biome || "-"],
+    ["Players", players],
+    ["Metal spots", `${m.mexes.length}  (${m.metal_total} metal)`],
+    ["Geo vents", m.geos.length],
+    ["Height", `${Math.round(m.height[0])} to ${Math.round(m.height[1])}`],
+    ["Preview took", `${m.seconds.toFixed(1)} s`],
+  ];
+  $("facts").innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("");
+}
+
+// hi-res relief once the user zooms in
+async function maybeHiRes() {
+  const m = S.map;
+  if (!m) return;
+  const need = S.view.s * m.W * (window.devicePixelRatio || 1);
+  const levels = [1024, 2048, 3072].filter((l) => l <= Math.max(1024, (m.grid[0] - 1) * 4));
+  let want = levels[0];
+  for (const l of levels) if (need > want * 1.25) want = l;
+  if (want <= S.img.reliefSize || maybeHiRes.loading === m.id + want) return;
+  maybeHiRes.loading = m.id + want;
+  try {
+    const img = await api(layerUrl("relief", want));
+    if (S.map && S.map.id === m.id && want > S.img.reliefSize) {
+      S.img.relief = img;
+      S.img.reliefSize = want;
+      draw();
+    }
+  } catch (e) { /* keep the low-res picture */ }
+  maybeHiRes.loading = null;
+}
+
+async function loadRoute(cls) {
+  if (!S.map || !cls || S.img.reach[cls]) return;
+  const id = S.map.id;
+  const img = await api(layerUrl("reach_" + cls));
+  if (S.map && S.map.id === id) S.img.reach[cls] = img;
+}
+
+// ------------------------------------------------------------------ viewer
+const cv = $("map");
+const ctx = cv.getContext("2d");
+
+function resize() {
+  const r = cv.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(r.width * dpr);
+  cv.height = Math.round(r.height * dpr);
+  draw();
+}
+
+function fit() {
+  if (!S.map) return;
+  const r = cv.getBoundingClientRect();
+  const top = $("toolbar").getBoundingClientRect().bottom - r.top + 12;   // keep the map clear of the toolbar
+  const bottom = 56;
+  const availH = r.height - top - bottom;
+  S.view.s = Math.min((r.width - 40) / S.map.W, availH / S.map.H);
+  S.view.cx = S.map.W / 2;
+  S.view.cy = S.map.H / 2 - (top + availH / 2 - r.height / 2) / S.view.s;
+  draw();
+}
+
+function zoomAt(f, sx, sy) {
+  if (!S.map) return;
+  const r = cv.getBoundingClientRect();
+  if (sx === undefined) { sx = r.width / 2; sy = r.height / 2; }
+  const v = S.view;
+  const minS = Math.min(r.width / S.map.W, r.height / S.map.H) * 0.4;
+  const ns = Math.min(Math.max(v.s * f, minS), 6);
+  const ex = v.cx + (sx - r.width / 2) / v.s;
+  const ey = v.cy + (sy - r.height / 2) / v.s;
+  v.cx = ex - (sx - r.width / 2) / ns;
+  v.cy = ey - (sy - r.height / 2) / ns;
+  v.s = ns;
+  draw();
+  clearTimeout(zoomAt._t);
+  zoomAt._t = setTimeout(maybeHiRes, 150);
+}
+
+function toScreen(x, z) {
+  const r = cv.getBoundingClientRect();
+  return [(x - S.view.cx) * S.view.s + r.width / 2, (z - S.view.cy) * S.view.s + r.height / 2];
+}
+function toMap(sx, sy) {
+  const r = cv.getBoundingClientRect();
+  return [(sx - r.width / 2) / S.view.s + S.view.cx, (sy - r.height / 2) / S.view.s + S.view.cy];
+}
+
+let drawQueued = false;
+function draw() {
+  if (drawQueued) return;
+  drawQueued = true;
+  requestAnimationFrame(() => { drawQueued = false; paint(); });
+}
+
+function paint() {
+  const dpr = window.devicePixelRatio || 1;
+  const r = cv.getBoundingClientRect();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "#08090b";
+  ctx.fillRect(0, 0, r.width, r.height);
+  const m = S.map;
+  if (!m || !S.img.relief) return;
+  const s = S.view.s;
+  const [ox, oy] = toScreen(0, 0);
+  const w = m.W * s, h = m.H * s;
+
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,.6)";
+  ctx.shadowBlur = 24;
+  ctx.fillStyle = "#000";
+  ctx.fillRect(ox, oy, w, h);
+  ctx.restore();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(S.img.relief, ox, oy, w, h);
+
+  if (S.route && S.img.reach[S.route]) ctx.drawImage(S.img.reach[S.route], ox, oy, w, h);
+  if (S.layers.hazard && S.img.hazard) ctx.drawImage(S.img.hazard, ox, oy, w, h);
+  if (S.layers.gates && S.img.gates) ctx.drawImage(S.img.gates, ox, oy, w, h);
+  if (S.layers.grid) drawGrid(ox, oy, w, h);
+  if (S.layers.boxes) drawBoxes();
+  if (S.layers.gates) drawGateLabels();
+  if (S.layers.geos) for (const g of m.geos) drawGeo(g[0], g[1]);
+  if (S.layers.mexes) for (const x of m.mexes) drawMex(x);
+  for (const k of m.marks) drawMark(k);
+  if (S.layers.starts) drawStarts();
+  ctx.strokeStyle = "rgba(255,255,255,.08)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(ox + 0.5, oy + 0.5, w - 1, h - 1);
+}
+
+function drawGrid(ox, oy, w, h) {
+  const m = S.map, s = S.view.s;
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,255,255,.18)";
+  ctx.lineWidth = 1;
+  ctx.fillStyle = "rgba(255,255,255,.55)";
+  ctx.font = "11px " + getComputedStyle(document.body).fontFamily;
+  for (let i = 1; i < m.size[0]; i++) {
+    const x = Math.round(ox + i * 512 * s) + 0.5;
+    ctx.beginPath(); ctx.moveTo(x, oy); ctx.lineTo(x, oy + h); ctx.stroke();
+    if (512 * s > 26) ctx.fillText(String(i), x + 3, oy + 12);
+  }
+  for (let i = 1; i < m.size[1]; i++) {
+    const y = Math.round(oy + i * 512 * s) + 0.5;
+    ctx.beginPath(); ctx.moveTo(ox, y); ctx.lineTo(ox + w, y); ctx.stroke();
+    if (512 * s > 26) ctx.fillText(String(i), ox + 3, y - 3);
+  }
+  ctx.restore();
+}
+
+function teamColor(team) {                      // same colour as the team's start box
+  return TEAM_COLORS[team % TEAM_COLORS.length];
+}
+
+function drawBoxes() {
+  ctx.save();
+  for (const b of S.map.boxes) {
+    const col = TEAM_COLORS[b.team % TEAM_COLORS.length];
+    for (const poly of b.polygons) {
+      ctx.beginPath();
+      poly.forEach(([x, z], i) => { const [sx, sy] = toScreen(x, z); i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy); });
+      ctx.closePath();
+      ctx.fillStyle = col + "1c";
+      ctx.fill();
+      ctx.setLineDash([7, 5]);
+      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = col + "cc";
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const xs = poly.map((p) => p[0]), zs = poly.map((p) => p[1]);
+      const [lx, ly] = toScreen(Math.min(...xs), Math.min(...zs));
+      label(b.name, lx + 6, ly + 6, col, "left", "top");
+    }
+  }
+  ctx.restore();
+}
+
+function drawGateLabels() {
+  for (const g of S.map.gates) {
+    const [x, y] = toScreen(g.x, g.z);
+    label(g.name, x, y, "#ffd640", "center", "middle");
+  }
+}
+
+function label(text, x, y, color, align, base) {
+  ctx.save();
+  ctx.font = "600 11.5px " + getComputedStyle(document.body).fontFamily;
+  ctx.textAlign = align;
+  ctx.textBaseline = base;
+  const w = ctx.measureText(text).width;
+  const bx = align === "center" ? x - w / 2 - 5 : x - 5;
+  const by = base === "middle" ? y - 9 : y - 3;
+  ctx.fillStyle = "rgba(10,11,14,.78)";
+  roundRect(bx, by, w + 10, 18, 4);
+  ctx.fill();
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, base === "middle" ? y + 0.5 : y + 0.5);
+  ctx.restore();
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function mexRadius(metal) { return Math.max(3.2, Math.min(15, (22 + metal * 9) * S.view.s)); }
+
+function drawMex(x) {
+  const [sx, sy] = toScreen(x.x, x.z);
+  const r = mexRadius(x.metal);
+  ctx.beginPath();
+  ctx.arc(sx, sy, r, 0, Math.PI * 2);
+  ctx.fillStyle = "#3cc8ff";
+  ctx.fill();
+  ctx.lineWidth = Math.max(1, r * 0.22);
+  ctx.strokeStyle = "#fff";
+  ctx.stroke();
+  if (r > 9) {
+    ctx.fillStyle = "#04212e";
+    ctx.font = `700 ${Math.round(r * 0.8)}px ` + getComputedStyle(document.body).fontFamily;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(x.metal.toFixed(1), sx, sy + 0.5);
+  }
+}
+
+function drawGeo(x, z) {
+  const [sx, sy] = toScreen(x, z);
+  const r = Math.max(5, Math.min(16, 48 * S.view.s));
+  ctx.fillStyle = "#ff7a1a";
+  ctx.strokeStyle = "#000";
+  ctx.lineWidth = 1.5;
+  ctx.fillRect(sx - r, sy - r, r * 2, r * 2);
+  ctx.strokeRect(sx - r, sy - r, r * 2, r * 2);
+}
+
+function drawMark(k) {
+  const [sx, sy] = toScreen(k.x, k.z);
+  const r = Math.max(10, Math.min(24, 80 * S.view.s));
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI / 6 + (i * Math.PI) / 3;
+    i ? ctx.lineTo(sx + r * Math.cos(a), sy + r * Math.sin(a)) : ctx.moveTo(sx + r * Math.cos(a), sy + r * Math.sin(a));
+  }
+  ctx.closePath();
+  ctx.fillStyle = rgb(k.color);
+  ctx.fill();
+  ctx.strokeStyle = "#000";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.fillStyle = "#000";
+  ctx.font = `700 ${Math.round(r * 0.75)}px ` + getComputedStyle(document.body).fontFamily;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(k.text, sx, sy + 0.5);
+}
+
+function drawStarts() {
+  S.map.teams.forEach((team, ti) => {
+    team.forEach((p, i) => {
+      const [sx, sy] = toScreen(p[0], p[1]);
+      const r = Math.max(9, Math.min(20, 70 * S.view.s));
+      const col = teamColor(ti);
+      ctx.beginPath();
+      ctx.arc(sx, sy, r + 3, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0,0,0,.55)";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = "#0b0b0b";
+      ctx.stroke();
+      ctx.fillStyle = "#0b0b0b";
+      ctx.font = `800 ${Math.round(r * 0.95)}px ` + getComputedStyle(document.body).fontFamily;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(String(i + 1), sx, sy + 1);
+    });
+  });
+}
+
+// mouse: pan, zoom, readout
+let drag = null;
+cv.addEventListener("pointerdown", (e) => {
+  drag = { x: e.clientX, y: e.clientY, cx: S.view.cx, cy: S.view.cy };
+  cv.setPointerCapture(e.pointerId);
+  cv.classList.add("drag");
+});
+cv.addEventListener("pointermove", (e) => {
+  if (drag) {
+    S.view.cx = drag.cx - (e.clientX - drag.x) / S.view.s;
+    S.view.cy = drag.cy - (e.clientY - drag.y) / S.view.s;
+    draw();
+  }
+  readout(e);
+});
+const endDrag = () => { drag = null; cv.classList.remove("drag"); maybeHiRes(); };
+cv.addEventListener("pointerup", endDrag);
+cv.addEventListener("pointercancel", endDrag);
+cv.addEventListener("pointerleave", () => { if (!drag) $("readout").innerHTML = "Scroll to zoom, drag to move"; });
+cv.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  const r = cv.getBoundingClientRect();
+  zoomAt(Math.exp(-e.deltaY * 0.0016), e.clientX - r.left, e.clientY - r.top);
+}, { passive: false });
+cv.addEventListener("dblclick", (e) => {
+  const r = cv.getBoundingClientRect();
+  zoomAt(e.shiftKey ? 0.5 : 2, e.clientX - r.left, e.clientY - r.top);
+});
+
+function readout(e) {
+  const m = S.map, g = S.grid;
+  if (!m || !g) return;
+  const r = cv.getBoundingClientRect();
+  const sx = e.clientX - r.left, sy = e.clientY - r.top;
+  const [x, z] = toMap(sx, sy);
+  if (x < 0 || z < 0 || x > m.W || z > m.H) { $("readout").innerHTML = "Outside the map"; return; }
+  const ix = Math.min(g.nx - 1, Math.round(x / 8)), iz = Math.min(g.nz - 1, Math.round(z / 8));
+  const i = iz * g.nx + ix;
+  const bits = g.cells[i];
+  let html = `<span>x <b>${Math.round(x)}</b> z <b>${Math.round(z)}</b></span><span>height <b>${g.height[i]}</b></span>`;
+  if (bits & 64) html += `<span class="cls lava">Lava - nobody survives</span>`;
+  else {
+    html += S.info.classes.map((c, k) => `<span class="cls ${(bits >> k) & 1 ? "y" : ""}">${CLASS_NAMES[c]}</span>`).join("");
+    if (bits & 128) html += `<span class="cls lava">Damaging ground</span>`;
+  }
+  let best = null, bd = 1e9;
+  for (const mx of m.mexes) {
+    const [px, py] = toScreen(mx.x, mx.z);
+    const d = Math.hypot(px - sx, py - sy);
+    if (d < bd) { bd = d; best = mx; }
+  }
+  if (best && bd < mexRadius(best.metal) + 4) html += `<span>metal spot <b>${best.metal.toFixed(1)}</b></span>`;
+  $("readout").innerHTML = html;
+}
+
+// toolbar
+function syncToolbar() {
+  for (const b of document.querySelectorAll("#layers button")) b.classList.toggle("on", !!S.layers[b.dataset.layer]);
+  for (const b of document.querySelectorAll("#routes button")) b.classList.toggle("on", b.dataset.route === S.route);
+  updateLegend();
+}
+function toggleLayer(k) {
+  S.layers[k] = !S.layers[k];
+  store("layers", S.layers);
+  syncToolbar();
+  draw();
+}
+async function setRoute(cls) {
+  S.route = S.route === cls ? "" : cls;
+  syncToolbar();
+  if (S.route) {
+    try { await loadRoute(S.route); } catch (e) { toast(e.message); }
+  }
+  draw();
+}
+function updateLegend() {
+  const l = $("legend");
+  if (!S.route || !S.map) { l.innerHTML = ""; return; }
+  const line = S.map.lines.find((x) => x.trim().toLowerCase().startsWith(S.route)) || "";
+  l.innerHTML = `<span class="key"></span>out of reach &middot; ${esc(line.replace(/\s{2,}/g, " "))}`;
+}
+document.querySelectorAll("#layers button").forEach((b) => (b.onclick = () => toggleLayer(b.dataset.layer)));
+document.querySelectorAll("#routes button").forEach((b) => (b.onclick = () => setRoute(b.dataset.route)));
+$("z-in").onclick = () => zoomAt(1.5);
+$("z-out").onclick = () => zoomAt(1 / 1.5);
+$("z-fit").onclick = fit;
+
+// ------------------------------------------------------------------ build
+function mapName(title, v) {
+  const c = S.info.settings.config;
+  return `${c.prefix ? c.prefix + " " : ""}${title} v${v}`;
+}
+function updateName() {
+  $("mapname").textContent = mapName($("title").value.trim() || "...", $("version").value || 1);
+}
+let verTimer = null;
+function refreshVersions() {
+  clearTimeout(verTimer);
+  verTimer = setTimeout(async () => {
+    const title = $("title").value.trim();
+    if (!title) return;
+    try {
+      const v = await api("versions?title=" + encodeURIComponent(title));
+      refreshVersions.existing = v.existing;
+      if (!refreshVersions.manual) $("version").value = v.suggested;
+      versionNote();
+      updateName();
+    } catch (e) { /* not important */ }
+  }, 200);
+}
+refreshVersions.existing = [];
+function versionNote() {
+  const ex = refreshVersions.existing || [];
+  const v = parseInt($("version").value, 10);
+  const n = $("version-note");
+  if (ex.includes(v)) {
+    n.innerHTML = `<b>v${v}</b> of this map already exists. A changed map needs a new version number, otherwise players get download conflicts.`;
+    n.className = "note warn";
+  } else if (ex.length) {
+    n.textContent = `Existing versions: ${ex.map((x) => "v" + x).join(", ")}.`;
+    n.className = "note";
+  } else n.className = "note hidden";
+}
+$("title").addEventListener("input", () => {
+  S.titleEdited[S.tpl.id] = true;
+  S.titles[S.tpl.id] = $("title").value;
+  store("titleEdited", S.titleEdited);
+  store("titles", S.titles);
+  refreshVersions.manual = false;
+  updateName();
+  refreshVersions();
+});
+$("version").addEventListener("input", () => { refreshVersions.manual = true; versionNote(); updateName(); });
+
+function updateBuildButton() {
+  const b = $("btn-build");
+  const running = S.job && S.job.state === "running";
+  b.disabled = !S.map || S.busy || running;
+  b.classList.toggle("warn", !!S.map && !S.map.ok);
+  b.textContent = running ? "Building..." : S.map && !S.map.ok ? "Build anyway (check found problems)" : "Build map";
+}
+
+$("btn-build").onclick = async () => {
+  if (!S.map) return;
+  $("result").classList.add("hidden");
+  try {
+    const job = await api("build", { id: S.map.id, title: $("title").value.trim(), version: parseInt($("version").value, 10), install: $("install").checked });
+    S.job = job;
+    $("progress").classList.remove("hidden");
+    $("logbox").classList.remove("hidden");
+    updateBuildButton();
+    pollJob(job.id);
+  } catch (e) {
+    toast(e.message);
+  }
+};
+
+async function pollJob(id) {
+  let j;
+  try { j = await api("job/" + id); } catch (e) { toast(e.message); return; }
+  S.job = j;
+  $("bar").style.width = Math.round(j.progress * 100) + "%";
+  $("phase").textContent = j.phase;
+  $("elapsed").textContent = Math.round(j.seconds) + " s";
+  $("log").textContent = j.log.join("\n");
+  if (j.state === "running") { setTimeout(() => pollJob(id), 500); return; }
+  updateBuildButton();
+  const r = $("result");
+  r.classList.remove("hidden");
+  if (j.state === "done") {
+    const res = j.result;
+    r.className = "result";
+    r.innerHTML = `<div class="ttl">${esc(res.name)} is ready</div>
+      <code>${esc(res.file)}</code> &middot; ${(res.bytes / 1e6).toFixed(1)} MB &middot; ${Math.round(j.seconds)} s
+      ${res.installed ? `<p>Installed into Zero-K. In the lobby, switch off <b>Only show featured maps</b> to see it.</p>` : ""}
+      <div class="acts"><button class="ghost" id="open-file">Show file</button>${res.installed ? `<button class="ghost" id="open-inst">Show in Zero-K maps</button>` : ""}</div>`;
+    $("open-file").onclick = () => api("open", { path: res.path }).catch((e) => toast(e.message));
+    if (res.installed) $("open-inst").onclick = () => api("open", { path: res.installed }).catch((e) => toast(e.message));
+    refreshVersions.manual = false;
+    refreshVersions();
+  } else {
+    r.className = "result err";
+    r.innerHTML = `<div class="ttl">Build failed</div>${esc(j.error || "unknown error")}`;
+  }
+}
+
+// ------------------------------------------------------------------ settings
+let pickAvailable = false;
+window.addEventListener("pywebviewready", () => { pickAvailable = true; });
+function openSettings() {
+  const st = S.info.settings, c = st.config;
+  $("s-author").value = c.author === "Unknown" ? "" : c.author;
+  $("s-prefix").value = c.prefix;
+  $("s-credit").checked = c.credit;
+  $("s-zerok").value = c.zerok || "";
+  $("s-zerok").placeholder = st.zerok_found[0] || "not found - please choose the folder";
+  $("s-zerok-found").textContent = st.zerok_found.length ? "Found automatically: " + st.zerok_found.join(", ") + " (leave empty to use it)" : "Zero-K was not found automatically.";
+  $("s-outdir").value = c.outdir || "";
+  $("s-outdir").placeholder = st.default_outdir;
+  for (const b of $("s-badge").children) b.classList.toggle("on", b.dataset.v === c.badge);
+  for (const b of document.querySelectorAll("[data-pick]")) b.classList.toggle("hidden", !pickAvailable);
+  $("s-error").classList.add("hidden");
+  $("settings").classList.remove("hidden");
+  $("s-author").focus();
+}
+for (const b of $("s-badge").children) b.onclick = () => { for (const o of $("s-badge").children) o.classList.toggle("on", o === b); };
+document.querySelectorAll("[data-pick]").forEach((b) => (b.onclick = async () => {
+  const inp = $(b.dataset.pick);
+  const p = await window.pywebview.api.pick_folder(inp.value || inp.placeholder || "");
+  if (p) inp.value = p;
+}));
+$("s-cancel").onclick = () => $("settings").classList.add("hidden");
+$("s-save").onclick = async () => {
+  try {
+    const badge = [...$("s-badge").children].find((b) => b.classList.contains("on"));
+    const st = await api("config", {
+      author: $("s-author").value.trim() || "Unknown", prefix: $("s-prefix").value.trim(),
+      badge: badge ? badge.dataset.v : "forge", credit: $("s-credit").checked,
+      zerok: $("s-zerok").value.trim(), outdir: $("s-outdir").value.trim(),
+    });
+    S.info.settings = st;
+    $("settings").classList.add("hidden");
+    renderWho();
+    updateName();
+    refreshVersions();
+  } catch (e) {
+    $("s-error").textContent = e.message;
+    $("s-error").classList.remove("hidden");
+  }
+};
+$("btn-settings").onclick = openSettings;
+$("fix-author").onclick = (e) => { e.preventDefault(); openSettings(); };
+
+// ------------------------------------------------------------------ misc wiring
+$("btn-preview").onclick = () => schedulePreview(0);
+$("btn-dice").onclick = () => { $("seed").value = 1 + Math.floor(Math.random() * 99999); schedulePreview(0); };
+$("seed").addEventListener("change", () => schedulePreview(0));
+$("auto").checked = recall("auto", true);
+$("auto").onchange = () => store("auto", $("auto").checked);
+
+document.addEventListener("keydown", (e) => {
+  if (e.target.matches("input, textarea") || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (!$("settings").classList.contains("hidden")) { if (e.key === "Escape") $("settings").classList.add("hidden"); return; }
+  const k = e.key.toLowerCase();
+  if (k === "f") fit();
+  else if (k === "+" || k === "=") zoomAt(1.5);
+  else if (k === "-") zoomAt(1 / 1.5);
+  else if (k === "r") $("btn-dice").click();
+  else if (k === "m") toggleLayer("mexes");
+  else if (k === "s") toggleLayer("starts");
+  else if (k === "b") toggleLayer("boxes");
+  else if (k === "g") toggleLayer("grid");
+  else if (k >= "0" && k <= "5") setRoute(["", ...S.info.classes][+k]);
+});
+
+new ResizeObserver(resize).observe(cv);
+init();

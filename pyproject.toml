@@ -24,6 +24,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+app = ["pywebview>=5.0"]
 test = ["pytest>=7", "lupa>=2.0"]
 
 [project.urls]
@@ -31,6 +32,9 @@ Homepage = "https://github.com/Scuide/atlas-map-forge"
 
 [project.scripts]
 atlasforge = "atlasforge.cli:main"
+
+[project.gui-scripts]
+atlasforge-app = "atlasforge.app:main"
 
 [tool.setuptools.dynamic]
 version = { attr = "atlasforge.__version__" }
@@ -41,3 +45,4 @@ include = ["atlasforge*"]
 [tool.setuptools.package-data]
 atlasforge = ["assets/*"]
 "atlasforge.gadgets" = ["*.lua"]
+"atlasforge.app" = ["web/*", "web/thumbs/*"]

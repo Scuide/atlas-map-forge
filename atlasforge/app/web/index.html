@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atlas Map Forge</title>
+<link rel="icon" href="favicon.png">
+<link rel="stylesheet" href="app.css">
+<script>window.FORGE_TOKEN = "__FORGE_TOKEN__";</script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="mark" aria-hidden="true"></span>
+    <span class="word">ATLAS MAP <b>FORGE</b></span>
+    <span class="ver" id="ver"></span>
+  </div>
+  <div class="top-right">
+    <span class="who" id="who"></span>
+    <button class="ghost" id="btn-settings" title="Settings">Settings</button>
+  </div>
+</header>
+
+<main class="layout">
+  <!-- left: templates and settings -->
+  <aside class="side left">
+    <section class="block">
+      <h2>Template</h2>
+      <div class="gallery" id="gallery"></div>
+    </section>
+    <section class="block grow">
+      <h2 id="tpl-title">Settings</h2>
+      <p class="tpl-desc" id="tpl-desc"></p>
+      <div id="params"></div>
+      <div class="field seed-row">
+        <label for="seed">Seed <span class="hint">same seed, same map</span></label>
+        <div class="seed">
+          <input type="number" id="seed" min="1" max="999999" value="7">
+          <button class="ghost icon" id="btn-dice" title="New random seed (R)">
+            <svg viewBox="0 0 24 24" width="18" height="18"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="8.5" cy="8.5" r="1.6" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1.6" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1.6" fill="currentColor"/></svg>
+            Roll
+          </button>
+        </div>
+      </div>
+    </section>
+    <div class="side-foot">
+      <label class="switch small"><input type="checkbox" id="auto" checked><span></span>Update preview automatically</label>
+      <button class="primary wide" id="btn-preview">Preview</button>
+    </div>
+  </aside>
+
+  <!-- centre: the map -->
+  <section class="stage" id="stage">
+    <canvas id="map"></canvas>
+    <div class="toolbar" id="toolbar">
+      <div class="tgroup" id="layers">
+        <button data-layer="mexes" class="on" title="Metal spots (M)">Metal</button>
+        <button data-layer="geos" class="on" title="Geothermal vents">Geo</button>
+        <button data-layer="starts" class="on" title="Start points (S)">Starts</button>
+        <button data-layer="boxes" class="on" title="Start boxes (B)">Start boxes</button>
+        <button data-layer="gates" class="on" title="Chokes the check report talks about">Chokes</button>
+        <button data-layer="hazard" class="on" title="Ground that damages units">Danger</button>
+        <button data-layer="grid" title="Grid in map units (G)">Grid</button>
+      </div>
+      <div class="tgroup routes" id="routes">
+        <span class="tlabel">Where can it go?</span>
+        <button data-route="" class="on">Off</button>
+        <button data-route="tanks">Tanks</button>
+        <button data-route="bots">Bots</button>
+        <button data-route="spiders">Spiders</button>
+        <button data-route="amphibians">Amphibians</button>
+        <button data-route="hovers">Hovers</button>
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="zoom">
+      <button id="z-in" title="Zoom in (+)">+</button>
+      <button id="z-out" title="Zoom out (-)">&minus;</button>
+      <button id="z-fit" title="Fit map (F)">Fit</button>
+    </div>
+    <div class="readout" id="readout">Scroll to zoom, drag to move</div>
+    <div class="veil" id="veil"><div class="spinner"></div><span id="veil-text">Forging preview</span></div>
+    <div class="empty" id="empty">Pick a template to start.</div>
+  </section>
+
+  <!-- right: check and build -->
+  <aside class="side right">
+    <section class="block">
+      <h2>Check <span class="badge" id="check-badge"></span></h2>
+      <ul class="report" id="report"></ul>
+    </section>
+    <section class="block">
+      <h2>Map</h2>
+      <dl class="facts" id="facts"></dl>
+    </section>
+    <section class="block build grow">
+      <h2>Build</h2>
+      <div class="note warn hidden" id="author-note">Your maps will say <b>Author: Unknown</b>. <a href="#" id="fix-author">Set your name</a></div>
+      <div class="field">
+        <label for="title">Map title</label>
+        <input type="text" id="title" maxlength="48" spellcheck="false">
+      </div>
+      <div class="field row2">
+        <div>
+          <label for="version">Version</label>
+          <input type="number" id="version" min="1" max="999" value="1">
+        </div>
+        <div class="namebox">
+          <label>Map name</label>
+          <div class="mapname" id="mapname"></div>
+        </div>
+      </div>
+      <div class="note hidden" id="version-note"></div>
+      <label class="switch small"><input type="checkbox" id="install" checked><span></span>Install into Zero-K</label>
+      <button class="forge wide" id="btn-build" disabled>Build map</button>
+      <div class="progress hidden" id="progress">
+        <div class="bar"><i id="bar"></i></div>
+        <div class="phase"><span id="phase"></span><span id="elapsed"></span></div>
+      </div>
+      <div class="result hidden" id="result"></div>
+      <details class="log hidden" id="logbox"><summary>Build log</summary><pre id="log"></pre></details>
+    </section>
+  </aside>
+</main>
+
+<div class="modal hidden" id="settings" role="dialog" aria-modal="true" aria-labelledby="set-title">
+  <div class="card">
+    <h2 id="set-title">Settings</h2>
+    <div class="field"><label for="s-author">Author name <span class="hint">shown on the map page</span></label><input id="s-author" maxlength="40"></div>
+    <div class="field"><label for="s-prefix">Name prefix <span class="hint">maps are called "&lt;prefix&gt; &lt;title&gt; v&lt;version&gt;"; may be empty</span></label><input id="s-prefix" maxlength="20"></div>
+    <div class="field"><label>Badge in the lobby map picture</label>
+      <div class="chips" id="s-badge"><button data-v="forge">FORGE badge</button><button data-v="none">No badge</button></div></div>
+    <label class="switch small"><input type="checkbox" id="s-credit"><span></span>Add "Made with Atlas Map Forge." to the description</label>
+    <div class="field"><label for="s-zerok">Zero-K folder</label>
+      <div class="pathrow"><input id="s-zerok" spellcheck="false"><button class="ghost" data-pick="s-zerok">Browse</button></div>
+      <div class="hint" id="s-zerok-found"></div></div>
+    <div class="field"><label for="s-outdir">Output folder <span class="hint">built .sdz files go here</span></label>
+      <div class="pathrow"><input id="s-outdir" spellcheck="false"><button class="ghost" data-pick="s-outdir">Browse</button></div></div>
+    <div class="note warn hidden" id="s-error"></div>
+    <div class="actions"><button class="ghost" id="s-cancel">Cancel</button><button class="primary" id="s-save">Save</button></div>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>

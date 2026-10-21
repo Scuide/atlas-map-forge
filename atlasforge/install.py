@@ -118,3 +118,20 @@ def install(sdz, zerok_dir, lobby_images=True, log=print):
         img.resize((64, 64), Image.LANCZOS).convert("RGBA").save(os.path.join(th, lobby_name(name) + ".png"))
         log("  lobby minimap and thumbnail written")
     return dst
+
+
+# ----------------------------------------------------------------------------- versions
+def existing_versions(cfg, title, folders):
+    """Version numbers of this map that already exist as .sdz in the given folders (e.g. Zero-K/maps,
+    the output folder). Two different files with the same map name cause download conflicts in Zero-K,
+    so a changed map needs a new version number."""
+    stem = cfg.map_name(title, 0).rsplit(" v", 1)[0].replace(" ", "_")   # "Forge_Iron_Wall"
+    pat = re.compile(re.escape(stem) + r"_v(\d+)\.sdz$", re.IGNORECASE)
+    found = set()
+    for f in folders:
+        if f and os.path.isdir(f):
+            for n in os.listdir(f):
+                m = pat.match(n)
+                if m:
+                    found.add(int(m.group(1)))
+    return sorted(found)

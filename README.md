@@ -4,8 +4,8 @@ A map generator for [Zero-K](https://zero-k.info). It builds complete, ready-to-
 heightmap, high-resolution texture, minimap, metal spots, geovents, start boxes, trees, and optional
 map gadgets such as lava cliffs, lava tides and an erupting volcano.
 
-> **Status: early development (0.2).** Six map templates and the command line work today. A Windows app
-> with a large visual preview is next, see the [roadmap](docs/ROADMAP.md).
+> **Status: early development (0.3).** Six map templates, a Windows app with a large map preview and the
+> command line. See the [roadmap](docs/ROADMAP.md).
 
 ## What you get
 
@@ -18,6 +18,33 @@ map gadgets such as lava cliffs, lava tides and an erupting volcano.
   spiders can climb, or lava tides with an on-screen countdown.
 - **Your name on it:** maps are named `<prefix> <title> v<version>`, carry your author name and show a
   small FORGE badge in the map browser (not in game).
+
+## The app
+
+![Atlas Map Forge app](docs/app.png)
+
+1. Pick a template on the left and move the sliders. The preview updates in about a second.
+2. Look at the map: scroll to zoom, drag to move. Switch metal spots, start boxes, chokes and dangerous
+   ground on and off. **Where can it go?** darkens the ground a unit class (tanks, bots, spiders,
+   amphibians, hovers) cannot reach from the start points. The bar at the bottom shows the height under
+   the mouse and which unit classes can drive there.
+3. Read the check on the right, give the map a title and press **Build map**. The map is written to
+   `Documents\Atlas Map Forge` and installed into Zero-K (the Zero-K folder is found automatically).
+
+Keys: `F` fit, `+`/`-` zoom, `R` new seed, `M` metal, `S` starts, `B` start boxes, `G` grid,
+`1`-`5` unit class routes, `0` routes off.
+
+**Windows:** download `AtlasMapForge.exe` from the [releases](https://github.com/Scuide/atlas-map-forge/releases)
+and run it, no installation needed. The first start takes a few seconds while the program unpacks.
+
+**With Python** (any system):
+
+```
+pip install "atlas-map-forge[app] @ git+https://github.com/Scuide/atlas-map-forge"
+atlasforge app
+```
+
+Without the `[app]` extra (pywebview), the app opens in your web browser instead of its own window.
 
 ## Install (command line)
 
@@ -108,6 +135,11 @@ Code layout:
 | `atlasforge.checks` | reachability per movement class |
 | `atlasforge.gadgets` | map gadgets (Lua) and their settings |
 | `atlasforge.install` | find Zero-K, install maps |
+| `atlasforge.app` | the app: local web server (`server.py`), page (`web/`), window (pywebview) |
+
+The Windows program is packed with PyInstaller (`packaging/atlasforge.spec`). The `windows-app` workflow
+builds it, runs a self-test (preview and a full map build with the packed program) and, for a version tag,
+creates a draft release.
 
 ## License
 
