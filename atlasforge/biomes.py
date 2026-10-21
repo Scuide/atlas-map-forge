@@ -1,0 +1,83 @@
+"""Biomes: colour palettes, lighting, sky, water and wind for each map look."""
+
+BIOMES = {
+    "temperate": dict(
+        bed=(74, 80, 66), shore=(178, 166, 124), low=(76, 104, 44), mid=(96, 118, 54),
+        high=(122, 120, 82), rock=(122, 114, 102), cliff=(80, 74, 68), peak=(212, 214, 216),
+        patch=(120, 104, 68), grain=0.10,
+        trees=True, tree_density=1.0, peak_level=0.93,
+        sun=(1.0, 0.95, 0.85), sky=(0.55, 0.7, 0.95), fog=(0.75, 0.82, 0.9),
+        gamb=(0.5, 0.5, 0.5), gdif=(0.85, 0.85, 0.8),
+        water_base=(0.4, 0.6, 0.75), water_min=(0.05, 0.2, 0.3), water_surf=(0.6, 0.75, 0.85),
+        wind=(4, 20)),
+    "desert": dict(
+        bed=(130, 104, 76), shore=(222, 196, 150), low=(208, 168, 112), mid=(194, 150, 96),
+        high=(178, 130, 86), rock=(152, 106, 74), cliff=(108, 72, 52), peak=(226, 200, 160),
+        patch=(172, 124, 84), grain=0.07,
+        trees=False, tree_density=0.0, peak_level=1.1,
+        sun=(1.0, 0.92, 0.75), sky=(0.75, 0.75, 0.85), fog=(0.9, 0.8, 0.65),
+        gamb=(0.55, 0.5, 0.45), gdif=(0.95, 0.85, 0.7),
+        water_base=(0.45, 0.6, 0.55), water_min=(0.1, 0.25, 0.25), water_surf=(0.7, 0.75, 0.7),
+        wind=(8, 25)),
+    "arctic": dict(
+        bed=(60, 72, 86), shore=(170, 182, 190), low=(216, 224, 232), mid=(228, 234, 240),
+        high=(240, 244, 248), rock=(112, 118, 128), cliff=(70, 76, 88), peak=(250, 252, 255),
+        patch=(176, 188, 200), grain=0.05,
+        trees=True, tree_density=0.35, peak_level=0.8,
+        sun=(0.9, 0.95, 1.0), sky=(0.7, 0.8, 0.95), fog=(0.85, 0.9, 0.95),
+        gamb=(0.55, 0.58, 0.65), gdif=(0.8, 0.82, 0.88),
+        water_base=(0.5, 0.65, 0.8), water_min=(0.1, 0.2, 0.35), water_surf=(0.75, 0.85, 0.95),
+        wind=(10, 28)),
+    "volcanic": dict(
+        bed=(60, 40, 30), shore=(104, 88, 78), low=(104, 92, 84), mid=(90, 82, 78),
+        high=(76, 70, 68), rock=(110, 90, 78), cliff=(46, 38, 36), peak=(176, 78, 34),
+        patch=(132, 94, 66), grain=0.12,
+        trees=False, tree_density=0.0, peak_level=0.9,
+        sun=(1.0, 0.75, 0.55), sky=(0.45, 0.3, 0.28), fog=(0.45, 0.32, 0.28),
+        gamb=(0.5, 0.42, 0.4), gdif=(0.95, 0.75, 0.6),
+        water_base=(0.5, 0.25, 0.1), water_min=(0.25, 0.05, 0.0), water_surf=(0.9, 0.4, 0.1),
+        wind=(5, 22)),
+    "ashland": dict(
+        bed=(40, 28, 22), shore=(46, 40, 38), low=(44, 40, 40), mid=(78, 72, 70),
+        high=(96, 90, 86), rock=(58, 50, 48), cliff=(30, 26, 26), peak=(176, 164, 108),
+        patch=(112, 70, 44), grain=0.14, patch_amt=0.35,
+        trees=False, tree_density=0.0, peak_level=1.55,
+        sun=(1.0, 0.72, 0.5), sky=(0.38, 0.2, 0.16), fog=(0.42, 0.24, 0.18),
+        gamb=(0.46, 0.36, 0.34), gdif=(1.0, 0.76, 0.6),
+        water_base=(0.5, 0.25, 0.1), water_min=(0.25, 0.05, 0.0), water_surf=(0.9, 0.4, 0.1),
+        wind=(4, 18)),
+    "alien": dict(
+        bed=(40, 40, 70), shore=(110, 90, 130), low=(86, 70, 118), mid=(66, 100, 116),
+        high=(116, 146, 136), rock=(90, 84, 110), cliff=(56, 50, 76), peak=(190, 230, 210),
+        patch=(138, 92, 136), grain=0.10,
+        trees=False, tree_density=0.0, peak_level=0.88,
+        sun=(0.85, 0.9, 1.0), sky=(0.4, 0.3, 0.55), fog=(0.5, 0.4, 0.65),
+        gamb=(0.5, 0.45, 0.6), gdif=(0.85, 0.85, 0.95),
+        water_base=(0.3, 0.7, 0.6), water_min=(0.05, 0.25, 0.3), water_surf=(0.5, 0.9, 0.8),
+        wind=(2, 18)),
+    "moon": dict(
+        bed=(70, 70, 72), shore=(120, 120, 122), low=(136, 134, 132), mid=(120, 118, 118),
+        high=(150, 148, 146), rock=(98, 96, 96), cliff=(64, 62, 62), peak=(184, 182, 180),
+        patch=(104, 104, 106), grain=0.12,
+        trees=False, tree_density=0.0, peak_level=1.1,
+        sun=(1.0, 1.0, 1.0), sky=(0.05, 0.05, 0.08), fog=(0.1, 0.1, 0.12),
+        gamb=(0.4, 0.4, 0.42), gdif=(0.95, 0.95, 0.95),
+        water_base=(0.4, 0.4, 0.45), water_min=(0.1, 0.1, 0.12), water_surf=(0.6, 0.6, 0.65),
+        wind=(0, 5)),
+    "autumn": dict(
+        bed=(76, 72, 60), shore=(176, 158, 118), low=(132, 112, 50), mid=(150, 104, 46),
+        high=(128, 96, 62), rock=(116, 106, 96), cliff=(76, 70, 64), peak=(170, 160, 146),
+        patch=(104, 116, 52), grain=0.11,
+        trees=True, tree_density=0.8, peak_level=0.95,
+        sun=(1.0, 0.9, 0.75), sky=(0.6, 0.65, 0.8), fog=(0.8, 0.75, 0.65),
+        gamb=(0.52, 0.48, 0.42), gdif=(0.9, 0.82, 0.7),
+        water_base=(0.4, 0.55, 0.6), water_min=(0.08, 0.18, 0.22), water_surf=(0.65, 0.72, 0.75),
+        wind=(5, 22)),
+}
+
+for _k, _v in BIOMES.items():
+    _v["name"] = _k
+
+# ground detail material per biome (splat channel 3)
+GROUND_MAT = {"temperate": "grass", "autumn": "grass", "alien": "grass", "desert": "sand",
+              "arctic": "snow", "moon": "snow", "volcanic": "pebbles", "ashland": "pebbles"}
