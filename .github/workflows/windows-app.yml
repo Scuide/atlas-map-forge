@@ -14,12 +14,12 @@ jobs:
   exe:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install
-        run: python -m pip install . pywebview pyinstaller
+        run: python -m pip install ".[app]" pyinstaller
       - name: Pack
         run: pyinstaller -y packaging/atlasforge.spec
       - name: Self-test of the packed program (preview and a full map build)
@@ -29,7 +29,7 @@ jobs:
           $p = Start-Process dist\AtlasMapForge.exe -ArgumentList "--selftest","--build" -Wait -PassThru
           Get-Content selftest.log
           if ($p.ExitCode -ne 0) { exit 1 }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: AtlasMapForge-windows
           path: dist/AtlasMapForge.exe

@@ -58,8 +58,12 @@ def test_preview_layers_and_versions(app):
 
 def test_build_job(app):
     call, _, tmp = app
-    call("config", {"author": "Tester", "outdir": str(tmp / "out")})
     p = call("preview", {"template": "skirmish", "values": {"size": 8}, "seed": 2})
+    with pytest.raises(urllib.error.HTTPError) as e:              # no author name -> no build
+        call("build", {"id": p["id"], "title": "Tiny Test", "version": 1, "install": False})
+    assert e.value.code == 400
+    st = call("config", {"author": "Tester", "outdir": str(tmp / "out"), "prefix": "Mine", "badge": "none"})
+    assert st["config"]["prefix"] == "Forge" and "badge" not in st["config"]
     with pytest.raises(urllib.error.HTTPError):
         call("build", {"id": p["id"], "title": "Bad/Name", "version": 1, "install": False})
     job = call("build", {"id": p["id"], "title": "Tiny Test", "version": 2, "install": False})

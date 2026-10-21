@@ -19,6 +19,12 @@ def all_templates():
     return list(_REGISTRY.values())
 
 
+def register(template):
+    """Add a template at run time (for new templates under development; see docs/TEMPLATE_GUIDE.md)."""
+    _REGISTRY[template.id] = template
+    return template
+
+
 def get(template_id):
     try:
         return _REGISTRY[template_id]
@@ -26,4 +32,4 @@ def get(template_id):
         raise KeyError(f"unknown template {template_id!r}, expected one of {sorted(_REGISTRY)}") from None
 
 
-__all__ = ["Param", "Template", "all_templates", "get"]
+__all__ = ["Param", "Template", "all_templates", "get", "register"]

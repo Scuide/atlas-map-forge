@@ -18,6 +18,12 @@ class _JsApi:
     def __init__(self):
         self.window = None
 
+    def pick_file(self, start=""):
+        import webview
+        res = self.window.create_file_dialog(webview.OPEN_DIALOG, directory=start or "",
+                                             file_types=("Zero-K maps (*.sdz;*.sd7;*.smf)", "All files (*.*)"))
+        return res[0] if res else ""
+
     def pick_folder(self, start=""):
         import webview
         res = self.window.create_file_dialog(webview.FOLDER_DIALOG, directory=start or "")
@@ -85,7 +91,8 @@ def selftest():
                 t0 = time.time()
                 res = forge.build(state.designs[p["id"]].design, outdir=tmp, config=ForgeConfig(author="selftest"),
                                   log=lambda *a: None, preview=False)
-                ok = ok and os.path.getsize(res["path"]) > 1_000_000
+                from .. import watermark
+                ok = ok and os.path.getsize(res["path"]) > 1_000_000 and watermark.verify(res["path"])["forge"]
                 built = f", build {time.time() - t0:.0f} s ({res['bytes'] / 1e6:.1f} MB)"
         print(f"selftest {'OK' if ok else 'FAILED'}: version {info['version']}, {len(info['templates'])} templates, "
               f"preview {p['seconds']} s{built}")

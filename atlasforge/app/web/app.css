@@ -84,7 +84,7 @@ h2 {
   display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 5px;
   font-weight: 600; font-size: 12.5px;
 }
-.field .val { font-family: var(--mono); font-size: 12px; color: var(--ember-hot); font-weight: 500; }
+.field .val { font-family: var(--mono); font-size: 12px; color: #d8d5cf; font-weight: 500; }
 .hint, .help { color: var(--faint); font-size: 11.5px; font-weight: 400; }
 .help { margin-top: 4px; line-height: 1.35; }
 input[type=text], input[type=number], input:not([type]) {
@@ -184,6 +184,7 @@ button:disabled { opacity: .45; cursor: default; filter: none; }
 .cls { padding: 1px 6px; border-radius: 4px; background: #23262c; color: var(--faint); font-family: var(--ui); font-size: 11.5px; }
 .cls.y { background: rgba(95, 211, 138, .16); color: var(--ok); }
 .cls.lava { background: rgba(255, 93, 77, .18); color: var(--bad); }
+.cls.ev { background: rgba(255, 176, 40, .18); color: #ffc45c; }
 .legend {
   pointer-events: auto; display: flex; align-items: center; gap: 7px; padding: 0 10px; height: 34px; border-radius: 8px;
   font-size: 12px; background: rgba(14, 15, 18, .86); border: 1px solid rgba(70, 200, 255, .35); color: #cfe9f5;
@@ -256,3 +257,22 @@ button:disabled { opacity: .45; cursor: default; filter: none; }
   .layout { grid-template-columns: 290px 1fr 290px; }
   .gallery { grid-template-columns: 1fr 1fr; }
 }
+
+/* ---------------------------------------------------------------- advanced mode */
+.adv-badge {
+  margin-left: 6px; padding: 2px 8px; border-radius: 10px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em;
+  color: #1a0d03; background: #ffb04a;
+}
+.group-head {
+  margin: 18px 0 10px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 11.5px; font-weight: 700;
+  letter-spacing: .09em; text-transform: uppercase; color: var(--muted);
+}
+.field .val.beyond, .chips button.beyond { color: #ffb04a; }
+.chips button.beyond { border-style: dashed; }
+.field.beyond input[type=range] { accent-color: #ffb04a; }
+.adv-field { padding: 10px 12px; border-radius: 8px; background: rgba(255, 176, 74, .06); border: 1px solid rgba(255, 176, 74, .25); }
+.warncard p { color: #d9d6d1; margin: 0 0 10px; font-size: 13px; }
+.warncard h2 { color: #ffb04a; }
+.checkres { margin: 8px 0 0; padding: 8px 10px; border-radius: 6px; background: #0f1013; font: 11.5px/1.45 var(--mono); white-space: pre-wrap; color: var(--text); }
+.checkres.yes { border-left: 3px solid var(--ok); }
+.checkres.no { border-left: 3px solid var(--faint); }

@@ -1,45 +1,59 @@
 # Roadmap
 
+Features first, balance tools after them.
+
 ## 0.1 - foundation (done)
 
-- Python package `atlasforge` with the generator core: terrain blocks, texture renderer, file formats,
-  archive, reachability checks, map gadgets.
-- Command line: `procedural`, `config`, `find-zerok`, `install`.
-- User settings: author, name prefix, FORGE badge, credit line.
-- Works on Windows (spawn) and Linux (fork); automatic tests in CI.
+Generator core, command line, user settings, Windows and Linux, automatic tests.
 
 ## 0.2 - templates (done)
 
-Ready-made map templates with declared parameters (name, type, range, default, description), so the app
-can build its controls automatically:
+Six templates with declared parameters, quick preview, plain-English check report.
 
-| Template | Parameters (examples) |
-|---|---|
-| Procedural Skirmish | size, biome, style, symmetry, relief |
-| Chokepoint Front | number of gates, gate types (level, hump, water), wall height |
-| River Crossing | fords, bridges, lava tides on/off |
-| Arena (4 players) | ring size, gates, rich centre |
-| Volcano | size, eruption interval, bomb damage |
-| Chicken Defense | shape, entrances |
+## 0.3 - Windows app (done)
 
-Fast preview (heightmap, metal spots, start points) in a few seconds, plain-English check report.
+Local web interface in its own window: template gallery, large zoomable preview with overlays, check
+report, build & install with progress. One-file Windows program built and self-tested on GitHub.
 
-## 0.3 - Windows app (done, first Windows build pending)
+## 0.4 - terrain quality and control (in progress)
 
-- Web interface in its own window, optimised for looking at the map: large zoomable preview,
-  overlays for metal spots, start boxes and the routes each unit class can take.
-- Template gallery, sliders, seed dice, "Build & install" with progress.
-- Finds the Zero-K folder automatically; one-file download from GitHub Releases.
+- Done: seamless symmetry, erosion, smoother ramp bends, general settings (metal, trees, erosion),
+  advanced mode without limits, hidden watermark with `atlasforge verify`, fixed Forge name prefix and
+  badge, author name required.
+- Next: cliff and shore textures, ramp/road decals; rocks, wrecks (reclaim) and crystals per biome;
+  more biomes (jungle, swamp, industrial), own sky boxes, grass, sun direction.
+
+## 0.5 - more ways to play
+
+- Free-for-all for 3 to 8 players (rotational symmetry, one start box per player).
+- Team games 2v2 to 5v5 with several start points per box.
+- Naval / archipelago template: islands, deep channels, amphibious and hover routes.
+- New templates: Three Lanes, King of the Hill, Fortress, Open Dunes, City Grid.
+
+## 0.6 - twists (map gadgets)
+
+- Meteor showers, control points with bonuses, crumbling walls, supply drops, day and night.
+
+## 0.7 - balance and testing
+
+- Fairness check: travel times per unit class to metal, centre and enemy, metal per side, high ground.
+- Metal layout in expansion stages; spacing rules; metal total by map size.
+- "Test in Zero-K": start the map against the AI from the app; AI-vs-AI quick run with a short report.
+- Map values: wind, tidal strength, gravity, extractor radius.
+
+## App and distribution (alongside)
+
+- Windows program attached to GitHub Releases as a direct download.
+- Map codes (template + settings + seed as short text) to share and paste; compare two seeds side by side.
+- Start-up time of the one-file program, update notice, code signing (before 1.0).
+- Upload helper for zero-k.info, name collision check.
 
 ## 1.0 - release
 
-- Quick-start guide with pictures, template gallery.
-- Talk to the Zero-K moderators before announcing (forum/Discord).
+Quick-start guide with pictures, template gallery, talk to the Zero-K moderators before announcing.
 
 ## Later
 
 - Beyond All Reason (BAR) profile.
-- Advanced mapping: layout files with free building blocks, a simple layout editor.
-- More twists: meteor showers, supply drops, control points, crumbling walls, day/night.
+- Mapper tools: move metal spots and start points in the preview, layout files, a simple layout editor.
 - Online configurator with preview; in-game generation from a seed.
-- Upload helper for zero-k.info, name collision check.

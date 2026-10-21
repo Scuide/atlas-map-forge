@@ -27,16 +27,16 @@ class RiverCrossing(Template):
     description = ("West vs East across a river or a lava lake. Low fords cross it; with lava tides the fords "
                    "flood every few minutes (on-screen countdown) while a causeway in the middle stays safe.")
     params = (
-        size_param((12, 14, 16, 18, 20), 16),
+        size_param((12, 14, 16, 18, 20), 16, adv_smallest=8),
         biome_param("volcanic"),
         Param("mode", "River", "choice", "lava tides", choices=("lava tides", "lava", "water"),
               help="lava tides: fords flood on a schedule; lava: lava lake, fords always open; "
                    "water: deep river, hovers and amphibians can cross anywhere"),
-        Param("fords", "Fords", "int", 2, min=1, max=3, step=1, help="Low crossings"),
+        Param("fords", "Fords", "int", 2, min=1, max=3, step=1, adv_max=7, help="Low crossings"),
         Param("causeway", "Safe causeway", "bool", True, help="A natural land bridge in the middle that never floods"),
-        Param("width", "River width", "int", 1900, min=1200, max=2600, step=100, help="Elmos"),
-        Param("calm_seconds", "Low tide (s)", "int", 150, min=60, max=300, step=10, help="Lava tides only"),
-        Param("flood_seconds", "High tide (s)", "int", 45, min=20, max=90, step=5, help="Lava tides only"),
+        Param("width", "River width", "int", 1900, min=1200, max=2600, step=100, adv_min=500, adv_max=4500, help="Elmos"),
+        Param("calm_seconds", "Low tide (s)", "int", 150, min=60, max=300, step=10, adv_min=10, adv_max=1800, help="Lava tides only"),
+        Param("flood_seconds", "High tide (s)", "int", 45, min=20, max=90, step=5, adv_min=5, adv_max=900, help="Lava tides only"),
     )
 
     def make(self, v, seed, log=print):
@@ -47,7 +47,7 @@ class RiverCrossing(Template):
         s = W / 8192.0
         LAKE = v["width"] / 2
         rng = np.random.default_rng(seed)
-        h, xx, zz, low, en = base_terrain(n, rng, 1500 * s, C)
+        h, xx, zz, low, en = base_terrain(n, rng, 1500 * s, C, sym="ew")
         ax = np.abs(xx - C)
         h = np.maximum(h, 85).astype(np.float32)           # land always above the high tide (60)
         crossings = v["fords"] + (1 if v["causeway"] else 0)

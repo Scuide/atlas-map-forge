@@ -14,6 +14,7 @@
     <span class="mark" aria-hidden="true"></span>
     <span class="word">ATLAS MAP <b>FORGE</b></span>
     <span class="ver" id="ver"></span>
+    <span class="adv-badge hidden" id="adv-badge" title="Advanced mode: safe limits are off">ADVANCED</span>
   </div>
   <div class="top-right">
     <span class="who" id="who"></span>
@@ -31,6 +32,7 @@
     <section class="block grow">
       <h2 id="tpl-title">Settings</h2>
       <p class="tpl-desc" id="tpl-desc"></p>
+      <div class="note warn hidden" id="adv-note">Advanced mode: the safe limits are off. Orange values are beyond them and may give broken or unplayable maps.</div>
       <div id="params"></div>
       <div class="field seed-row">
         <label for="seed">Seed <span class="hint">same seed, same map</span></label>
@@ -59,7 +61,7 @@
         <button data-layer="starts" class="on" title="Start points (S)">Starts</button>
         <button data-layer="boxes" class="on" title="Start boxes (B)">Start boxes</button>
         <button data-layer="gates" class="on" title="Chokes the check report talks about">Chokes</button>
-        <button data-layer="hazard" class="on" title="Ground that damages units">Danger</button>
+        <button data-layer="hazard" class="on" title="Ground that damages units (red) and lava bomb zones (amber)">Danger</button>
         <button data-layer="grid" title="Grid in map units (G)">Grid</button>
       </div>
       <div class="tgroup routes" id="routes">
@@ -95,7 +97,7 @@
     </section>
     <section class="block build grow">
       <h2>Build</h2>
-      <div class="note warn hidden" id="author-note">Your maps will say <b>Author: Unknown</b>. <a href="#" id="fix-author">Set your name</a></div>
+      <div class="note warn hidden" id="author-note">Set your author name to build maps. <a href="#" id="fix-author">Set your name</a></div>
       <div class="field">
         <label for="title">Map title</label>
         <input type="text" id="title" maxlength="48" spellcheck="false">
@@ -126,18 +128,35 @@
 <div class="modal hidden" id="settings" role="dialog" aria-modal="true" aria-labelledby="set-title">
   <div class="card">
     <h2 id="set-title">Settings</h2>
-    <div class="field"><label for="s-author">Author name <span class="hint">shown on the map page</span></label><input id="s-author" maxlength="40"></div>
-    <div class="field"><label for="s-prefix">Name prefix <span class="hint">maps are called "&lt;prefix&gt; &lt;title&gt; v&lt;version&gt;"; may be empty</span></label><input id="s-prefix" maxlength="20"></div>
-    <div class="field"><label>Badge in the lobby map picture</label>
-      <div class="chips" id="s-badge"><button data-v="forge">FORGE badge</button><button data-v="none">No badge</button></div></div>
-    <label class="switch small"><input type="checkbox" id="s-credit"><span></span>Add "Made with Atlas Map Forge." to the description</label>
+    <div class="field"><label for="s-author">Author name <span class="hint">shown on every map you build; required</span></label><input id="s-author" maxlength="40" placeholder="Your name"></div>
     <div class="field"><label for="s-zerok">Zero-K folder</label>
       <div class="pathrow"><input id="s-zerok" spellcheck="false"><button class="ghost" data-pick="s-zerok">Browse</button></div>
       <div class="hint" id="s-zerok-found"></div></div>
     <div class="field"><label for="s-outdir">Output folder <span class="hint">built .sdz files go here</span></label>
       <div class="pathrow"><input id="s-outdir" spellcheck="false"><button class="ghost" data-pick="s-outdir">Browse</button></div></div>
+    <div class="field adv-field">
+      <label class="switch"><input type="checkbox" id="s-advanced"><span></span>Advanced mode</label>
+      <div class="help">Lifts the limits of all map settings (sizes, counts, heights, timings). Maps may break.</div>
+    </div>
+    <div class="field">
+      <label for="s-check">Check a map file <span class="hint">was it made with Atlas Map Forge?</span></label>
+      <div class="pathrow"><input id="s-check" spellcheck="false" placeholder="path to a .sdz, .sd7 or .smf file"><button class="ghost" id="s-check-pick">Browse</button><button class="ghost" id="s-check-go">Check</button></div>
+      <pre class="checkres hidden" id="s-check-res"></pre>
+    </div>
     <div class="note warn hidden" id="s-error"></div>
     <div class="actions"><button class="ghost" id="s-cancel">Cancel</button><button class="primary" id="s-save">Save</button></div>
+  </div>
+</div>
+
+<div class="modal hidden" id="adv-warn" role="alertdialog" aria-modal="true" aria-labelledby="adv-title">
+  <div class="card warncard">
+    <h2 id="adv-title">Turn on advanced mode?</h2>
+    <p>Advanced mode removes the safe limits of every map setting. You can then build maps that are
+      <b>unplayable, unbalanced or broken</b>: bases nobody can reach, metal spots inside walls, huge build times,
+      maps that fail to build, lag or crash Zero-K.</p>
+    <p>The check report still warns you, but nothing stops you. Use it at your own risk and test such maps
+      before you share them.</p>
+    <div class="actions"><button class="ghost" id="adv-cancel">Cancel</button><button class="forge warn" id="adv-ok">I understand, turn it on</button></div>
   </div>
 </div>
 

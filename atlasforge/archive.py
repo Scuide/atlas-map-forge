@@ -8,6 +8,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from . import SQ, TEX_PER_SQ, TILE
+from . import __version__, watermark
 from .badge import draw_badge
 from .config import ForgeConfig, TOOL_NAME
 from .formats import (dds_bytes, mapinfo_lua, metal_layout_lua, minimap_dxt, png_bytes, smt_header,
@@ -66,6 +67,8 @@ def build_archive(name, hm, sym, starts, mexes, geos, biome, rng, outdir, desc, 
     hmax = float(hm.max()) + 1
     water_h = 0.0
     hm16 = np.clip(np.round((hm - hmin) / (hmax - hmin) * 65535), 0, 65535).astype(np.uint16)
+    hm16 = watermark.embed(hm16, hmin, hmax, __version__, (extra or {}).get("template") or "procedural",
+                           int((extra or {}).get("seed") or 0))                 # hidden Forge mark
     hmq = hm16.astype(np.float32) / 65535 * (hmax - hmin) + hmin          # continue with the quantised height
 
     trees = place_trees(hmq, sym, mexes, geos, starts, biome, rng, water_h, keep_clear) if random_trees else []

@@ -9,7 +9,8 @@ the session token that is written into the page, so other web pages cannot use t
   GET  /api/versions?title=...          map versions that already exist
   POST /api/build    {id, title, version, install}  -> job id
   GET  /api/job/<job>                   progress, log, result
-  POST /api/config   {author, prefix, badge, credit, zerok, outdir}
+  POST /api/config   {author, zerok, outdir, advanced}
+  POST /api/verify   {path}             does a map file carry the Forge watermark?
   POST /api/open     {path}             show a built map in the file manager
 """
 import io
@@ -98,16 +99,16 @@ class Forge:
         from ..install import find_zerok
         cfg = C.load()
         found = find_zerok()
-        return dict(config=cfg.__dict__, zerok_found=found, zerok=cfg.zerok or (found[0] if found else ""),
+        return dict(config=dict(cfg.__dict__, prefix=C.PREFIX), zerok_found=found, zerok=cfg.zerok or (found[0] if found else ""),
                     outdir=cfg.outdir or C.default_outdir(), default_outdir=C.default_outdir())
 
     def set_config(self, data):
         cfg = C.load()
-        for k in ("author", "prefix", "badge", "zerok", "outdir"):
+        for k in ("author", "zerok", "outdir"):
             if k in data and data[k] is not None:
                 setattr(cfg, k, str(data[k]).strip())
-        if "credit" in data:
-            cfg.credit = bool(data["credit"])
+        if "advanced" in data:
+            cfg.advanced = bool(data["advanced"])
         if cfg.zerok and not os.path.isdir(cfg.zerok):
             raise ValueError(f"Zero-K folder not found: {cfg.zerok}")
         C.save(cfg)
@@ -131,7 +132,7 @@ class Forge:
         log = []
         t0 = time.time()
         with self.make_lock:
-            d = forge.make(tid, data.get("values") or {}, seed=seed, log=log.append)
+            d = forge.make(tid, data.get("values") or {}, seed=seed, log=log.append, advanced=C.load().advanced)
             ok, lines = forge.check(d)
         did = uuid.uuid4().hex[:12]
         self.designs[did] = Entry(d, ok, lines)
@@ -157,7 +158,9 @@ class Forge:
             geos=[[g[0], g[1]] for g in d.geos], teams=d.teams, starts=d.starts, start_colors=team_cols,
             side_labels=list(d.side_labels), boxes=boxes, gates=gates,
             marks=[dict(x=x, z=z, text=t, color=list(c)) for (x, z, t, c) in d.marks],
-            has_hazard=bool(d.hazard is not None and d.hazard.any()),
+            has_hazard=bool(d.hazard is not None and d.hazard.any())
+            or bool(d.event_zone is not None and d.event_zone.any()),
+            event_label=d.event_label,
             has_blocked=bool(d.blocked is not None and d.blocked.any()),
             height=[float(d.hm.min()), float(d.hm.max())],
             metal_total=round(float(sum(m["metal"] for m in d.mexes)), 1),
@@ -199,9 +202,16 @@ class Forge:
                 bits |= (d.blocked.astype(np.uint8) << 6)
             if d.hazard is not None:
                 bits |= (d.hazard.astype(np.uint8) << 7)
+            if d.event_zone is not None:
+                bits |= (d.event_zone.astype(np.uint8) << 5)
             return "application/octet-stream", bits.tobytes()
         rgba = np.zeros(n + (4,), np.uint8)
         if name == "hazard":
+            if d.event_zone is not None:                     # timed events (lava bombs): amber
+                ez = d.event_zone
+                edge = ez & ~ndimage.binary_erosion(ez, iterations=2)
+                rgba[ez] = (255, 176, 40, 34)
+                rgba[edge] = (255, 186, 60, 190)
             if d.hazard is not None:
                 edge = d.hazard & ~ndimage.binary_erosion(d.hazard, iterations=2)
                 rgba[d.hazard] = (255, 70, 30, 70)
@@ -248,6 +258,7 @@ class Forge:
         if not self.build_lock.acquire(blocking=False):
             raise RuntimeError("A map is already being built. Please wait until it is finished.")
         try:
+            C.load().require_author()
             e = self.entry(data["id"])
             title = (data.get("title") or e.design.title).strip()
             if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 '\-.()]{0,47}", title):
@@ -302,6 +313,16 @@ class Forge:
             job.state, job.phase = "error", "Failed"
         finally:
             self.build_lock.release()
+
+    # ------------------------------------------------------------------ watermark
+    def verify(self, data):
+        from .. import watermark
+        p = str(data.get("path") or "").strip().strip('"')
+        if not p or not os.path.isfile(p):
+            raise ValueError("File not found: " + p)
+        r = watermark.verify(p)
+        r["text"] = watermark.describe(r)
+        return _json_safe(r)
 
     # ------------------------------------------------------------------ file manager
     def open_path(self, path):
@@ -392,7 +413,8 @@ def make_handler(forge_state, quiet=True):
                 data = json.loads(self.rfile.read(n) or b"{}")
                 route = u.path[len("/api/"):]
                 fn = {"preview": forge_state.preview, "build": forge_state.build,
-                      "config": forge_state.set_config, "open": lambda d: forge_state.open_path(d["path"])}.get(route)
+                      "config": forge_state.set_config, "verify": forge_state.verify,
+                      "open": lambda d: forge_state.open_path(d["path"])}.get(route)
                 if fn is None:
                     return self._send(404, {"error": "unknown endpoint"})
                 return self._send(200, fn(data))

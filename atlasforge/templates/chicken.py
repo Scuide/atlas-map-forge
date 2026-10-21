@@ -28,9 +28,9 @@ class ChickenRings(Template):
     params = (
         size_param((16, 18, 20), 20),
         biome_param("alien"),
-        Param("rings", "Ring walls", "int", 3, min=2, max=3, step=1),
-        Param("gate_width", "Gate width", "int", 400, min=260, max=700, step=20, help="Elmos"),
-        Param("wall_height", "Wall height", "int", 400, min=250, max=600, step=10),
+        Param("rings", "Ring walls", "int", 3, min=2, max=3, step=1, adv_min=1, adv_max=5),
+        Param("gate_width", "Gate width", "int", 400, min=260, max=700, step=20, adv_min=150, adv_max=1500, help="Elmos"),
+        Param("wall_height", "Wall height", "int", 400, min=250, max=600, step=10, adv_min=80, adv_max=1500),
         Param("lava_tops", "Lava on the walls", "bool", False, help="Wall tops slowly damage climbing units"),
     )
 
@@ -40,7 +40,8 @@ class ChickenRings(Template):
         W = (n - 1) * SQ
         C = W / 2
         s = W / 10240.0
-        radii = [1100 * s, 2300 * s, 3500 * s] if v["rings"] == 3 else [1300 * s, 3000 * s]
+        radii = {3: [1100 * s, 2300 * s, 3500 * s], 2: [1300 * s, 3000 * s]}.get(
+            v["rings"]) or list(np.linspace(1100 * s, 3900 * s, v["rings"]) if v["rings"] > 1 else [2300 * s])
         gates = [90 if k % 2 == 0 else 270 for k in range(len(radii))]
         gates = gates[::-1] if len(radii) % 2 == 0 else gates            # outermost gate always south
         rng = np.random.default_rng(seed)

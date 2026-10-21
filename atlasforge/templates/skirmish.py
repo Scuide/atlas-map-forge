@@ -17,8 +17,8 @@ class Skirmish(Template):
                    "islands: land in water (hovers and amphibians shine); crater: impact craters"),
         Param("layout", "Teams face", "choice", "diag", choices=procedural.LAYOUTS,
               help="diag: north-west vs south-east; ns: north vs south; ew: west vs east"),
-        Param("relief", "Relief", "float", 1.0, min=0.5, max=1.6, step=0.1, help="Height scale, 1.0 = default"),
-        Param("mexes", "Metal spots per side", "int", 0, min=0, max=40, step=1, help="0 = automatic"),
+        Param("relief", "Relief", "float", 1.0, min=0.5, max=1.6, step=0.1, adv_min=0.1, adv_max=3.0, help="Height scale, 1.0 = default"),
+        Param("mexes", "Metal spots per side", "int", 0, min=0, max=40, step=1, adv_max=100, help="0 = automatic"),
     )
 
     def make(self, v, seed, log=print):

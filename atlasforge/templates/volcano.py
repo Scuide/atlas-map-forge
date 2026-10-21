@@ -14,7 +14,7 @@ from ..noise import fbm, smoothstep
 from ..symmetry import Symmetry, mirror_pairs, mirror_point
 from ..terrain import grid, pit, plateau, road_polyline, smooth_profile
 from .base import Param, Template
-from .common import flatten_all, four_base_boxes, polar
+from .common import flatten_all, four_base_boxes, polar, sym_fields
 
 SIZE = 20
 SEA = -60.0            # floor of the lava sea
@@ -59,12 +59,14 @@ class Volcano(Template):
     description = ("A volcano island in a sea of lava, ringed by islands with four bases (20x20). Every few minutes "
                    "the volcano erupts: lava bombs rain on the slopes and the rising lava floods every causeway.")
     params = (
-        Param("calm_seconds", "Calm between eruptions (s)", "int", 170, min=90, max=360, step=10),
-        Param("flood_seconds", "Eruption length (s)", "int", 40, min=20, max=90, step=5,
+        Param("calm_seconds", "Calm between eruptions (s)", "int", 170, min=90, max=360, step=10, adv_min=10, adv_max=1800),
+        Param("flood_seconds", "Eruption length (s)", "int", 40, min=20, max=90, step=5, adv_min=5, adv_max=900,
               help="How long the causeways stay flooded"),
-        Param("bomb_damage", "Lava bomb damage", "int", 900, min=200, max=2000, step=50,
-              help="Damage at the centre of an impact (radius 170)"),
-        Param("bomb_rate", "Lava bombs per second", "float", 0.9, min=0.2, max=2.5, step=0.1),
+        Param("bomb_damage", "Lava bomb damage", "int", 900, min=200, max=2000, step=50, adv_min=0, adv_max=20000,
+              help="Damage at the centre of an impact (a quarter of it at the edge)"),
+        Param("bomb_radius", "Lava bomb size", "int", 320, min=150, max=500, step=10, adv_min=50, adv_max=1500,
+              help="Impact radius in elmos. Bombs only hit solid ground on the volcano island and the ring"),
+        Param("bomb_rate", "Lava bombs per second", "float", 0.9, min=0.2, max=2.5, step=0.1, adv_min=0.05, adv_max=10.0),
         Param("outer_islands", "Outer islands", "bool", True,
               help="Two rich islands in the corners, each linked by a causeway"),
     )
@@ -81,6 +83,7 @@ class Volcano(Template):
         fb = fbm((n, n), rng, base=7, octaves=6); fb = (fb - fb.mean()) / (fb.std() + 1e-6)
         fs = fbm((n, n), rng, base=26, octaves=4); fs = (fs - fs.mean()) / (fs.std() + 1e-6)
         en = fbm((n, n), rng, base=30, octaves=3); en /= np.abs(en).max() + 1e-6
+        fb, fs, en = sym_fields("point", fb, fs, en)                    # seamless 180 degree symmetry
 
         h = np.full((n, n), SEA, np.float32) + 6 * fs
         ring = np.abs(r - RR) - RW
@@ -183,9 +186,32 @@ class Volcano(Template):
         for a0, a1 in wet:
             d = a1 - a0; u = d / np.linalg.norm(d); nrm = np.array([-u[1], u[0]])
             quads.append([tuple(a0 + nrm * 175), tuple(a1 + nrm * 175), tuple(a1 - nrm * 175), tuple(a0 - nrm * 175)])
+        # lava bomb spots: solid ground above the flood line, never lava, crater or lava cliffs
+        SP = 200.0
+        solid = (h > FLOOD + 40) & ~ndimage.binary_dilation(hazard | crater | (h < FLOOD + 10), iterations=12)
+        isl, rng_t = [], []
+        for zc in np.arange(SP / 2, W, SP):
+            for xc in np.arange(SP / 2, W, SP):
+                rc = math.hypot(xc - C, zc - C)
+                if not solid[int(zc / SQ), int(xc / SQ)] or rc < SUMMIT_R0 + 120:
+                    continue
+                if min(math.hypot(xc - sx, zc - sz) for sx, sz in starts) < 450:
+                    continue                                   # spare the commanders' start spots
+                (isl if rc < ISLAND_R else rng_t).append((rc, xc, zc))
+        isl.sort()
+        island_t = [(x, z) for _, x, z in isl]
+        ring_t = [(x, z) for rc, x, z in rng_t if abs(rc - RR) < RW]
+        zone = np.zeros(h.shape, bool)
+        R_cells = int(v["bomb_radius"] / SQ)
+        for x, z in island_t + ring_t:
+            i, j = int(z / SQ), int(x / SQ)
+            zone[max(0, i - R_cells):i + R_cells + 1, max(0, j - R_cells):j + R_cells + 1] = True
+        zone = ndimage.binary_opening(zone, iterations=3) & (h > FLOOD)
         files.update(eruption_files((C, C), SUMMIT_R0, ISLAND_R - 250, summit_h, FLOOD, quads,
                                     bomb_every_s=round(1.0 / v["bomb_rate"], 3), bomb_damage=v["bomb_damage"],
-                                    ring_r=(RR - RW + 100, RR - 150)))
+                                    bomb_radius=v["bomb_radius"], ring_r=(RR - RW + 100, RR - 150),
+                                    island_targets=island_t, ring_targets=ring_t, target_spacing=SP * 0.5))
+        notes.append(f"Lava bomb spots on solid ground: {len(island_t)} on the volcano, {len(ring_t)} on the ring")
         # paint: lava sea, lava cliffs, crater lake, flood line, cooled lava streams on the flanks
         sea = 1 - smoothstep(-10, 4, h)
         under = (1 - smoothstep(FLOOD - 3, FLOOD + 6, h)) * (1 - sea)
@@ -204,5 +230,6 @@ class Volcano(Template):
                       title="Volcano", description=desc,
                       startboxes=four_base_boxes(team0, team1, ("West", "W"), ("East", "E"), W, half=950),
                       paint=paint, extra_files=files, random_trees=False, notes=notes,
-                      notes_ok=bool(halves and split and volc), hazard=hazard, blocked=h < 1,
+                      notes_ok=bool(halves and split and volc and island_t), hazard=hazard, blocked=h < 1,
+                      event_zone=zone, event_label="lava bombs",
                       start_colors=[(60, 255, 60), (60, 255, 60), (255, 70, 70), (255, 70, 70)])

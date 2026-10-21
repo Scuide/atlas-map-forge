@@ -32,6 +32,8 @@ class Design:
     side_labels: tuple = ("your side", "the enemy")
     hazard: Optional[np.ndarray] = None    # bool grid: lava cliffs / damaging ground (preview overlay)
     blocked: Optional[np.ndarray] = None   # bool grid no ground unit survives (lava) - excluded from checks
+    event_zone: Optional[np.ndarray] = None  # bool grid hit by timed events (e.g. lava bombs) - preview only
+    event_label: str = ""
     template: Optional[str] = None         # set by forge.make()
     values: dict = field(default_factory=dict)
     seed: int = 1

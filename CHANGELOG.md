@@ -1,6 +1,32 @@
 # Changelog
 
-## 0.3.0 - unreleased
+## 0.4.0 - unreleased
+
+- Hidden watermark in every map: a keyed pattern over the heightmap (about 0.04 elmos, invisible) plus a
+  record in the lowest height bits (tool version, template, seed, build date, build id). `atlasforge verify
+  map.sdz` and "Check a map file" in the app's Settings tell whether a map was made with Atlas Map Forge.
+  Tested against 353 Zero-K maps (no false alarm) and after re-packing, smoothing, re-quantising and
+  local edits of the heightmap.
+- Advanced mode (Settings, with a warning): lifts the limits of every map setting - sizes 4-32, more
+  gates/fords/rings, extreme heights and timings. Values beyond the safe range are shown in orange.
+- General settings for every template: metal amount, tree density, erosion.
+- Erosion: simulated rain carves gullies and valleys into natural slopes; start areas, metal spots,
+  chokes, walls and ramps are protected. If erosion would cut a route, it is lowered automatically.
+- Seamless symmetry: the noise is made symmetric with a blend at the dividing line before anything is
+  built on it, so mirrored maps no longer show a crease along the centre (River, Arena, Chokepoint,
+  Volcano, procedural maps).
+- Ramps carved by the procedural generator no longer leave fans of radial streaks at tight bends.
+
+## 0.3.1 - merged into 0.4.0
+
+- Every map carries the `Forge` name prefix, the FORGE badge and the credit line; these are no longer
+  settings. The author name is the only setting and is required to build (app and command line).
+- The app asks for the author name on the first start; "Build map" stays disabled without it.
+- Volcano: lava bombs only hit solid ground on the volcano island and the ring (precomputed spots, never in
+  the lava), bigger impacts (new setting "Lava bomb size", default radius 320 instead of 170) with more
+  splash effects; bomb zones shown in the app (Danger layer, amber).
+
+## 0.3.0 - 2026-10-21
 
 - The app (`atlasforge app`, Windows program `AtlasMapForge.exe`): template gallery, controls built from
   the template parameters, seed dice, automatic preview.

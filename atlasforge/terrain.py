@@ -95,7 +95,7 @@ def ellipse_sdf(X, Z, cx, cz, rx, rz):
 
 # ----------------------------------------------------------------------------- roads and ramps
 def road_polyline(h, pts, prof, hw, down_deg=40, up_deg=40, influence=None, edge_round=None, soft=None,
-                  blend=None):
+                  blend=None, end_fade=None):
     """Road along a densely sampled polyline.
     pts: (N, 2) elmo coordinates (x, z); prof: height per point; hw: half width of the flat core.
     Sub-pixel accurate: nearest point via distance transform, then projection onto the local tangent
@@ -104,6 +104,8 @@ def road_polyline(h, pts, prof, hw, down_deg=40, up_deg=40, influence=None, edge
     soft: rounding (height) where the flank meets the terrain.
     blend: width (elmos) over which the terrain is eased towards the road height: small height
       differences become flat shoulders, large ones (walls, cliffs) stay steep because of the cone.
+    end_fade: beyond the two ends the road fades into the terrain over this distance (elmos) instead of
+      ending in a round cone cap (which leaves a fan of radial streaks on slopes).
     Returns the distance field to the road (elmos, 1e9 outside the influence area)."""
     pts = np.asarray(pts, np.float64)
     prof = np.asarray(prof, np.float64)
@@ -156,6 +158,9 @@ def road_polyline(h, pts, prof, hw, down_deg=40, up_deg=40, influence=None, edge
         tt = np.clip((d - influence * 0.7) / (influence * 0.3), 0, 1)
         w = 1 - tt * tt * (3 - 2 * tt)
         newv = hv + (newv - hv) * w
+    if end_fade:
+        tf = np.clip(over / end_fade, 0, 1)
+        newv = hv + (newv - hv) * (1 - tf * tf * tf * (tf * (tf * 6 - 15) + 10))
     h[act] = newv.astype(h.dtype)
     out = np.full(h.shape, 1e9, np.float32)
     out[act] = d

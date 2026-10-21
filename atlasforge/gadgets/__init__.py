@@ -158,8 +158,18 @@ return {{
 
 # ----------------------------------------------------------------------------- volcano
 def eruption_files(center, crater_r, island_r, summit_h, flood, quads, bomb_every_s=1.1, bomb_radius=170,
-                   bomb_damage=900, ring_share=0.18, ring_r=(3250, 3700), warn_s=20):
-    """Eruption gadget. quads: causeway areas that flood, each 4 corner points [(x, z) x 4]."""
+                   bomb_damage=900, ring_share=0.18, ring_r=(3250, 3700), warn_s=20,
+                   island_targets=None, ring_targets=None, target_spacing=0):
+    """Eruption gadget. quads: causeway areas that flood, each 4 corner points [(x, z) x 4].
+    island_targets / ring_targets: bomb spots on solid ground [(x, z)], island spots sorted by distance to
+    the crater. Without them bombs fall anywhere in the island and ring radius."""
+
+    def pts(name, lst):
+        if not lst:
+            return ""
+        rows = [", ".join("{%d, %d}" % (x, z) for x, z in lst[i:i + 8]) for i in range(0, len(lst), 8)]
+        return f"\t{name} = {{\n" + "".join(f"\t\t{r},\n" for r in rows) + "\t},\n"
+    targets = pts("islandTargets", island_targets) + pts("ringTargets", ring_targets)
     q = ",\n".join("\t\t{ " + ", ".join(f"{{ {x:.0f}, {z:.0f} }}" for x, z in quad) + " }" for quad in quads)
     data = f"""-- Atlas Map Forge: volcano eruption settings (read by LuaRules/Gadgets/atlas_eruption.lua).
 return {{
@@ -175,7 +185,8 @@ return {{
 \tbombWarnFrames = 120,
 \tringShare = {ring_share},
 \tringRadius = {{ {ring_r[0]:.0f}, {ring_r[1]:.0f} }},
-\tcauseways = {{
+\ttargetSpacing = {target_spacing:.0f},
+{targets}\tcauseways = {{
 {q}
 \t}},
 }}

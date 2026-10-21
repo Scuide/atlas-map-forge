@@ -32,14 +32,14 @@ class Chokepoint(Template):
     description = ("West vs East, split by a long rock barrier. A few gates lead through: level ground for "
                    "everyone, rock humps only bots can climb, or water channels for hovers and amphibians.")
     params = (
-        size_param((12, 14, 16, 18, 20), 16),
+        size_param((12, 14, 16, 18, 20), 16, adv_smallest=8),
         biome_param("temperate"),
-        Param("gates", "Gates", "int", 3, min=1, max=4, step=1, help="Number of openings in the barrier"),
+        Param("gates", "Gates", "int", 3, min=1, max=4, step=1, adv_max=8, help="Number of openings in the barrier"),
         Param("gate_mix", "Gate types", "choice", "mixed", choices=tuple(GATE_MIXES),
               help="mixed: level, hump and water gates; level: all gates open to everyone; "
                    "bots and hovers: tanks get only one level gate"),
-        Param("gate_width", "Gate width", "int", 520, min=300, max=900, step=20, help="Usable width in elmos"),
-        Param("wall_height", "Barrier height", "int", 430, min=250, max=650, step=10, help="Elmos above the ground"),
+        Param("gate_width", "Gate width", "int", 520, min=300, max=900, step=20, adv_min=150, adv_max=2000, help="Usable width in elmos"),
+        Param("wall_height", "Barrier height", "int", 430, min=250, max=650, step=10, adv_min=80, adv_max=1500, help="Elmos above the ground"),
         Param("lava_tops", "Lava on the barrier", "bool", True,
               help="Barrier tops glow with lava and slowly damage spiders that climb up"),
     )
@@ -51,11 +51,11 @@ class Chokepoint(Template):
         C = W / 2
         s = W / 8192.0
         rng = np.random.default_rng(seed)
-        h, xx, zz, low, en = base_terrain(n, rng, 1500 * s, C)
+        h, xx, zz, low, en = base_terrain(n, rng, 1500 * s, C, sym="ew")
         ax = np.abs(xx - C)
         G = v["gates"]
         mix = GATE_MIXES[v["gate_mix"]]
-        types = [mix[i] for i in MIX_ORDER[G]]
+        types = [mix[i] for i in (MIX_ORDER.get(G) or [(1, 0, 2, 3)[k % 4] for k in range(G)])]
         if "level" not in types:
             types[len(types) // 2] = "level"
         gz = [W * (0.12 + 0.76 * (k + 0.5) / G) for k in range(G)]

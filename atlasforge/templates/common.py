@@ -6,6 +6,7 @@ import numpy as np
 from .. import SQ
 from ..biomes import BIOMES
 from ..noise import fbm, ridged, smoothstep
+from ..symmetry import seam_blend
 from ..terrain import flatten_disc, grid
 from .base import Param
 
@@ -13,22 +14,47 @@ BIOME_CHOICES = tuple(sorted(BIOMES))
 H_LOW = 100.0
 
 
-def size_param(choices, default):
+def size_param(choices, default, adv_smallest=4):
+    """adv_smallest: smallest size the template can still build in advanced mode."""
     return Param("size", "Map size", "choice", default, choices=tuple(choices),
+                 adv_choices=tuple(range(adv_smallest, 33, 2)),
                  help="Width and height in Spring map units (8 = small 1v1, 16 = 2v2, 20 = large team game)")
+
+
+def general_params():
+    """Settings every template has (applied by forge.make after the template)."""
+    return (
+        Param("metal", "Metal amount", "float", 1.0, min=0.5, max=2.0, step=0.1, adv_min=0.1, adv_max=5.0,
+              group="General", help="Multiplies the value of every metal spot"),
+        Param("trees", "Trees", "float", 1.0, min=0.0, max=2.0, step=0.1, adv_max=5.0, group="General",
+              help="Tree density (biomes without trees stay bare)"),
+        Param("erosion", "Erosion", "float", 0.6, min=0.0, max=1.5, step=0.1, adv_max=4.0, group="General",
+              help="Rain-carved gullies and valleys on natural slopes; bases, metal spots, chokes and walls "
+                   "stay as designed"),
+    )
 
 
 def biome_param(default):
     return Param("biome", "Biome", "choice", default, choices=BIOME_CHOICES, help="Colours, sky, light and trees")
 
 
-def base_terrain(n, rng, calm_r, center_x):
+def sym_fields(mode, *fields):
+    """Noise fields made symmetric with a seamless blend (see symmetry.seam_blend)."""
+    out = tuple(seam_blend(f, mode).astype(np.float32) for f in fields)
+    return out if len(out) > 1 else out[0]
+
+
+def base_terrain(n, rng, calm_r, center_x, sym=None):
     """Gentle ground at about H_LOW with hills further than calm_r from the vertical centre line.
+    sym: symmetry of the map ("ew", "ns", "point", "d4") - the noise is made symmetric before anything is
+    built on it, so the final mirror copy has no seam.
     Returns h, xx, zz, low (normalised fbm), en (edge noise -1..1)."""
     xx, zz = grid(n)
     low = fbm((n, n), rng, base=5, octaves=6); low = (low - low.mean()) / (low.std() + 1e-6)
     hills = ridged((n, n), rng, base=6) ** 2.6
     en = fbm((n, n), rng, base=22, octaves=3); en /= np.abs(en).max() + 1e-6
+    if sym:
+        low, hills, en = sym_fields(sym, low, hills, en)
     calm = smoothstep(calm_r, calm_r + 900, np.abs(xx - center_x))
     h = (H_LOW + 14 * low + 70 * hills * calm).astype(np.float32)
     return h, xx, zz, low, en

@@ -74,14 +74,18 @@ async function init() {
   syncToolbar();
   renderGallery();
   renderWho();
+  if (!hasAuthor()) setTimeout(openSettings, 400);           // first start: ask for the author name
   const last = recall("template", S.info.templates[0].id);
   selectTemplate(S.info.templates.find((t) => t.id === last) ? last : S.info.templates[0].id);
 }
 
+const hasAuthor = () => !!(S.info && S.info.settings.config.author.trim());
 function renderWho() {
   const c = S.info.settings.config;
-  $("who").textContent = `Author: ${c.author}` + (c.prefix ? `  ·  Prefix: ${c.prefix}` : "");
-  $("author-note").classList.toggle("hidden", c.author && c.author !== "Unknown");
+  $("adv-badge").classList.toggle("hidden", !c.advanced);
+  $("who").textContent = hasAuthor() ? `Author: ${c.author}` : "No author name set";
+  $("author-note").classList.toggle("hidden", hasAuthor());
+  updateBuildButton();
 }
 
 // ------------------------------------------------------------------ gallery and controls
@@ -108,17 +112,49 @@ function selectTemplate(id) {
   const vals = Object.assign({}, ...S.tpl.params.map((p) => ({ [p.key]: p.default })), S.values[id] || {});
   for (const k of Object.keys(vals)) if (!S.tpl.params.some((p) => p.key === k)) delete vals[k];
   S.values[id] = vals;
+  clampValues(id);
   $("seed").value = S.seeds[id] || 7;
   renderParams();
   $("title").value = S.titles[id] || S.tpl.title;
   schedulePreview(0, true);
 }
 
+const isAdvanced = () => !!(S.info && S.info.settings.config.advanced);
+const pLimits = (p) => isAdvanced()
+  ? [p.adv_min ?? p.min, p.adv_max ?? p.max] : [p.min, p.max];
+const pChoices = (p) => (isAdvanced() && p.adv_choices ? p.adv_choices : p.choices);
+const beyond = (p, v) => (p.kind === "choice" ? !p.choices.map(String).includes(String(v))
+  : (p.kind === "int" || p.kind === "float") && (v < p.min || v > p.max));
+
+function clampValues(id) {
+  // keep stored values inside what the current mode allows
+  const t = S.info.templates.find((x) => x.id === id);
+  const vals = S.values[id];
+  for (const p of t.params) {
+    if (!(p.key in vals)) continue;
+    if (p.kind === "choice") {
+      if (!pChoices(p).map(String).includes(String(vals[p.key]))) vals[p.key] = p.default;
+    } else if (p.kind === "int" || p.kind === "float") {
+      const [lo, hi] = pLimits(p);
+      vals[p.key] = Math.min(hi, Math.max(lo, vals[p.key]));
+    }
+  }
+}
+
 function renderParams() {
   const box = $("params");
   box.innerHTML = "";
   const vals = S.values[S.tpl.id];
+  let group = "";
+  $("adv-note").classList.toggle("hidden", !isAdvanced());
   for (const p of S.tpl.params) {
+    if ((p.group || "") !== group) {
+      group = p.group || "";
+      const h = document.createElement("div");
+      h.className = "group-head";
+      h.textContent = group;
+      box.appendChild(h);
+    }
     const f = document.createElement("div");
     f.className = "field";
     const help = p.help ? `<div class="help">${esc(p.help)}</div>` : "";
@@ -130,7 +166,7 @@ function renderParams() {
     } else if (p.kind === "choice") {
       f.innerHTML = `<label>${esc(p.label)}</label><div class="chips"></div>${help}`;
       const chips = f.querySelector(".chips");
-      for (const c of p.choices) {
+      for (const c of pChoices(p)) {
         const b = document.createElement("button");
         b.dataset.v = String(c);
         let label = esc(c);
@@ -140,6 +176,7 @@ function renderParams() {
         }
         b.innerHTML = label;
         b.classList.toggle("on", String(vals[p.key]) === String(c));
+        b.classList.toggle("beyond", beyond(p, c));
         b.onclick = () => {
           for (const o of chips.children) o.classList.toggle("on", o === b);
           setValue(p.key, c);
@@ -148,13 +185,20 @@ function renderParams() {
       }
     } else {
       const fmt = (v) => (p.kind === "float" ? Number(v).toFixed(1) : String(v));
+      const [lo, hi] = pLimits(p);
       f.innerHTML = `<label>${esc(p.label)} <span class="val"></span></label>
-        <input type="range" min="${p.min}" max="${p.max}" step="${p.step || (p.kind === "float" ? 0.1 : 1)}">${help}`;
+        <input type="range" min="${lo}" max="${hi}" step="${p.step || (p.kind === "float" ? 0.1 : 1)}">${help}`;
       const r = f.querySelector("input");
       const out = f.querySelector(".val");
       r.value = vals[p.key];
-      out.textContent = fmt(vals[p.key]) + (p.key === "mexes" && Number(vals[p.key]) === 0 ? " (auto)" : "");
-      r.oninput = () => { out.textContent = fmt(r.value) + (p.key === "mexes" && Number(r.value) === 0 ? " (auto)" : ""); };
+      const show = (v) => {
+        out.textContent = fmt(v) + (p.key === "mexes" && Number(v) === 0 ? " (auto)" : "");
+        const b = beyond(p, Number(v));
+        out.classList.toggle("beyond", b);
+        f.classList.toggle("beyond", b);
+      };
+      show(vals[p.key]);
+      r.oninput = () => show(r.value);
       r.onchange = () => setValue(p.key, p.kind === "float" ? parseFloat(r.value) : parseInt(r.value, 10));
     }
     box.appendChild(f);
@@ -572,6 +616,7 @@ function readout(e) {
   else {
     html += S.info.classes.map((c, k) => `<span class="cls ${(bits >> k) & 1 ? "y" : ""}">${CLASS_NAMES[c]}</span>`).join("");
     if (bits & 128) html += `<span class="cls lava">Damaging ground</span>`;
+    if (bits & 32) html += `<span class="cls ev">${esc(m.event_label || "event zone")}</span>`;
   }
   let best = null, bd = 1e9;
   for (const mx of m.mexes) {
@@ -617,8 +662,7 @@ $("z-fit").onclick = fit;
 
 // ------------------------------------------------------------------ build
 function mapName(title, v) {
-  const c = S.info.settings.config;
-  return `${c.prefix ? c.prefix + " " : ""}${title} v${v}`;
+  return `${S.info.settings.config.prefix} ${title} v${v}`;
 }
 function updateName() {
   $("mapname").textContent = mapName($("title").value.trim() || "...", $("version").value || 1);
@@ -665,9 +709,11 @@ $("version").addEventListener("input", () => { refreshVersions.manual = true; ve
 function updateBuildButton() {
   const b = $("btn-build");
   const running = S.job && S.job.state === "running";
-  b.disabled = !S.map || S.busy || running;
+  b.disabled = !S.map || S.busy || running || !hasAuthor();
   b.classList.toggle("warn", !!S.map && !S.map.ok);
-  b.textContent = running ? "Building..." : S.map && !S.map.ok ? "Build anyway (check found problems)" : "Build map";
+  b.title = hasAuthor() ? "" : "Set your author name in Settings first";
+  b.textContent = running ? "Building..." : !hasAuthor() ? "Build map (author name needed)"
+    : S.map && !S.map.ok ? "Build anyway (check found problems)" : "Build map";
 }
 
 $("btn-build").onclick = async () => {
@@ -719,21 +765,20 @@ let pickAvailable = false;
 window.addEventListener("pywebviewready", () => { pickAvailable = true; });
 function openSettings() {
   const st = S.info.settings, c = st.config;
-  $("s-author").value = c.author === "Unknown" ? "" : c.author;
-  $("s-prefix").value = c.prefix;
-  $("s-credit").checked = c.credit;
+  $("s-author").value = c.author;
   $("s-zerok").value = c.zerok || "";
   $("s-zerok").placeholder = st.zerok_found[0] || "not found - please choose the folder";
   $("s-zerok-found").textContent = st.zerok_found.length ? "Found automatically: " + st.zerok_found.join(", ") + " (leave empty to use it)" : "Zero-K was not found automatically.";
   $("s-outdir").value = c.outdir || "";
   $("s-outdir").placeholder = st.default_outdir;
-  for (const b of $("s-badge").children) b.classList.toggle("on", b.dataset.v === c.badge);
+  $("s-advanced").checked = !!c.advanced;
+  $("s-check-res").classList.add("hidden");
+  $("s-check-pick").classList.toggle("hidden", !pickAvailable);
   for (const b of document.querySelectorAll("[data-pick]")) b.classList.toggle("hidden", !pickAvailable);
   $("s-error").classList.add("hidden");
   $("settings").classList.remove("hidden");
   $("s-author").focus();
 }
-for (const b of $("s-badge").children) b.onclick = () => { for (const o of $("s-badge").children) o.classList.toggle("on", o === b); };
 document.querySelectorAll("[data-pick]").forEach((b) => (b.onclick = async () => {
   const inp = $(b.dataset.pick);
   const p = await window.pywebview.api.pick_folder(inp.value || inp.placeholder || "");
@@ -742,20 +787,50 @@ document.querySelectorAll("[data-pick]").forEach((b) => (b.onclick = async () =>
 $("s-cancel").onclick = () => $("settings").classList.add("hidden");
 $("s-save").onclick = async () => {
   try {
-    const badge = [...$("s-badge").children].find((b) => b.classList.contains("on"));
+    const wasAdv = isAdvanced();
     const st = await api("config", {
-      author: $("s-author").value.trim() || "Unknown", prefix: $("s-prefix").value.trim(),
-      badge: badge ? badge.dataset.v : "forge", credit: $("s-credit").checked,
-      zerok: $("s-zerok").value.trim(), outdir: $("s-outdir").value.trim(),
+      author: $("s-author").value.trim(), zerok: $("s-zerok").value.trim(), outdir: $("s-outdir").value.trim(),
+      advanced: $("s-advanced").checked,
     });
     S.info.settings = st;
     $("settings").classList.add("hidden");
     renderWho();
+    if (wasAdv !== isAdvanced()) {
+      for (const id of Object.keys(S.values)) clampValues(id);
+      store("values", S.values);
+      renderParams();
+      schedulePreview(0);
+    }
     updateName();
     refreshVersions();
   } catch (e) {
     $("s-error").textContent = e.message;
     $("s-error").classList.remove("hidden");
+  }
+};
+$("s-advanced").addEventListener("change", () => {
+  if ($("s-advanced").checked && !isAdvanced()) {          // turning it on needs a confirmation
+    $("s-advanced").checked = false;
+    $("adv-warn").classList.remove("hidden");
+  }
+});
+$("adv-cancel").onclick = () => $("adv-warn").classList.add("hidden");
+$("adv-ok").onclick = () => { $("adv-warn").classList.add("hidden"); $("s-advanced").checked = true; };
+$("s-check-pick").onclick = async () => {
+  const p = await window.pywebview.api.pick_file($("s-check").value || "");
+  if (p) { $("s-check").value = p; $("s-check-go").click(); }
+};
+$("s-check-go").onclick = async () => {
+  const out = $("s-check-res");
+  out.classList.remove("hidden", "yes", "no");
+  out.textContent = "Checking...";
+  try {
+    const r = await api("verify", { path: $("s-check").value.trim() });
+    out.textContent = r.text;
+    out.classList.add(r.forge ? "yes" : "no");
+  } catch (e) {
+    out.textContent = e.message;
+    out.classList.add("no");
   }
 };
 $("btn-settings").onclick = openSettings;
@@ -770,6 +845,7 @@ $("auto").onchange = () => store("auto", $("auto").checked);
 
 document.addEventListener("keydown", (e) => {
   if (e.target.matches("input, textarea") || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (!$("adv-warn").classList.contains("hidden")) { if (e.key === "Escape") $("adv-warn").classList.add("hidden"); return; }
   if (!$("settings").classList.contains("hidden")) { if (e.key === "Escape") $("settings").classList.add("hidden"); return; }
   const k = e.key.toLowerCase();
   if (k === "f") fit();

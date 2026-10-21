@@ -5,7 +5,8 @@
   atlasforge preview chokepoint --set gates=4 --seed 3   quick preview image + check report
   atlasforge build volcano --set bomb_rate=1.2 --title "Ember Atoll" --install
   atlasforge procedural --title "Ashfall Ridge" --size 12 12 --biome volcanic --style plateaus --seed 7
-  atlasforge config --author "MyName" --prefix "Forge"
+  atlasforge config --author "MyName"
+  atlasforge verify some_map.sdz                          is this map made with Atlas Map Forge?
   atlasforge find-zerok
   atlasforge install path/to/map.sdz [--zerok DIR]
 """
@@ -22,11 +23,11 @@ def _cmd_procedural(a):
     cfg = C.load()
     if a.author:
         cfg.author = a.author
-    if a.prefix is not None:
-        cfg.prefix = a.prefix
-    if a.badge:
-        cfg.badge = a.badge
-    cfg.validate()
+    try:
+        cfg.validate().require_author()
+    except ValueError as ex:
+        print(ex, file=sys.stderr)
+        return 2
     info = generate(a.title, tuple(a.size), a.seed, a.biome, a.style, a.layout, a.relief, a.out, cfg,
                     version=a.version, mex_per_side=a.mex, preview=not a.no_preview)
     if a.install is not None:
@@ -64,7 +65,10 @@ def _cmd_templates(a):
 
 def _design_from_args(a):
     from . import forge
-    return forge.make(a.template, _parse_sets(a.set), seed=a.seed)
+    adv = a.advanced or C.load().advanced
+    if adv:
+        print("Advanced mode: safe limits are off, the map may be unplayable or fail to build.", file=sys.stderr)
+    return forge.make(a.template, _parse_sets(a.set), seed=a.seed, advanced=adv)
 
 
 def _print_report(d):
@@ -91,11 +95,11 @@ def _cmd_build(a):
     cfg = C.load()
     if a.author:
         cfg.author = a.author
-    if a.prefix is not None:
-        cfg.prefix = a.prefix
-    if a.badge:
-        cfg.badge = a.badge
-    cfg.validate()
+    try:
+        cfg.validate().require_author()
+    except ValueError as ex:
+        print(ex, file=sys.stderr)
+        return 2
     d = _design_from_args(a)
     ok = _print_report(d)
     if not ok and not a.force:
@@ -116,15 +120,11 @@ def _cmd_build(a):
 def _cmd_config(a):
     cfg = C.load()
     changed = False
-    for k in ("author", "prefix", "badge"):
-        v = getattr(a, k)
-        if v is not None:
-            setattr(cfg, k, v); changed = True
-    if a.no_credit:
-        cfg.credit = False; changed = True
+    if a.author is not None:
+        cfg.author = a.author.strip(); changed = True
     if changed:
         print("saved", C.save(cfg))
-    print(json.dumps(cfg.__dict__, indent=1))
+    print(json.dumps(dict(cfg.__dict__, prefix=C.PREFIX, badge=C.BADGE), indent=1))
     return 0
 
 
@@ -133,6 +133,20 @@ def _cmd_find(a):
     found = find_zerok()
     print("\n".join(found) if found else "Zero-K folder not found")
     return 0 if found else 1
+
+
+def _cmd_verify(a):
+    from . import watermark
+    found = 0
+    for p in a.maps:
+        try:
+            r = watermark.verify(p)
+        except Exception as ex:
+            print(f"{p}: cannot read ({ex})")
+            continue
+        found += r["forge"]
+        print(watermark.describe(r))
+    return 0 if found == len(a.maps) else 1
 
 
 def _cmd_install(a):
@@ -165,6 +179,8 @@ def main(argv=None):
         p.add_argument("template", choices=ids)
         p.add_argument("--set", action="append", metavar="KEY=VALUE", help="template parameter (repeatable)")
         p.add_argument("--seed", type=int, default=1)
+        p.add_argument("--advanced", action="store_true",
+                       help="allow values beyond the safe limits (may give broken maps)")
         if cmd == "preview":
             p.add_argument("--out", help="image file (default <template>_<seed>_preview.png)")
             p.add_argument("--size", type=int, default=1024, help="image size in pixels")
@@ -173,13 +189,13 @@ def main(argv=None):
             p.add_argument("--title", help="map title (default: the template's title)")
             p.add_argument("--version", dest="version", type=int, default=1)
             p.add_argument("--out", default=".")
-            p.add_argument("--author"); p.add_argument("--prefix"); p.add_argument("--badge", choices=C.BADGES)
+            p.add_argument("--author", help="author name for this map (default: the saved one)")
             p.add_argument("--force", action="store_true", help="build even if the check finds problems")
             p.add_argument("--install", nargs="?", const="", default=None, metavar="ZEROK_DIR")
             p.set_defaults(func=_cmd_build)
 
     p = sub.add_parser("procedural", help="build a procedural skirmish map")
-    p.add_argument("--title", required=True, help="map title; the name becomes '<prefix> <title> v<version>'")
+    p.add_argument("--title", required=True, help="map title; the name becomes 'Forge <title> v<version>'")
     p.add_argument("--version", dest="version", type=int, default=1, help="map version number (default 1)")
     p.add_argument("--size", nargs=2, type=int, default=[12, 12], metavar=("W", "H"),
                    help="map size in Spring units, even numbers 4..32 (default 12 12)")
@@ -191,15 +207,14 @@ def main(argv=None):
     p.add_argument("--relief", type=float, default=None, help="height scale (1.0 = default)")
     p.add_argument("--mex", type=int, default=None, help="metal spots per side")
     p.add_argument("--out", default=".", help="output folder")
-    p.add_argument("--author"); p.add_argument("--prefix"); p.add_argument("--badge", choices=C.BADGES)
+    p.add_argument("--author", help="author name for this map (default: the saved one)")
     p.add_argument("--no-preview", action="store_true")
     p.add_argument("--install", nargs="?", const="", default=None, metavar="ZEROK_DIR",
                    help="install into Zero-K after building (folder optional, found automatically)")
     p.set_defaults(func=_cmd_procedural)
 
-    p = sub.add_parser("config", help="show or change the saved settings")
-    p.add_argument("--author"); p.add_argument("--prefix"); p.add_argument("--badge", choices=C.BADGES)
-    p.add_argument("--no-credit", action="store_true", help="do not append 'Made with Atlas Map Forge'")
+    p = sub.add_parser("config", help="show or set your author name")
+    p.add_argument("--author", help="your name, shown as the author of every map you build")
     p.set_defaults(func=_cmd_config)
 
     p = sub.add_parser("app", help="open the Atlas Map Forge app (window with a large map preview)")
@@ -209,6 +224,10 @@ def main(argv=None):
 
     p = sub.add_parser("find-zerok", help="show the Zero-K folders that were found")
     p.set_defaults(func=_cmd_find)
+
+    p = sub.add_parser("verify", help="check whether map files were made with Atlas Map Forge (hidden watermark)")
+    p.add_argument("maps", nargs="+", help=".sdz or .smf files")
+    p.set_defaults(func=_cmd_verify)
 
     p = sub.add_parser("install", help="install built maps into Zero-K")
     p.add_argument("maps", nargs="+")

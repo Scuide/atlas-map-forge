@@ -24,7 +24,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-app = ["pywebview>=5.0"]
+app = ["pywebview>=5.0", "py7zr>=0.20"]
 test = ["pytest>=7", "lupa>=2.0"]
 
 [project.urls]

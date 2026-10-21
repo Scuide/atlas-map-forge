@@ -120,7 +120,11 @@ class _Carver:
             sn = np.linspace(0, sl[-1], max(2, int(sl[-1] / 2)))
             pts = np.stack([np.interp(sn, sl, pts[:, 0]), np.interp(sn, sl, pts[:, 1])], 1)
             prof = np.interp(sn, sl, prof)
-        d = road_polyline(hm, pts, prof, hw, down_deg=35, up_deg=35, influence=hw + 1200)
+        before = hm.copy()
+        d = road_polyline(hm, pts, prof, hw, down_deg=35, up_deg=35, influence=hw + 1200, end_fade=hw * 2.5)
+        # tight bends leave radial streaks and creases (the nearest road point jumps): smooth the change the
+        # ramp made, not the terrain itself, so the natural detail around it stays sharp
+        hm[:] = before + ndimage.gaussian_filter(hm - before, 2.5)
         self.mask |= d < hw + 40
 
     def ensure(self, hm, sym, starts, mexes, log, max_iter=25):

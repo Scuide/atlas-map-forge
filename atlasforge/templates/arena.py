@@ -12,7 +12,7 @@ from ..noise import fbm, ridged, smoothstep
 from ..symmetry import Symmetry
 from ..terrain import grid, plateau, ring_sdf
 from .base import Param, Template
-from .common import biome_param, corners, d4, d4_points, flatten_all, four_base_boxes, size_param
+from .common import biome_param, corners, d4, d4_points, flatten_all, four_base_boxes, size_param, sym_fields
 
 H_LOW, H_MID = 100.0, 150.0
 WALL_HALF = 75
@@ -25,12 +25,12 @@ class Arena(Template):
     description = ("Four bases, each inside a rock ring with gates. Safe economy inside, open ground outside "
                    "and a rich centre. Plays as 2v2 or as a 4-player free-for-all.")
     params = (
-        size_param((12, 14, 16, 18, 20), 16),
+        size_param((12, 14, 16, 18, 20), 16, adv_smallest=6),
         biome_param("desert"),
-        Param("ring", "Ring radius", "int", 1250, min=900, max=1600, step=50, help="Elmos from the base to the wall"),
+        Param("ring", "Ring radius", "int", 1250, min=900, max=1600, step=50, adv_min=500, adv_max=2400, help="Elmos from the base to the wall"),
         Param("gates", "Gates per ring", "int", 2, min=1, max=3, step=1,
               help="1: one way out towards the centre; 2: towards the edge and the neighbour; 3: all of them"),
-        Param("wall_height", "Wall height", "int", 420, min=250, max=600, step=10, help="Elmos above the ground"),
+        Param("wall_height", "Wall height", "int", 420, min=250, max=600, step=10, adv_min=80, adv_max=1500, help="Elmos above the ground"),
         Param("centre", "Centre", "choice", "hill", choices=("hill", "flat"), help="Rich centre on a low hill or flat"),
         Param("lava_tops", "Lava on the walls", "bool", False, help="Wall tops glow and slowly damage climbing spiders"),
     )
@@ -48,6 +48,7 @@ class Arena(Template):
         low = fbm((n, n), rng, base=5, octaves=6); low = (low - low.mean()) / (low.std() + 1e-6)
         hills = ridged((n, n), rng, base=7) ** 2.8
         en = fbm((n, n), rng, base=24, octaves=3); en /= np.abs(en).max() + 1e-6
+        low, hills, en = sym_fields("d4", low, hills, en)                # seamless four-way symmetry
         bx, bz = base
         rb = np.hypot(xx - bx, zz - bz)
         calm = smoothstep(RW - 200, RW + 200, rb)

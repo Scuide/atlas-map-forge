@@ -23,7 +23,7 @@ def lua_compile(code):
 @pytest.fixture(scope="module")
 def built(tmp_path_factory):
     out = tmp_path_factory.mktemp("maps")
-    cfg = ForgeConfig(author="Test", prefix="Forge", badge="forge")
+    cfg = ForgeConfig(author="Test")
     info = generate("Test Hills", (4, 4), seed=3, biome="temperate", style="hills", outdir=str(out), config=cfg,
                     log=lambda *a: None)
     return info
@@ -75,7 +75,9 @@ def test_wall_blocks_tanks_and_becomes_lava_cliff():
 
 
 def test_config_names():
-    assert ForgeConfig(prefix="").map_name("Ridge", 2) == "Ridge v2"
-    assert ForgeConfig(prefix="Forge").map_name("Ridge") == "Forge Ridge v1"
+    assert ForgeConfig(author="A").map_name("Ridge", 2) == "Forge Ridge v2"     # prefix is fixed
+    assert ForgeConfig().describe("Hills.") == "Hills. Made with Atlas Map Forge."
+    with pytest.raises(ValueError):
+        ForgeConfig().require_author()
     with pytest.raises(ValueError):
         ForgeConfig(author='bad"name').validate()

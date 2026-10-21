@@ -19,17 +19,64 @@ from .config import ForgeConfig
 from .noise import smoothstep
 
 
-def make(template_id, values=None, seed=1, log=print):
+def make(template_id, values=None, seed=1, log=print, advanced=False):
+    """advanced: allow the wider advanced-mode parameter limits (maps may break)."""
     from .templates import get
     t = get(template_id)
-    v = t.resolve(values)
+    v = t.resolve(values, advanced)
     t0 = time.time()
     d = t.make(v, seed, log)
     d.template = template_id
     d.values = v
     d.seed = seed
+    _apply_general(d, v)
     log(f"  design ready in {time.time() - t0:.1f} s")
     return d
+
+
+def _protect_mask(d):
+    """Parts of a design erosion must not touch."""
+    from .terrain import slope_deg
+    n = d.hm.shape
+    zz, xx = np.mgrid[0:n[0], 0:n[1]].astype(np.float32) * SQ
+    prot = slope_deg(d.hm) > 40                                  # designed walls and cliffs stay crisp
+    for p in d.starts:
+        prot |= np.hypot(xx - p[0], zz - p[1]) < 720
+    for m in d.mexes:
+        prot |= np.hypot(xx - m["x"], zz - m["z"]) < 140
+    for g in d.geos:
+        prot |= np.hypot(xx - g[0], zz - g[1]) < 150
+    for _, gm in d.gates or []:
+        prot |= gm
+    for extra in (d.keep_clear, d.blocked, d.hazard):
+        if extra is not None:
+            prot |= extra
+    return ndimage.binary_dilation(prot, iterations=3)
+
+
+def _apply_general(d, v):
+    """Settings every template has: metal amount, tree density, erosion."""
+    if v.get("erosion", 0) > 0:
+        from .erosion import erode, symmetric_like
+        ok_before = check(d)[0]
+        hm0, prot = d.hm, _protect_mask(d)
+        strength = v["erosion"]
+        for _ in range(3):
+            delta = erode(hm0, strength, protect=prot, seed=d.seed) - hm0
+            d.hm = (hm0 + symmetric_like(hm0, delta)).astype(np.float32)
+            if not ok_before or check(d)[0]:
+                break
+            strength *= 0.5                       # erosion cut a route: try gentler
+        else:
+            d.hm = hm0
+            strength = 0
+        if strength != v["erosion"]:
+            d.notes.append(f"Erosion lowered to {strength:.2f} so every base and metal spot stays reachable")
+    if v.get("metal", 1.0) != 1.0:
+        for m in d.mexes:
+            m["metal"] = round(m["metal"] * v["metal"], 2)
+    if v.get("trees", 1.0) != 1.0:
+        d.biome = dict(d.biome, tree_density=d.biome.get("tree_density", 1.0) * v["trees"])
 
 
 def check(design):

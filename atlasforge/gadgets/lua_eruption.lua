@@ -77,13 +77,23 @@ local bombAcc = 0
 local spSpawnCEG = Spring.SpawnCEG
 local spGetGroundHeight = Spring.GetGroundHeight
 
+local function Jitter(x, z)
+	local j = conf.targetSpacing or 0
+	return x + (math.random() - 0.5) * j, z + (math.random() - 0.5) * j
+end
+
 local function RandomTarget()
-	if math.random() < conf.ringShare then
-		local a = math.random() * 2 * pi
-		local r = conf.ringRadius[1] + math.random() * (conf.ringRadius[2] - conf.ringRadius[1])
-		return CX + r * cos(a), CZ + r * sin(a)
+	-- precomputed spots on solid ground (never in the lava): island spots are sorted by distance to the
+	-- crater, so random()^1.6 makes bombs denser towards the summit
+	local ring, island = conf.ringTargets, conf.islandTargets
+	if ring and #ring > 0 and math.random() < conf.ringShare then
+		local p = ring[math.random(#ring)]
+		return Jitter(p[1], p[2])
 	end
-	-- volcano island, denser towards the summit
+	if island and #island > 0 then
+		local p = island[1 + math.floor((#island - 1) * (math.random() ^ 1.6))]
+		return Jitter(p[1], p[2])
+	end
 	local a = math.random() * 2 * pi
 	local r = conf.craterRadius + (conf.islandRadius - conf.craterRadius) * (math.random() ^ 1.6)
 	return CX + r * cos(a), CZ + r * sin(a)
@@ -93,6 +103,13 @@ local function Impact(x, z)
 	local y = spGetGroundHeight(x, z)
 	spSpawnCEG("lava_explo", x, y + 10, z)
 	spSpawnCEG("napalm_firewalker_small", x, y + 5, z)
+	local R0 = conf.bombRadius
+	local n = math.floor(R0 / 60)                      -- bigger impacts: a ring of splashes
+	for k = 1, n do
+		local a = (k / n + math.random() * 0.1) * 2 * pi
+		local rx, rz = x + 0.55 * R0 * cos(a), z + 0.55 * R0 * sin(a)
+		spSpawnCEG(k % 2 == 0 and "lava_explo" or "napalm_firewalker_small", rx, spGetGroundHeight(rx, rz) + 8, rz)
+	end
 	Spring.PlaySoundFile("sounds/explosion/ex_large4.wav", 3, x, y, z, "sfx")
 	local R = conf.bombRadius
 	local units = Spring.GetUnitsInCylinder(x, z, R)
@@ -286,7 +303,7 @@ function gadget:DrawWorld()
 			gl.Translate(x, y, z)
 			gl.Billboard()
 			for k = 1, 2 do
-				local R = (k == 1) and 70 or 34
+				local R = ((k == 1) and 70 or 34) * math.max(1, conf.bombRadius / 170)
 				if k == 1 then gl.Color(1.0, 0.35, 0.05, 0.35) else gl.Color(1.0, 0.85, 0.4, 0.95) end
 				gl.BeginEnd(GL.TRIANGLE_FAN, function()
 					gl.Vertex(0, 0, 0)

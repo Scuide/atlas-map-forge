@@ -1,4 +1,4 @@
-"""User settings (author, name prefix, badge) and per-user folders.
+"""User settings (author name, Zero-K folder, output folder) and per-user folders.
 
 Settings are stored as JSON:
   Windows: %APPDATA%\\AtlasMapForge\\config.json
@@ -10,7 +10,8 @@ import sys
 from dataclasses import asdict, dataclass
 
 TOOL_NAME = "Atlas Map Forge"
-BADGES = ("forge", "none")
+PREFIX = "Forge"             # every map name: "Forge <title> v<version>"
+BADGE = "forge"              # FORGE badge in the lobby map picture
 
 
 def _config_dir():
@@ -29,27 +30,34 @@ def cache_dir():
 
 @dataclass
 class ForgeConfig:
-    author: str = "Unknown"          # shown on the map page (mapinfo author)
-    prefix: str = "Forge"            # map names become "<prefix> <title> v<version>"; empty = no prefix
-    badge: str = "forge"             # minimap badge in the map browser: "forge" or "none"
-    credit: bool = True              # append "Made with Atlas Map Forge." to the description
+    """User settings. Only the author name is up to the user; every Forge map carries the "Forge" name
+    prefix, the FORGE badge in the lobby map picture and the "Made with Atlas Map Forge." line."""
+    author: str = ""                 # shown on the map page (mapinfo author); required to build maps
     zerok: str = ""                  # Zero-K folder for installing maps; empty = find automatically
     outdir: str = ""                 # where built maps are written; empty = default_outdir()
+    advanced: bool = False           # advanced mode: wider parameter limits, maps may break
+
+    prefix = PREFIX                  # fixed, not a setting
+    badge = BADGE
+    credit = True
 
     def map_name(self, title, version=1):
-        base = f"{self.prefix} {title}".strip() if self.prefix else title
-        return f"{base} v{version}"
+        return f"{PREFIX} {title} v{version}"
 
     def describe(self, text):
-        return f"{text} Made with {TOOL_NAME}." if self.credit else text
+        return f"{text} Made with {TOOL_NAME}."
 
     def validate(self):
-        if self.badge not in BADGES:
-            raise ValueError(f"badge must be one of {BADGES}, got {self.badge!r}")
-        for field in ("author", "prefix"):
-            v = getattr(self, field)
-            if any(c in v for c in '"\\\n'):
-                raise ValueError(f"{field} must not contain quotes, backslashes or line breaks")
+        a = self.author
+        if any(c in a for c in '"\\\n') or len(a) > 40:
+            raise ValueError("Author name: at most 40 characters, no quotes, backslashes or line breaks")
+        return self
+
+    def require_author(self):
+        """Maps can only be built with an author name."""
+        if not self.author.strip():
+            raise ValueError("Set your author name first (atlasforge config --author \"YourName\", "
+                             "or Settings in the app).")
         return self
 
 
@@ -70,6 +78,8 @@ def load():
         with open(p, encoding="utf8") as f:
             data = json.load(f)
         known = {k: v for k, v in data.items() if k in ForgeConfig.__dataclass_fields__}
+        if known.get("author") == "Unknown":            # placeholder of version 0.1-0.3
+            known["author"] = ""
         return ForgeConfig(**known).validate()
     return ForgeConfig()
 

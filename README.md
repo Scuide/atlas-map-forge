@@ -16,8 +16,9 @@ map gadgets such as lava cliffs, lava tides and an erupting volcano.
 - **Fair layouts:** two-team symmetry (diagonal, north/south, east/west) for terrain and resources.
 - **Map gadgets:** maps can carry their own Lua rules, for example damaging lava on cliffs that only
   spiders can climb, or lava tides with an on-screen countdown.
-- **Your name on it:** maps are named `<prefix> <title> v<version>`, carry your author name and show a
-  small FORGE badge in the map browser (not in game).
+- **Your name on it:** maps are named `Forge <title> v<version>`, carry your author name and show a
+  small FORGE badge in the map browser (not in game). The author name is the only setting and is
+  required to build maps.
 
 ## The app
 
@@ -28,8 +29,16 @@ map gadgets such as lava cliffs, lava tides and an erupting volcano.
    ground on and off. **Where can it go?** darkens the ground a unit class (tanks, bots, spiders,
    amphibians, hovers) cannot reach from the start points. The bar at the bottom shows the height under
    the mouse and which unit classes can drive there.
-3. Read the check on the right, give the map a title and press **Build map**. The map is written to
+3. Read the check on the right, give the map a title and press **Build map** (enter your author name
+   in Settings first; the app asks for it on the first start). The map is written to
    `Documents\Atlas Map Forge` and installed into Zero-K (the Zero-K folder is found automatically).
+
+**Settings for every template:** metal amount, tree density and erosion (rain-carved valleys on natural
+slopes; bases, metal spots, chokes and ramps stay as designed).
+
+**Advanced mode** (Settings): lifts the limits of every map setting, for example map sizes from 4 to 32,
+up to 8 gates or extreme wall heights. The app warns before switching it on: such maps can be unplayable
+or fail to build. Values beyond the safe range are shown in orange.
 
 Keys: `F` fit, `+`/`-` zoom, `R` new seed, `M` metal, `S` starts, `B` start boxes, `G` grid,
 `1`-`5` unit class routes, `0` routes off.
@@ -82,6 +91,20 @@ Every template also takes `--seed` and checks the result: which unit classes rea
 which chokes, whether every metal spot is reachable, plus template-specific checks (for example "During an
 eruption the teams are cut apart: yes").
 
+## Is this a Forge map?
+
+Every map carries a hidden watermark in its heightmap (invisible, no effect on gameplay). It survives
+re-packing, renaming, a new texture or mapinfo and light edits of the heightmap:
+
+```
+atlasforge verify "Forge_Iron_Wall_v1.sdz"
+Forge_Iron_Wall_v1.sdz: made with Atlas Map Forge (confidence: certain, pattern score 105.1).
+  tool 0.4.0, template chokepoint, seed 3, built 2026-10-21, build id 2299eb6c
+```
+
+In the app: Settings, "Check a map file". Atlas Map Forge is open source, so someone who studies the code
+can remove or fake the mark on purpose; it reliably tells Forge maps apart from other maps.
+
 ## Procedural maps with all options
 
 ```
@@ -101,8 +124,8 @@ Options of `atlasforge procedural`:
 | `--mex` | metal spots per side |
 | `--version` | version number in the map name; raise it when you change a map you already shared |
 
-Settings (`atlasforge config`): `--author`, `--prefix` (empty for none), `--badge forge|none`,
-`--no-credit` (drop "Made with Atlas Map Forge." from the description).
+Your author name (required before building): `atlasforge config --author "YourName"`. Every map gets
+the `Forge` name prefix, the FORGE badge and "Made with Atlas Map Forge." in its description.
 
 ### Seeing your map in the lobby
 
@@ -135,6 +158,8 @@ Code layout:
 | `atlasforge.checks` | reachability per movement class |
 | `atlasforge.gadgets` | map gadgets (Lua) and their settings |
 | `atlasforge.install` | find Zero-K, install maps |
+| `atlasforge.erosion` | hydraulic erosion (rain droplets), protected design areas |
+| `atlasforge.watermark` | hidden watermark: embed, detect, verify |
 | `atlasforge.app` | the app: local web server (`server.py`), page (`web/`), window (pywebview) |
 
 The Windows program is packed with PyInstaller (`packaging/atlasforge.spec`). The `windows-app` workflow
