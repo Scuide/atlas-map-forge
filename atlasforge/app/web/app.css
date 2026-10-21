@@ -276,3 +276,15 @@ button:disabled { opacity: .45; cursor: default; filter: none; }
 .checkres { margin: 8px 0 0; padding: 8px 10px; border-radius: 6px; background: #0f1013; font: 11.5px/1.45 var(--mono); white-space: pre-wrap; color: var(--text); }
 .checkres.yes { border-left: 3px solid var(--ok); }
 .checkres.no { border-left: 3px solid var(--faint); }
+
+/* ---------------------------------------------------------------- support */
+.kofi {
+  height: 30px; padding: 0 12px; border-radius: 15px; border: 1px solid rgba(255, 94, 91, .45);
+  background: rgba(255, 94, 91, .12); color: #ffb3b1; display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12.5px; font-weight: 600;
+}
+.kofi:hover { background: rgba(255, 94, 91, .22); color: #fff; }
+.support { margin-top: 10px; padding: 10px 12px; border-radius: 7px; background: rgba(255, 94, 91, .08);
+  border: 1px solid rgba(255, 94, 91, .3); font-size: 12.5px; color: #f3d6d5; display: grid; gap: 8px; }
+.support .kofi { justify-self: start; }
+.result .warnline { color: #ffc894; }

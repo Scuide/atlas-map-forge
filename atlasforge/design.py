@@ -32,6 +32,8 @@ class Design:
     side_labels: tuple = ("your side", "the enemy")
     hazard: Optional[np.ndarray] = None    # bool grid: lava cliffs / damaging ground (preview overlay)
     blocked: Optional[np.ndarray] = None   # bool grid no ground unit survives (lava) - excluded from checks
+    movement_profile: str = "land"         # "land" or "naval" (sea maps: ships, hovers, amphibians decide)
+    naval_starts: Optional[list] = None    # naval maps: water access points (ports) per side [[(x, z)], [(x, z)]]
     event_zone: Optional[np.ndarray] = None  # bool grid hit by timed events (e.g. lava bombs) - preview only
     event_label: str = ""
     template: Optional[str] = None         # set by forge.make()

@@ -10,6 +10,8 @@ import sys
 from dataclasses import asdict, dataclass
 
 TOOL_NAME = "Atlas Map Forge"
+SUPPORT_URL = "https://ko-fi.com/scuide"
+SUPPORT_TEXT = "Enjoying Atlas Map Forge? Support me on Ko-fi to help development: " + SUPPORT_URL
 PREFIX = "Forge"             # every map name: "Forge <title> v<version>"
 BADGE = "forge"              # FORGE badge in the lobby map picture
 

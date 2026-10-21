@@ -87,6 +87,12 @@ and copies it into your Zero-K folder (found automatically for Steam installs; o
 | `arena` | Arena: four bases in rock rings, rich centre, 2v2 or FFA | ring radius, gates per ring, wall height, centre |
 | `volcano` | Volcano: volcano island in a lava sea, erupts on a schedule | calm and eruption length, lava bomb damage and rate, outer islands |
 | `chicken` | Chicken Defense: nested ring walls with alternating gates | rings 2-3, gate width, wall height |
+| `open_sea` | Open Sea: coastal bases facing a broad ocean with underwater metal | sea depth, beach slope, coast, underwater metal share, offshore islands |
+| `archipelago` | Archipelago: home islands and scattered expansion islands, winding fleet routes | island pairs, island size, scatter, sea depth |
+| `straits` | Island Straits: long central islands split the sea into fleet passages | passages, passage width, island width, sea depth |
+
+Sea maps are checked for ships (heavy ships need water deeper than 15 elmos), hovers and amphibians
+instead of tanks and bots; the app shows a "Ships" route.
 
 Every template also takes `--seed` and checks the result: which unit classes reach the enemy, through
 which chokes, whether every metal spot is reachable, plus template-specific checks (for example "During an
@@ -167,6 +173,10 @@ Code layout:
 The Windows program is packed with PyInstaller (`packaging/atlasforge.spec`). The `windows-app` workflow
 builds it, runs a self-test (preview and a full map build with the packed program) and, for a version tag,
 creates a draft release.
+
+## Support
+
+Enjoying Atlas Map Forge? Support me on Ko-fi to help development: https://ko-fi.com/scuide
 
 ## License
 

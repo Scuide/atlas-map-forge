@@ -2,6 +2,11 @@
 
 ## 0.4.0 - unreleased
 
+- Three sea templates (built from the template guide): Open Sea, Archipelago, Island Straits. Naval check
+  profile: ships between the ports, hovers and amphibians between the bases, amphibian access to all metal,
+  ships to underwater metal; "Ships" route in the app.
+- Ko-fi support: button in the app, a short note after every finished build and after command line builds.
+- A map that was built but could not be installed (Zero-K folder unknown) is shown as built with a warning.
 - Rocks and crystals: every map carries its own procedural 3D models (.s3o) and feature definitions;
   rock clusters gather at slopes, glowing crystals on alien and moon maps; all reclaimable.
 - Battlefield wrecks of Zero-K units between the bases (reclaimable metal). New general settings "Rocks"

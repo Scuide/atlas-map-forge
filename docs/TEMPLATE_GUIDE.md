@@ -155,6 +155,7 @@ The app calls it on every slider change.
 | `extra_files` | optional | `{archive path: text}` for map gadgets (`LuaRules/Gadgets/...`, `mapconfig/...`) |
 | `hazard` | optional | bool grid of damaging ground (lava cliffs); red outline in the app |
 | `blocked` | optional | bool grid no ground unit survives (lava sea); excluded from reachability |
+| `movement_profile`, `naval_starts` | optional | `"naval"` for sea maps (ships, hovers and amphibians decide the check instead of tanks and bots); `naval_starts` = one water access point (port) per side `[[(x, z)], [(x, z)]]` in water deeper than 15 elmos |
 | `event_zone`, `event_label` | optional | bool grid hit by timed events (e.g. lava bombs) + English label |
 | `notes`, `notes_ok` | optional | extra English check lines (e.g. "Bases are only reachable through their gates: yes") and whether they passed |
 | `tree_block`, `keep_clear` | optional | bool grids without trees / without trees and erosion (ramps, roads) |

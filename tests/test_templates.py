@@ -5,7 +5,8 @@ from atlasforge import forge
 from atlasforge.templates import all_templates, get
 
 SMALL = {"skirmish": {"size": 8}, "chokepoint": {"size": 12}, "river": {"size": 12}, "arena": {"size": 12},
-         "volcano": {}, "chicken": {"size": 16}}
+         "volcano": {}, "chicken": {"size": 16}, "open_sea": {"size": 16}, "archipelago": {"size": 16},
+         "straits": {"size": 16}}
 
 
 @pytest.mark.parametrize("tid", [t.id for t in all_templates()])

@@ -12,6 +12,7 @@ the session token that is written into the page, so other web pages cannot use t
   POST /api/config   {author, zerok, outdir, advanced}
   POST /api/verify   {path}             does a map file carry the Forge watermark?
   POST /api/open     {path}             show a built map in the file manager
+  POST /api/link     {to}               open a known web page (Ko-fi) in the default browser
 """
 import io
 import json
@@ -118,7 +119,7 @@ class Forge:
         from ..biomes import BIOMES
         from ..templates import all_templates
         swatches = {k: [list(b[c]) for c in ("low", "mid", "high", "rock")] for k, b in BIOMES.items()}
-        return dict(version=__version__, settings=self.settings(), templates=[t.info() for t in all_templates()],
+        return dict(version=__version__, settings=self.settings(), support_url=C.SUPPORT_URL, templates=[t.info() for t in all_templates()],
                     classes=list(CLASSES), biomes=swatches)
 
     # ------------------------------------------------------------------ preview
@@ -162,6 +163,7 @@ class Forge:
             has_hazard=bool(d.hazard is not None and d.hazard.any())
             or bool(d.event_zone is not None and d.event_zone.any()),
             event_label=d.event_label,
+            movement_profile=d.movement_profile,
             has_blocked=bool(d.blocked is not None and d.blocked.any()),
             height=[float(d.hm.min()), float(d.hm.max())],
             metal_total=round(float(sum(m["metal"] for m in d.mexes)), 1),
@@ -228,14 +230,15 @@ class Forge:
             return "image/png", _png(rgba)
         if name.startswith("reach_"):
             cls = name[6:]
-            if cls not in CLASSES:
+            if cls not in CLASSES + ("ships",):
                 raise KeyError(name)
             m = unit_masks(d.hm)[cls]
             if d.blocked is not None:
                 m = m & ~d.blocked
             lab, _ = ndimage.label(m)
             reach = np.zeros(n, bool)
-            for team in d.teams:
+            seeds = d.naval_starts if cls == "ships" and d.naval_starts else d.teams
+            for team in seeds:
                 for p in team:
                     lz, lx = min(int(p[1] / SQ), n[0] - 1), min(int(p[0] / SQ), n[1] - 1)
                     if lab[lz, lx]:
@@ -303,11 +306,14 @@ class Forge:
             job.phase = "Placing trees"
             info = forge.build(e.design, outdir=outdir, config=cfg, title=title, version=version, log=log)
             info["installed"] = None
+            info["warning"] = None
             if do_install:
                 if not s["zerok"]:
-                    raise RuntimeError("Built, but the Zero-K folder was not found. Set it in Settings.")
-                job.phase = "Installing into Zero-K"
-                info["installed"] = install(info["path"], s["zerok"], log=log)
+                    info["warning"] = ("Not installed: the Zero-K folder was not found. Set it in Settings, "
+                                       "the map is in your output folder.")
+                else:
+                    job.phase = "Installing into Zero-K"
+                    info["installed"] = install(info["path"], s["zerok"], log=log)
             job.result = _json_safe(info)
             job.progress, job.phase, job.state = 1.0, "Done", "done"
         except Exception as ex:                                  # report, never crash the app
@@ -326,6 +332,16 @@ class Forge:
         r = watermark.verify(p)
         r["text"] = watermark.describe(r)
         return _json_safe(r)
+
+    # ------------------------------------------------------------------ links
+    def open_link(self, data):
+        import webbrowser
+        links = {"kofi": C.SUPPORT_URL, "github": "https://github.com/Scuide/atlas-map-forge"}
+        url = links.get(str(data.get("to")))
+        if not url:
+            raise ValueError("unknown link")
+        webbrowser.open(url)
+        return dict(ok=True, url=url)
 
     # ------------------------------------------------------------------ file manager
     def open_path(self, path):
@@ -418,7 +434,8 @@ def make_handler(forge_state, quiet=True):
                 fn = {"preview": forge_state.preview, "build": forge_state.build,
                       "clientlog": lambda d: (print("page:", str(d.get("msg", ""))[:500], flush=True), {"ok": True})[1],
                       "config": forge_state.set_config, "verify": forge_state.verify,
-                      "open": lambda d: forge_state.open_path(d["path"])}.get(route)
+                      "open": lambda d: forge_state.open_path(d["path"]),
+                      "link": forge_state.open_link}.get(route)
                 if fn is None:
                     return self._send(404, {"error": "unknown endpoint"})
                 return self._send(200, fn(data))

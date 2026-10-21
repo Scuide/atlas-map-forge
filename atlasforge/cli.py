@@ -38,6 +38,7 @@ def _cmd_procedural(a):
             return 2
         install(info["path"], target)
     print(json.dumps(info, indent=1))
+    print("\n" + C.SUPPORT_TEXT)
     return 0
 
 
@@ -114,6 +115,7 @@ def _cmd_build(a):
             return 2
         install(info["path"], target)
     print(json.dumps(info, indent=1))
+    print("\n" + C.SUPPORT_TEXT)
     return 0
 
 

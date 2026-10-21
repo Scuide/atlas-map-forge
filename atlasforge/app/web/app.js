@@ -251,6 +251,8 @@ async function runPreview(refit) {
     const sameFrame = prev && prev.W === m.W && prev.H === m.H && !refit;
     if (!sameFrame) fit();
     if (S.route) await loadRoute(S.route);
+    $("route-ships").classList.toggle("hidden", m.movement_profile !== "naval");
+    if (S.route === "ships" && m.movement_profile !== "naval") { S.route = ""; syncToolbar(); }
     renderReport();
     renderFacts();
     updateLegend();
@@ -277,8 +279,9 @@ function renderReport() {
   b.textContent = m.ok ? "OK" : "PROBLEMS";
   b.className = "badge " + (m.ok ? "ok" : "bad");
   $("report").innerHTML = m.lines.map((l) => {
-    const bad = /\bNO\b|not connected|unreachable for tanks: [1-9]/.test(l);
-    const info = /^(Spiders|Amphibians|Hovers)/.test(l.trim()) && /\bNO\b/.test(l);
+    const bad = /\bNO\b|not connected|unreachable for [a-z ]+: [1-9]/.test(l);
+    const info = (/^(Spiders|Amphibians|Hovers)/.test(l.trim()) && /\bNO\b/.test(l) && m.movement_profile !== "naval")
+      || /optional on naval maps/.test(l);
     return `<li class="${info ? "info" : bad ? "no" : ""}">${esc(l.replace(/\s{2,}/g, " "))}</li>`;
   }).join("");
 }
@@ -643,6 +646,7 @@ function readout(e) {
     html += S.info.classes.map((c, k) => `<span class="cls ${(bits >> k) & 1 ? "y" : ""}">${CLASS_NAMES[c]}</span>`).join("");
     if (bits & 128) html += `<span class="cls lava">Damaging ground</span>`;
     if (bits & 32) html += `<span class="cls ev">${esc(m.event_label || "event zone")}</span>`;
+    if (m.movement_profile === "naval") html += `<span class="cls ${g.height[i] < -15 ? "y" : ""}">Ships</span>`;
   }
   let best = null, bd = 1e9;
   for (const mx of m.mexes) {
@@ -775,7 +779,11 @@ async function pollJob(id) {
     r.innerHTML = `<div class="ttl">${esc(res.name)} is ready</div>
       <code>${esc(res.file)}</code> &middot; ${(res.bytes / 1e6).toFixed(1)} MB &middot; ${Math.round(j.seconds)} s
       ${res.installed ? `<p>Installed into Zero-K. In the lobby, switch off <b>Only show featured maps</b> to see it.</p>` : ""}
-      <div class="acts"><button class="ghost" id="open-file">Show file</button>${res.installed ? `<button class="ghost" id="open-inst">Show in Zero-K maps</button>` : ""}</div>`;
+      ${res.warning ? `<p class="warnline">${esc(res.warning)}</p>` : ""}
+      <div class="acts"><button class="ghost" id="open-file">Show file</button>${res.installed ? `<button class="ghost" id="open-inst">Show in Zero-K maps</button>` : ""}</div>
+      <div class="support">Enjoying Atlas Map Forge? Support me on Ko-fi to help development.
+        <button class="kofi" id="kofi-result">Support on Ko-fi</button></div>`;
+    $("kofi-result").onclick = openKofi;
     $("open-file").onclick = () => api("open", { path: res.path }).catch((e) => toast(e.message));
     if (res.installed) $("open-inst").onclick = () => api("open", { path: res.installed }).catch((e) => toast(e.message));
     refreshVersions.manual = false;
@@ -859,6 +867,10 @@ $("s-check-go").onclick = async () => {
     out.classList.add("no");
   }
 };
+function openKofi() {
+  api("link", { to: "kofi" }).catch(() => window.open(S.info.support_url, "_blank"));
+}
+$("btn-kofi").onclick = openKofi;
 $("btn-settings").onclick = openSettings;
 $("fix-author").onclick = (e) => { e.preventDefault(); openSettings(); };
 

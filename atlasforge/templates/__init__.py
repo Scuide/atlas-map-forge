@@ -4,15 +4,19 @@
     for t in all_templates():
         print(t.id, t.title)
 """
+from .archipelago import Archipelago
 from .arena import Arena
 from .base import Param, Template
 from .chicken import ChickenRings
 from .chokepoint import Chokepoint
+from .open_sea import OpenSea
 from .river import RiverCrossing
 from .skirmish import Skirmish
+from .straits import IslandStraits
 from .volcano import Volcano
 
-_REGISTRY = {t.id: t for t in (Skirmish(), Chokepoint(), RiverCrossing(), Arena(), Volcano(), ChickenRings())}
+_REGISTRY = {t.id: t for t in (Skirmish(), Chokepoint(), RiverCrossing(), Arena(), Volcano(), ChickenRings(),
+                                OpenSea(), Archipelago(), IslandStraits())}
 
 
 def all_templates():

@@ -90,7 +90,8 @@ def _apply_general(d, v):
 def check(design):
     """-> (ok, lines). Movement-class reachability, chokes, metal spots, plus the template's own checks."""
     t0, t1 = design.teams[0], design.teams[1]
-    ok, lines = report(design.hm, t0, t1, design.mexes, design.gates, design.blocked, design.side_labels[1])
+    ok, lines = report(design.hm, t0, t1, design.mexes, design.gates, design.blocked, design.side_labels[1],
+                       movement_profile=design.movement_profile, naval_starts=design.naval_starts)
     lines = lines + list(design.notes)
     return ok and design.notes_ok, lines
 
