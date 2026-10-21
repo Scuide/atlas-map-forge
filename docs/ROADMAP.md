@@ -8,7 +8,7 @@
 - User settings: author, name prefix, FORGE badge, credit line.
 - Works on Windows (spawn) and Linux (fork); automatic tests in CI.
 
-## 0.2 - templates
+## 0.2 - templates (done)
 
 Ready-made map templates with declared parameters (name, type, range, default, description), so the app
 can build its controls automatically:

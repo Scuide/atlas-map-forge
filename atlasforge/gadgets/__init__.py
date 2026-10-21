@@ -181,3 +181,36 @@ return {{
 }}
 """
     return {"mapconfig/atlas_eruption.lua": data, "LuaRules/Gadgets/atlas_eruption.lua": _lua("lua_eruption.lua")}
+
+
+# ----------------------------------------------------------------------------- chicken defense
+def chicken_zone_files(hm, protect, spacing=320):
+    """Keep chicken roosts out of the player area. protect: list of dict(x, z, r) or dict(x0, z0, x1, z1).
+    Candidate roost spots = flat land outside the protected areas."""
+    from ..terrain import slope_deg
+    W = (hm.shape[1] - 1) * SQ
+    H = (hm.shape[0] - 1) * SQ
+    sl = slope_deg(hm)
+
+    def prot(x, z):
+        for p in protect:
+            if "r" in p and (x - p["x"]) ** 2 + (z - p["z"]) ** 2 < p["r"] ** 2:
+                return True
+            if "x0" in p and p["x0"] <= x <= p["x1"] and p["z0"] <= z <= p["z1"]:
+                return True
+        return False
+    cands = []
+    for z in np.arange(200, H - 200, spacing):
+        for x in np.arange(200, W - 200, spacing):
+            i, j = int(z / SQ), int(x / SQ)
+            win = sl[max(0, i - 6):i + 7, max(0, j - 6):j + 7]
+            if hm[i, j] > 5 and win.max() < 12 and not prot(x, z):
+                cands.append((int(x), int(z)))
+
+    def lua_p(p):
+        if "r" in p:
+            return "{x = %d, z = %d, r = %d}" % (p["x"], p["z"], p["r"])
+        return "{x0 = %d, z0 = %d, x1 = %d, z1 = %d}" % (p["x0"], p["z0"], p["x1"], p["z1"])
+    cfg = "-- Atlas Map Forge: chicken roost zones\nreturn {\n\tprotect = { " + ", ".join(lua_p(p) for p in protect)
+    cfg += " },\n\tcandidates = {\n" + "".join("\t\t{%d, %d},\n" % c for c in cands) + "\t},\n}\n"
+    return {"mapconfig/chicken_zones.lua": cfg, "LuaRules/Gadgets/map_chicken_zones.lua": _lua("lua_chicken_zones.lua")}

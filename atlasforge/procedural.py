@@ -236,12 +236,10 @@ def place_resources(hm, sym, starts, units, rng, log, mex_per_side=None):
     return mexes, geos
 
 
-def generate(title, size=(12, 12), seed=1, biome="temperate", style="hills", layout="diag", relief=None,
-             outdir=".", config=None, version=1, log=print, preview=True, mex_per_side=None, name=None):
-    """Build a procedural skirmish map. Map name = config.map_name(title, version) unless `name` is given.
-    size: Spring map units (even, 4..32). Returns the info dict of build_archive()."""
-    cfg = config or ForgeConfig()
-    name = name or cfg.map_name(title, version)
+def design(size=(12, 12), seed=1, biome="temperate", style="hills", layout="diag", relief=None,
+           mex_per_side=None, log=print):
+    """Procedural skirmish design (heightmap, resources, carved ramps). size: Spring map units."""
+    from .design import Design
     if biome not in BIOMES:
         raise ValueError(f"unknown biome {biome!r}, expected one of {sorted(BIOMES)}")
     if layout not in LAYOUTS:
@@ -250,11 +248,9 @@ def generate(title, size=(12, 12), seed=1, biome="temperate", style="hills", lay
     if any(v % 2 or v < 4 or v > 32 for v in size):
         raise ValueError("size: even values between 4 and 32")
     rng = np.random.default_rng(seed)
-    B = BIOMES[biome]
     nx, nz = ux * 64, uz * 64
     W, H = nx * SQ, nz * SQ
     sym = Symmetry(layout, W, H)
-    log(f"[{name}] {ux}x{uz} {biome}/{style}/{layout} seed={seed}")
 
     hm = make_terrain(nx, nz, style, rng)
     carver = _Carver(hm, water_ok=(style == "islands"))
@@ -288,8 +284,21 @@ def generate(title, size=(12, 12), seed=1, biome="temperate", style="hills", lay
         flatten_disc(hm, m["x"], m["z"], 40, 90)
     hm = 0.5 * (hm + sym.mirror_grid(hm))         # exact final symmetry
     hm = ndimage.gaussian_filter(hm, 0.6).astype(np.float32)
+    desc = f"{ux}x{uz} {biome} {style}, 1v1 to teams. Procedurally generated (seed {seed})."
+    title = f"{biome.capitalize()} {style.capitalize()} {seed}"
+    return Design(hm=hm, sym=sym, starts=starts, teams=[[starts[0]], [starts[1]]], mexes=mexes, geos=geos,
+                  biome=BIOMES[biome], title=title, description=desc, keep_clear=carver.mask, seed=seed,
+                  values=dict(biome=biome, style=style, layout=layout), rng_state=rng.bit_generator.state)
 
-    desc = cfg.describe(f"{ux}x{uz} {biome} {style}, 1v1 to teams. Procedurally generated (seed {seed}).")
-    return build_archive(name, hm, sym, starts, mexes, geos, B, rng, outdir, desc, config=cfg, log=log,
-                         preview=preview, keep_clear=carver.mask,
-                         extra=dict(seed=seed, biome=biome, style=style, layout=layout))
+
+def generate(title, size=(12, 12), seed=1, biome="temperate", style="hills", layout="diag", relief=None,
+             outdir=".", config=None, version=1, log=print, preview=True, mex_per_side=None, name=None):
+    """Build a procedural skirmish map. Map name = config.map_name(title, version) unless `name` is given.
+    size: Spring map units (even, 4..32). Returns the info dict of build_archive()."""
+    cfg = config or ForgeConfig()
+    name = name or cfg.map_name(title, version)
+    log(f"[{name}] {size[0]}x{size[1]} {biome}/{style}/{layout} seed={seed}")
+    d = design(size, seed, biome, style, layout, relief, mex_per_side, log)
+    return build_archive(name, d.hm, d.sym, d.starts, d.mexes, d.geos, d.biome, d.build_rng(), outdir,
+                         cfg.describe(d.description), config=cfg, log=log, preview=preview,
+                         keep_clear=d.keep_clear, extra=dict(seed=d.seed, **d.values))

@@ -40,18 +40,19 @@ def unreachable_mexes(hm, mexes, start, cls="tanks"):
     return [m for m in mexes if lab[int(m["z"] / SQ), int(m["x"] / SQ)] != a]
 
 
-def report(hm, team0, team1, mexes=(), gates=None):
+def report(hm, team0, team1, mexes=(), gates=None, blocked=None, enemy="the enemy"):
     """Plain-English check report.
-    team0/team1: start points per team; gates: optional [(name, bool mask)] of choke areas.
+    team0/team1: start points per team; gates: optional [(name, bool mask)] of choke areas;
+    blocked: optional bool grid that no ground unit survives (e.g. lava); enemy: wording for team 1.
     Returns (ok, lines). ok = tanks and bots reach the enemy and every metal spot is reachable for tanks."""
     lines = []
     ok = True
     masks = unit_masks(hm)
     for cls in CLASSES:
-        m = masks[cls]
+        m = masks[cls] if blocked is None else masks[cls] & ~blocked
         reach = connected(m, team0[0], team1[0])
         own = all(connected(m, team0[0], p) for p in team0[1:]) and all(connected(m, team1[0], p) for p in team1[1:])
-        text = f"{cls.capitalize():11s} can reach the enemy: {'yes' if reach else 'NO'}"
+        text = f"{cls.capitalize():11s} can reach {enemy}: {'yes' if reach else 'NO'}"
         if not own:
             text += " (own bases are not connected!)"
         if gates:
@@ -73,7 +74,10 @@ def report(hm, team0, team1, mexes=(), gates=None):
         if cls in ("tanks", "bots"):
             ok &= reach and own
     if len(mexes):
-        bad = unreachable_mexes(hm, mexes, team0[0])
+        tm = masks["tanks"] if blocked is None else masks["tanks"] & ~blocked
+        lab, _ = ndimage.label(tm)
+        a = lab[cell(team0[0])]
+        bad = [m for m in mexes if lab[int(m["z"] / SQ), int(m["x"] / SQ)] != a]
         lines.append(f"Metal spots unreachable for tanks: {len(bad)} of {len(mexes)}")
         ok &= not bad
     return ok, lines
