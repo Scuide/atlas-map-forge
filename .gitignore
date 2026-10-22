@@ -8,3 +8,6 @@ out/
 *.sdz
 *_preview.png
 *_detail.png
+
+Python/
+.claude/

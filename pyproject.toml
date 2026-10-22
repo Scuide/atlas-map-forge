@@ -46,3 +46,6 @@ include = ["atlasforge*"]
 atlasforge = ["assets/*"]
 "atlasforge.gadgets" = ["*.lua"]
 "atlasforge.app" = ["web/*", "web/thumbs/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
