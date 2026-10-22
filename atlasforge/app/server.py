@@ -7,6 +7,7 @@ the session token that is written into the page, so other web pages cannot use t
   POST /api/preview  {template, values, seed}  -> design id, check report, overlay data
   GET  /api/layer/<id>/<name>?size=N    relief (JPEG), hazard, gates, reach_<class> (PNG), cells, height (raw)
   GET  /api/versions?title=...          map versions that already exist
+  POST /api/edit     {id, edits, symmetry}  -> moved/added/deleted spots, check report, problems
   POST /api/build    {id, title, version, install}  -> job id
   GET  /api/job/<job>                   progress, log, result
   POST /api/config   {author, zerok, outdir, advanced}
@@ -63,7 +64,10 @@ def _json_safe(o):
 
 class Entry:
     def __init__(self, design, ok, lines):
+        self.base = design                                    # as generated; edits are applied to a copy
         self.design, self.ok, self.lines = design, ok, lines
+        self.base_ok, self.base_lines = ok, lines
+        self.edits, self.symmetry, self.problems, self.issues = [], True, [], []
         self.layers = {}
         self.lock = threading.Lock()
 
@@ -125,9 +129,6 @@ class Forge:
     # ------------------------------------------------------------------ preview
     def preview(self, data):
         from .. import forge
-        from ..biomes import BIOMES
-        from ..formats import startboxes_lua
-        from .luatable import startboxes
         tid = data["template"]
         seed = int(data.get("seed", 1))
         log = []
@@ -137,9 +138,20 @@ class Forge:
             ok, lines = forge.check(d)
         did = uuid.uuid4().hex[:12]
         print(f"preview {tid} seed {seed}: {time.time() - t0:.1f} s", flush=True)
-        self.designs[did] = Entry(d, ok, lines)
+        e = Entry(d, ok, lines)
+        self.designs[did] = e
         while len(self.designs) > KEEP_DESIGNS:
             self.designs.popitem(last=False)
+        out = self._design_payload(did, e, seed, time.time() - t0)
+        if data.get("edits"):                                 # opened from a project file: apply its edits
+            out.update(self.edit(dict(id=did, edits=data["edits"], symmetry=data.get("symmetry", True))))
+        return out
+
+    def _design_payload(self, did, e, seed, seconds):
+        from ..biomes import BIOMES
+        from ..formats import startboxes_lua
+        from .luatable import startboxes
+        d, ok, lines, tid = e.design, e.ok, e.lines, e.design.template
         W, H = (d.hm.shape[1] - 1) * SQ, (d.hm.shape[0] - 1) * SQ
         try:
             boxes = startboxes(d.startboxes or startboxes_lua(d.sym, d.starts))
@@ -152,7 +164,9 @@ class Forge:
                 gates.append(dict(name=name, x=float(xx.mean() * SQ), z=float(zz.mean() * SQ)))
         team_cols = d.start_colors or None
         return _json_safe(dict(
-            id=did, ok=ok, lines=lines, seconds=round(time.time() - t0, 2),
+            sym=dict(kind="rot" if hasattr(d.sym, "ops") else "mirror", layout=d.sym.layout, n=getattr(d.sym, "n", 2)),
+            edits=e.edits, symmetry=e.symmetry, problems=e.problems, issues=e.issues,
+            id=did, ok=ok, lines=lines, seconds=round(seconds, 2),
             template=tid, values=d.values, seed=seed, title=d.title, description=d.description,
             size=list(d.size), W=W, H=H, grid=[int(d.hm.shape[1]), int(d.hm.shape[0])],
             biome=str(d.values.get("biome") or next((k for k, b in BIOMES.items() if all(d.biome.get(x) == y for x, y in b.items())), "")),
@@ -170,6 +184,61 @@ class Forge:
             features=[[round(x), round(z), "crystal" if n.startswith("forge_crystal") else
                        "rock" if n.startswith("forge_rock") else "wreck"] for (n, x, z, _r) in d.features],
         ))
+
+
+    def edit(self, data):
+        """Apply a list of manual edits (metal spots, geovents, start points) to the generated design."""
+        from .. import forge
+        from ..edits import apply_edits, editor_checks
+        e = self.entry(data["id"])
+        edits = data.get("edits") or []
+        if not isinstance(edits, list):
+            raise ValueError("edits must be a list")
+        sym_on = bool(data.get("symmetry", True))
+        t0 = time.time()
+        with e.lock:
+            d, problems = apply_edits(e.base, edits, sym_on)
+            if edits:
+                with self.make_lock:
+                    ok, lines = forge.check(d)
+                issues = editor_checks(d, sym_on)
+                ok = ok and not any(i["level"] == "error" for i in issues)
+                lines = lines + [("ERROR: " if i["level"] == "error" else "WARNING: ") + i["text"] for i in issues]
+            else:
+                issues, ok, lines = [], e.base_ok, e.base_lines
+            e.design, e.edits, e.symmetry, e.problems, e.issues = d, list(edits), sym_on, problems, issues
+            e.ok, e.lines = ok, lines
+            for key in [k for k in e.layers if k[0].startswith("reach_")]:
+                del e.layers[key]
+        out = self._design_payload(data["id"], e, d.seed, time.time() - t0)
+        for k in ("values", "title", "description", "biome", "size", "W", "H", "grid", "height", "features",
+                  "marks", "gates", "side_labels"):
+            out.pop(k, None)                                   # unchanged by edits: keep the reply small
+        return out
+
+    # ------------------------------------------------------------------ project files (.forge.json)
+    def project_dump(self, data):
+        from .. import project
+        d = dict(data["data"])
+        d.pop("format", None)
+        d.pop("version", None)
+        base = project.new_project(d.pop("template"), d.pop("values", {}), d.pop("seed", 1), d.pop("symmetry", True),
+                                   d.pop("edits", []), d.pop("title", None), d.pop("app_version", __version__))
+        base.update(d)                                         # unknown fields of a loaded file are kept
+        project.validate(base, templates=self._template_ids())
+        return dict(text=project.dumps(base))
+
+    def project_load(self, data):
+        from .. import project
+        p = project.loads(str(data.get("text", "")))
+        project.validate(p, templates=self._template_ids())
+        known = ("format", "version", "app_version", "template", "values", "seed", "symmetry", "edits", "title")
+        return dict(project=p, extra={k: v for k, v in p.items() if k not in known})
+
+    @staticmethod
+    def _template_ids():
+        from ..templates import all_templates
+        return {t.info()["id"] for t in all_templates()}
 
     def entry(self, did):
         e = self.designs.get(did)
@@ -431,7 +500,8 @@ def make_handler(forge_state, quiet=True):
                 n = int(self.headers.get("Content-Length") or 0)
                 data = json.loads(self.rfile.read(n) or b"{}")
                 route = u.path[len("/api/"):]
-                fn = {"preview": forge_state.preview, "build": forge_state.build,
+                fn = {"preview": forge_state.preview, "edit": forge_state.edit, "project_dump": forge_state.project_dump,
+                      "project_load": forge_state.project_load, "build": forge_state.build,
                       "clientlog": lambda d: (print("page:", str(d.get("msg", ""))[:500], flush=True), {"ok": True})[1],
                       "config": forge_state.set_config, "verify": forge_state.verify,
                       "open": lambda d: forge_state.open_path(d["path"]),

@@ -22,6 +22,9 @@ const S = {
   titleEdited: {},
   titles: {},
   job: null,
+  edits: [],           // manual edits of the current map (see atlasforge/edits.py)
+  redo: [],
+  symmetry: true,
 };
 
 // ------------------------------------------------------------------ helpers
@@ -332,6 +335,7 @@ function schedulePreview(ms, refit = false) {
 }
 
 async function runPreview(refit) {
+  if (!(await editorGuard())) return;                          // manual edits would be lost: ask first
   const seq = ++S.seq;
   const seed = Math.max(1, parseInt($("seed").value, 10) || 1);
   S.seeds[S.tpl.id] = seed;
@@ -341,7 +345,7 @@ async function runPreview(refit) {
   updateBuildButton();
   try {
     const prev = S.map;
-    const m = await api("preview", { template: S.tpl.id, values: S.values[S.tpl.id], seed });
+    const m = await api("preview", { template: S.tpl.id, values: S.values[S.tpl.id], seed, edits: S.edits, symmetry: S.symmetry });
     if (seq !== S.seq) return;                                 // a newer preview is on its way
     const [relief, height, cells, hazard, gates] = await Promise.all([
       api(`layer/${m.id}/relief?size=1024`),
@@ -352,6 +356,7 @@ async function runPreview(refit) {
     ]);
     if (seq !== S.seq) return;
     S.map = m;
+    editorAfterPreview(m, seed);
     S.img = { relief, reliefSize: 1024, hazard, gates, reach: {} };
     S.grid = { nx: m.grid[0], nz: m.grid[1], height: new Int16Array(height), cells: new Uint8Array(cells) };
     $("empty").classList.add("hidden");
@@ -528,6 +533,7 @@ function paint() {
   if (S.layers.mexes) for (const x of m.mexes) drawMex(x);
   for (const k of m.marks) drawMark(k);
   if (S.layers.starts) drawStarts();
+  drawEditor();
   ctx.strokeStyle = "rgba(255,255,255,.08)";
   ctx.lineWidth = 1;
   ctx.strokeRect(ox + 0.5, oy + 0.5, w - 1, h - 1);
