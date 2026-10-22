@@ -17,9 +17,12 @@ BASE_RADIUS = 900          # spots this close to a start point belong to the bas
 ORBIT_TOL = 40             # elmos: two points closer than this are the same mirror image
 
 
-def parts(hm):
-    """How many symmetric parts the map has (2 = two sides, 4 = quarters, 1 = not symmetric)."""
-    return max(1, len(symmetry_ops(hm)))
+def parts(d):
+    """How many symmetric parts a design has (2 = two sides, 4 = quarters, N = players on a free-for-all
+    map, 1 = not symmetric). d: Design (or a bare heightmap for mirror-only maps)."""
+    if isinstance(d, np.ndarray):
+        return max(1, len(symmetry_ops(d)))
+    return max(1, len(symmetry_ops(d.hm, d.sym)))
 
 
 def _orbits(points, ops):
@@ -90,7 +93,7 @@ def _candidates(d, margin_frac=0.07):
 def _add(d, kind, n_orbits, rng):
     """Add n_orbits new orbits of metal spots (kind "mex") or geos (kind "geo"). -> number added."""
     hm = d.hm
-    ops = symmetry_ops(hm)
+    ops = symmetry_ops(hm, d.sym)
     W = (hm.shape[1] - 1) * SQ
     cand = _candidates(d)
     ii, jj = np.nonzero(cand[::4, ::4])
@@ -149,7 +152,7 @@ def _new_value(d, x, z):
 
 def _remove_mex(d, n_orbits):
     """Remove n_orbits expansion orbits, the most crowded ones first. -> number removed."""
-    ops = symmetry_ops(d.hm)
+    ops = symmetry_ops(d.hm, d.sym)
     removed = 0
     for _ in range(n_orbits):
         pts = [(m["x"], m["z"]) for m in d.mexes]
@@ -171,7 +174,7 @@ def _remove_mex(d, n_orbits):
 
 
 def _remove_geo(d, n_orbits):
-    ops = symmetry_ops(d.hm)
+    ops = symmetry_ops(d.hm, d.sym)
     removed = 0
     for _ in range(n_orbits):
         orbs = _orbits([(g[0], g[1]) for g in d.geos], ops)
@@ -189,8 +192,8 @@ def set_counts(d, mex_count=0, geo_count="default", seed=0):
     Spots are added and removed as whole mirror sets (orbits); a spot on a mirror axis counts for a part
     of each side. Notes for the check report are appended to d.notes. Returns the word for a part."""
     rng = np.random.default_rng(seed + 4242)
-    k = parts(d.hm)
-    per = "per side" if k == 2 else ("per quarter" if k == 4 else ("on the map" if k == 1 else f"per part ({k})"))
+    k = parts(d)
+    per = "per player" if hasattr(d.sym, "ops") else "per side" if k == 2 else ("per quarter" if k == 4 else ("on the map" if k == 1 else f"per part ({k})"))
     if mex_count:
         while len(d.mexes) / k > mex_count + 0.01 and _remove_mex(d, 1):
             pass

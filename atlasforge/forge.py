@@ -64,6 +64,19 @@ def _apply_general(d, v):
     if v.get("wind", "biome") != "biome":
         from .resources import WIND
         d.biome = dict(d.biome, wind=WIND[v["wind"]])
+    sun = v.get("sun", "biome")
+    if sun != "biome":
+        from .sky import SUN_PRESETS, sun_vector
+        az, el, mul = SUN_PRESETS[sun]
+        b = dict(d.biome)
+        b["sundir"] = sun_vector(az, el)
+        b["sun"] = tuple(min(1.0, c * m) for c, m in zip(b["sun"], mul))
+        b["gdif"] = tuple(min(1.0, c * (0.85 + 0.15 * m)) for c, m in zip(b["gdif"], mul))
+        d.biome = b
+    if v.get("sky", "painted") != "painted":
+        d.biome = dict(d.biome, skybox=False)
+    if v.get("grass", 1.0) != 1.0:
+        d.biome = dict(d.biome, grass_mul=float(v["grass"]))
     if v.get("tidal", 12) != 12:
         d.biome = dict(d.biome, tidal=int(v["tidal"]))
     if v.get("erosion", 0) > 0:
@@ -73,7 +86,7 @@ def _apply_general(d, v):
         strength = v["erosion"]
         for _ in range(3):
             delta = erode(hm0, strength, protect=prot, seed=d.seed) - hm0
-            d.hm = (hm0 + symmetric_like(hm0, delta)).astype(np.float32)
+            d.hm = (hm0 + symmetric_like(hm0, delta, d.sym)).astype(np.float32)
             if not ok_before or check(d)[0]:
                 break
             strength *= 0.5                       # erosion cut a route: try gentler
@@ -86,7 +99,8 @@ def _apply_general(d, v):
         from .decor import place
         mr, mw, parts = place(d, v.get("rocks", 0), v.get("wrecks", 0), seed=d.seed, biome_name=biome_key(d))
         if mr or mw:
-            where = "on the map" if parts == 1 else ("per side" if parts == 2 else "per quarter")
+            where = ("per player" if hasattr(d.sym, "ops") else "on the map" if parts == 1
+                     else "per side" if parts == 2 else "per quarter")
             d.notes.append(f"Reclaim {where}: {mr:.0f} metal in rocks, {mw:.0f} metal in wrecks")
     if v.get("metal", 1.0) != 1.0:
         for m in d.mexes:
@@ -99,7 +113,8 @@ def check(design):
     """-> (ok, lines). Movement-class reachability, chokes, metal spots, plus the template's own checks."""
     t0, t1 = design.teams[0], design.teams[1]
     ok, lines = report(design.hm, t0, t1, design.mexes, design.gates, design.blocked, design.side_labels[1],
-                       movement_profile=design.movement_profile, naval_starts=design.naval_starts)
+                       movement_profile=design.movement_profile, naval_starts=design.naval_starts,
+                       others=design.teams[2:])
     lines = lines + list(design.notes)
     return ok and design.notes_ok, lines
 
@@ -146,7 +161,8 @@ def _relief_colors(hm, biome, paint, size):
     ex = 2.2
     nrm = np.stack([-gx * ex, np.ones_like(gx), -gz * ex], -1)
     nrm /= np.linalg.norm(nrm, axis=-1, keepdims=True)
-    L = np.array([-0.5, 0.7, -0.5]); L /= np.linalg.norm(L)
+    L = np.array(biome.get("sundir", (-0.5, 0.7, -0.5)), np.float64); L /= np.linalg.norm(L)
+    L[1] = max(L[1], 0.45); L /= np.linalg.norm(L)          # low evening sun: keep the preview readable
     lam = np.clip(nrm @ L, 0, 1)
     ao = np.clip((h - ndimage.gaussian_filter(h, 8)) / 60, -1, 1)
     col = col * (0.5 + 0.7 * lam)[..., None] * (1 + 0.2 * ao)[..., None]
@@ -177,11 +193,12 @@ def preview(design, size=1024, overlays=True):
     for g in design.geos:
         x, z = g[0] * sx, g[1] * sz
         d.rectangle([x - 6, z - 6, x + 6, z + 6], outline=(0, 0, 0, 255), fill=(255, 120, 0, 255))
-    team_cols = [(60, 255, 60, 255), (255, 70, 70, 255), (90, 160, 255, 255), (255, 220, 60, 255)]
+    from .symmetry import PLAYER_COLORS
+    team_cols = [c + (255,) for c in PLAYER_COLORS]
     k = 0
     for ti, team in enumerate(design.teams):
         for p in team:
-            c = team_cols[ti % 4]
+            c = team_cols[ti % len(team_cols)]
             x, z = p[0] * sx, p[1] * sz
             d.ellipse([x - 12, z - 12, x + 12, z + 12], outline=(0, 0, 0, 255), width=3, fill=tuple(c))
             k += 1

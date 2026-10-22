@@ -2,6 +2,18 @@
 
 ## 0.4.0 - unreleased
 
+- Three new biomes: jungle (dense forest, tall grass, moss on rock), swamp (murky water, mud puddles, reeds),
+  industrial (steel plate fields with rust, concrete, no trees).
+- Every map carries its own painted sky (a panorama the engine turns into a sky box): biome colours,
+  clouds, the sun at the right place, stars on the moon; the horizon matches the fog. "Sky: engine" keeps
+  Zero-K's default sky.
+- Engine grass (SMF vegetation map) on gentle ground for biomes with grass, coloured per biome; new general
+  setting "Grass".
+- New general setting "Time of day" (morning, noon, afternoon, evening): sun direction and colour in game,
+  in the baked ground shading, in the preview and in the sky.
+- Free-for-all for 3 to 8 players: rotational symmetry (`RotSymmetry`), one wedge-shaped start box per
+  player, checks that every base reaches every other, metal spots, vents, rocks, wrecks, trees and erosion
+  identical for every player. New template FFA Ring (watermark code 13); up to 8 player colours in the app.
 - Three new templates from the template agent: Three Lanes (land, three lanes with ridges and crossings),
   Coastal Front (mainland front beside a coastal sea) and Atoll (island arcs around a lagoon). Watermark
   codes 10, 11 and 12.

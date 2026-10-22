@@ -11,7 +11,8 @@ map gadgets such as lava cliffs, lava tides and an erupting volcano.
 
 - **Playable maps:** every map is checked with the engine's own slope rules. Ramps are carved
   automatically until tanks can reach the enemy base and every metal spot.
-- **Good looks:** biome palettes (temperate, desert, arctic, volcanic, ashland, alien, moon, autumn),
+- **Good looks:** biome palettes (temperate, desert, arctic, volcanic, ashland, alien, moon, autumn, jungle, swamp,
+  industrial), a painted sky per map, engine grass, time of day,
   slope-based rock, shores, detail normal maps, splat materials and soft terrain transitions.
 - **Fair layouts:** two-team symmetry (diagonal, north/south, east/west) for terrain and resources.
 - **Map gadgets:** maps can carry their own Lua rules, for example damaging lava on cliffs that only
@@ -93,6 +94,7 @@ and copies it into your Zero-K folder (found automatically for Steam installs; o
 | `three_lanes` | Three Lanes: three parallel battle lanes divided by ridges, side crossings to switch lanes | ridge height and width, crossing width, central crossing |
 | `coastal_front` | Coastal Front: a mainland front beside a broad coastal sea | mainland depth, headlands, sea depth, underwater metal share |
 | `atoll` | Atoll: opposing island arcs around a contested lagoon with two deep entrances | atoll radius, ring width, entrance width, sea depth |
+| `ffa_ring` | FFA Ring: free-for-all for 3 to 8 players, identical sectors around a rich centre | players, ridges or open borders, ridge height, pass width, centre |
 
 Sea maps are checked for ships (heavy ships need water deeper than 15 elmos), hovers and amphibians
 instead of tanks and bots; the app shows a "Ships" route.
@@ -126,7 +128,7 @@ Options of `atlasforge procedural`:
 | Option | Meaning |
 |---|---|
 | `--size W H` | map size in Spring units, even numbers from 4 to 32 (12 12 is a typical 1v1/2v2 size) |
-| `--biome` | temperate, desert, arctic, volcanic, ashland, alien, moon, autumn |
+| `--biome` | temperate, desert, arctic, volcanic, ashland, alien, moon, autumn, jungle, swamp, industrial |
 | `--style` | hills, plateaus, canyon, islands, crater |
 | `--layout` | diag (NW vs SE), ns (north vs south), ew (west vs east) |
 | `--seed` | any number; the same seed builds the same map |

@@ -107,11 +107,14 @@ def smt_header(ntiles):
 
 
 # ----------------------------------------------------------------------------- SMF
-def write_smf(path, nx, nz, hmin, hmax, hm16, typemap, minimap, metalmap, tilefile, ntiles, features, mapid):
-    """features: [(type name, x, y, z, rotation, size)]"""
+def write_smf(path, nx, nz, hmin, hmax, hm16, typemap, minimap, metalmap, tilefile, ntiles, features, mapid,
+              grass=None):
+    """features: [(type name, x, y, z, rotation, size)]; grass: optional uint8 grid (nz/4, nx/4), > 0 = grass
+    (stored as the MEH_Vegetation extra header the engine reads in CSMFMapFile::ReadGrassMap)."""
     feat_types = sorted(set(f[0] for f in features))
     ftype_idx = {t: k for k, t in enumerate(feat_types)}
-    hdr_size = 80
+    n_extra = 1 if grass is not None else 0
+    hdr_size = 80 + 12 * n_extra
     hm_ptr = hdr_size
     type_ptr = hm_ptr + hm16.nbytes
     mini_ptr = type_ptr + typemap.nbytes
@@ -130,14 +133,21 @@ def write_smf(path, nx, nz, hmin, hmax, hm16, typemap, minimap, metalmap, tilefi
     tilesec.write(struct.pack("<i", ntiles) + tilefile.encode() + b"\0")
     idx = np.arange((nx // 4) * (nz // 4), dtype=np.int32)
     tilesec.write(idx.tobytes())
+    tiles = tilesec.getvalue()
     header = struct.pack("<16s7i2f7i", b"spring map file\0", 1, mapid, nx, nz, SQ, TEX_PER_SQ, TILE,
                          float(hmin), float(hmax), hm_ptr, type_ptr, tile_ptr, mini_ptr, metal_ptr,
-                         feat_ptr, 0)
+                         feat_ptr, n_extra)
+    if grass is not None:
+        g = np.ascontiguousarray(grass, np.uint8)
+        assert g.shape == (nz // 4, nx // 4), g.shape
+        header += struct.pack("<3i", 12, 1, tile_ptr + len(tiles))
     assert len(header) == hdr_size
     with open(path, "wb") as f:
         f.write(header)
         f.write(hm16.tobytes()); f.write(typemap.tobytes()); f.write(minimap)
-        f.write(metalmap.tobytes()); f.write(feat); f.write(tilesec.getvalue())
+        f.write(metalmap.tobytes()); f.write(feat); f.write(tiles)
+        if grass is not None:
+            f.write(g.tobytes())
 
 
 # ----------------------------------------------------------------------------- Lua files
@@ -151,11 +161,28 @@ def lua_string(s):
 
 
 def mapinfo_lua(name, desc, author, hmin, hmax, smtname, starts, biome, water_h, smfname, minimap_tex=None,
-                emission_tex=None, tool="Atlas Map Forge"):
+                emission_tex=None, tool="Atlas Map Forge", sky_box=None, grass_shading=None):
     """mapinfo.lua. minimap_tex: separate in-game minimap without badge (unitsync and zero-k.info always
     read the minimap embedded in the SMF, which carries the badge)."""
     minimap_line = f'\n    minimaptex   = "{minimap_tex}",' if minimap_tex else ""
     emis_line = f'\n    lightEmissionTex = "{emission_tex}",' if emission_tex else ""
+    if grass_shading:
+        emis_line += f'\n    grassShadingTex = "{grass_shading}",'
+    sky_line = f'\n    skybox       = "{sky_box}",' if sky_box else ""
+    sd = biome.get("sundir", (-0.4, 0.75, -0.5))
+    g = biome.get("grass") or {}
+    grass_block = ""
+    if grass_shading and g:
+        grass_block = f"""
+  grass = {{
+    bladeWaveScale   = {g.get("wave", 1.0)},
+    bladeWidth       = {g.get("width", 0.7)},
+    bladeHeight      = {g.get("height", 4.5)},
+    bladeAngle       = {g.get("angle", 1.0)},
+    maxStrawsPerTurf = {int(g.get("straws", 150))},
+    bladeColor       = {lua_tuple(g.get("color", (0.3, 0.45, 0.15)))},
+  }},
+"""
     b = biome
     teams = "\n".join(
         f"    [{k}] = {{ startpos = {{ x = {int(x)}, z = {int(z)} }} }}," for k, (x, z) in enumerate(starts))
@@ -206,17 +233,18 @@ local mapinfo = {{
   atmosphere = {{
     minwind      = {b["wind"][0]},
     maxwind      = {b["wind"][1]},
-    fogstart     = 0.6,
+    fogstart     = {b.get("fog_start", 0.6)},
     fogend       = 1.0,
     fogcolor     = {lua_tuple(b["fog"])},
     suncolor     = {lua_tuple(b["sun"])},
     skycolor     = {lua_tuple(b["sky"])},
-    clouddensity = 0.5,
-    cloudcolor   = {{1.0, 1.0, 1.0}},
+    clouddensity = {b.get("clouds", 0.5)},
+    cloudcolor   = {lua_tuple(b.get("cloud", (1.0, 1.0, 1.0)))},{sky_line}
   }},
+{grass_block}
 
   lighting = {{
-    sundir              = {{-0.4, 0.75, -0.5}},
+    sundir              = {lua_tuple(sd)},
     groundambientcolor  = {lua_tuple(b["gamb"])},
     grounddiffusecolor  = {lua_tuple(b["gdif"])},
     groundspecularcolor = {{0.1, 0.1, 0.1}},

@@ -14,7 +14,7 @@ FAST = {"erosion": 0, "rocks": 0, "wrecks": 0}
 @pytest.mark.parametrize("mex, geo", [(6, 0), (20, 2)])
 def test_counts(tid, size, mex, geo):
     d = forge.make(tid, dict(FAST, size=size, mex_count=mex, geos=geo), seed=4, **QUIET)
-    k = parts(d.hm)
+    k = parts(d)
     assert len(d.mexes) / k == pytest.approx(mex, abs=0.5)
     assert len(d.geos) / k == pytest.approx(geo, abs=0.5)
     assert forge.check(d)[0]

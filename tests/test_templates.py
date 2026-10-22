@@ -6,7 +6,7 @@ from atlasforge.templates import all_templates, get
 
 SMALL = {"skirmish": {"size": 8}, "chokepoint": {"size": 12}, "river": {"size": 12}, "arena": {"size": 12},
          "volcano": {}, "chicken": {"size": 16}, "open_sea": {"size": 16}, "archipelago": {"size": 16},
-         "straits": {"size": 16}}
+         "straits": {"size": 16}, "ffa_ring": {"size": 16, "players": 4}}
 
 
 @pytest.mark.parametrize("tid", [t.id for t in all_templates()])
@@ -14,7 +14,7 @@ def test_template_designs_and_checks(tid):
     d = forge.make(tid, SMALL.get(tid, {}), seed=3, log=lambda *a: None)
     ok, lines = forge.check(d)
     assert ok, "\n".join(lines)
-    assert d.mexes and d.starts and len(d.teams) == 2
+    assert d.mexes and d.starts and len(d.teams) >= 2
     img = forge.preview(d, size=256)
     assert img.size == (256, 256)
     for path, code in d.extra_files.items():

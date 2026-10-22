@@ -217,6 +217,30 @@ Two-sided maps must be **exactly** symmetric (terrain, metal, geovents, start po
 
 Co-op maps (like chicken defense) need no symmetry.
 
+#### Free-for-all for 3 to 8 players (rotation, `atlasforge.symmetry.RotSymmetry`)
+
+Reference: `templates/ffa_ring.py`. Every player gets an identical sector, rotated about the map centre.
+
+| Piece | Use |
+|---|---|
+| `sym = RotSymmetry(N, W)` | design symmetry; player k's sector is centred on `sym.angle(k)` (player 0 at the top) |
+| `sym.polar(r, deg, k)` | point at radius `r` and angle `deg` inside sector k (0 = the sector's centre line) |
+| `sym.rotate(x, z, k)`, `sym.orbit(x, z)`, `sym.sector(x, z)` | copy points to the other players, find a sector |
+| `rot_fields(sym, low, hills, en)` | noise made rotationally symmetric without losing strength (do this first) |
+| `rotate_points([(x, z, metal)], sym)` | mex list for all players (`side` = player index) |
+| `ffa_boxes(sym, starts, r_in, r_out)` | one wedge-shaped start box per player (`templates.common`) |
+| `PLAYER_COLORS` | start colours for up to 8 players (`start_colors=`) |
+
+- Build terrain from rotation-invariant shapes: radius `r` and the angle inside the own sector
+  (`rel = (atan2 - sym.a0 + sec/2) % sec - sec/2`), or the distance to the nearest start. Grids cannot be
+  rotated exactly by other angles than 90 degrees, so do not copy the heightmap; build it symmetric.
+- The square's corners lie outside the fair circle: fill them with ground nobody uses (FFA Ring: a
+  mountain rim, also in `keep_clear`).
+- `teams=[[s] for s in starts]` (one team per player), `side_labels=("your base", "every other base")`.
+  The check requires every base to reach every other base. Metal spot and geo counts, rocks, wrecks,
+  trees and erosion follow the rotation automatically (counts are "per player").
+- Naval free-for-all (several ports) is not supported by the naval check yet.
+
 ### Start boxes (`atlasforge.formats`, `templates.common`)
 
 `west_east_boxes_lua(W, H, team0, team1, depth, margin)`, `four_base_boxes(team0, team1, names0, names1, W)`

@@ -29,9 +29,9 @@ def general_params():
     """Settings every template has (applied by forge.make after the template)."""
     return (
         Param("mex_count", "Metal spots", "int", 0, min=0, max=40, step=1, adv_max=120, group="Resources",
-              help="Metal spots per side; 0 = what the template picks for this size",
-              info="How many metal spots each side gets (each quarter on four-way maps, the whole map on "
-                   "co-op maps), base spots included. 0 keeps the template's own number, which grows with "
+              help="Metal spots per side (per player in free-for-all); 0 = what the template picks for this size",
+              info="How many metal spots each side gets (each player on free-for-all maps, each quarter on "
+                   "four-way maps, the whole map on co-op maps), base spots included. 0 keeps the template's own number, which grows with "
                    "the map size. More spots mean a faster economy and more places to fight over; fewer "
                    "spots make every expansion count. Spots are added and removed in mirrored sets so "
                    "every side stays equal; spots inside the bases are never removed, and new ones only go "
@@ -43,7 +43,7 @@ def general_params():
                    "are slower and smaller; 2.0 doubles it, so big units and superweapons come much earlier."),
         Param("geos", "Geothermal vents", "choice", "default", choices=("default", 0, 1, 2, 3),
               adv_choices=("default", 0, 1, 2, 3, 4, 5, 6, 8), group="Resources",
-              help="Geothermal vents per side; default = what the template picks",
+              help="Geothermal vents per side (per player in free-for-all); default = what the template picks",
               info="Geothermal vents per side. A geothermal plant on a vent gives a lot of energy (25 E/s, "
                    "the advanced one 100 E/s) but explodes hard when destroyed. 'default' keeps the "
                    "template's vents; 0 removes them all. New vents are placed in mirrored sets on flat, "
@@ -60,6 +60,27 @@ def general_params():
               info="Energy per second that a tidal generator in water makes. Only matters on maps with "
                    "water deep enough to build tidals. 12 is the usual Zero-K value; 0 makes tidals useless, "
                    "20 and more makes the sea the best place for energy."),
+        Param("sun", "Time of day", "choice", "biome", choices=("biome", "morning", "noon", "afternoon", "evening"),
+              group="Map", help="Where the sun stands: light direction, shadows and sun colour",
+              info="Sets the sun for the whole map: the direction light and shadows come from in game, the "
+                   "shading baked into the ground texture and the sun in the sky. morning: low sun in the "
+                   "east, warm light. noon: high sun, short shadows, the clearest view. afternoon: sun in "
+                   "the south-west. evening: very low sun in the west, long shadows and orange light. "
+                   "'biome' uses the biome's usual sun (high, from the north-west). Purely visual, no "
+                   "effect on the game."),
+        Param("sky", "Sky", "choice", "painted", choices=("painted", "engine"), group="Map",
+              help="painted: the map's own sky picture; engine: Zero-K's default sky",
+              info="painted: the map carries its own sky picture made for the biome - colours, clouds, the "
+                   "sun at the right place, stars on the moon - and the horizon matches the fog, so the "
+                   "edge of the map fades into the sky. engine: no sky picture, Zero-K draws its plain "
+                   "default sky in the biome's colours (a little smaller map file). Purely visual."),
+        Param("grass", "Grass", "float", 1.0, min=0.0, max=2.0, step=0.1, adv_max=4.0, group="Terrain",
+              help="Engine grass on flat ground (biomes with grass only)",
+              info="Grass blades drawn by the engine on gentle ground: patches of meadow in temperate, "
+                   "autumn and jungle maps, reeds in swamps, sparse tufts in deserts and the arctic. Grass is "
+                   "only decoration: it does not block units, shots or sight. 0 removes it, 2.0 doubles the "
+                   "covered area. Players can turn grass off in their graphics settings; biomes without "
+                   "grass (moon, volcanic, ashland, industrial) stay bare."),
         Param("trees", "Trees", "float", 1.0, min=0.0, max=2.0, step=0.1, adv_max=5.0, group="Terrain",
               help="Tree density (biomes without trees stay bare)",
               info="Density of trees on grass and forest ground. Trees block line of sight a little, can be "
@@ -90,9 +111,11 @@ def general_params():
 def biome_param(default):
     return Param("biome", "Biome", "choice", default, choices=BIOME_CHOICES, group="Map",
                  help="Colours, sky, light and trees",
-                 info="The look of the map: ground colours and textures, sky, sun, water colour, trees and "
-                      "the usual wind. It does not change the shape of the terrain. Some biomes have no trees "
-                      "(desert, moon, alien) and moon has almost no wind.")
+                 info="The look of the map: ground colours and textures, sky, sun, water colour, trees, grass "
+                      "and the usual wind. It does not change the shape of the terrain. jungle: dense forest "
+                      "and tall grass; swamp: murky water, mud puddles and reeds; industrial: steel plates and "
+                      "concrete, no trees. Desert, moon, alien, volcanic and ashland have no trees, and the "
+                      "moon has almost no wind.")
 
 
 def sym_fields(mode, *fields):
@@ -211,3 +234,23 @@ def disc_mask(xx, zz, x, z, r):
 
 def cell(p):
     return int(p[1] / SQ), int(p[0] / SQ)
+
+
+def ffa_boxes(sym, starts, r_in, r_out, half_deg=None):
+    """Free-for-all start boxes: one wedge-shaped box around each player's start (RotSymmetry).
+    r_in/r_out: radii of the box (elmos from the centre); half_deg: half opening angle (default 40 % of a
+    sector). Player k is ally team k."""
+    half = half_deg if half_deg is not None else 0.4 * 180.0 / sym.n
+    W, H = sym.W, sym.H
+    out = ["-- Atlas Map Forge: free-for-all, one start box per player", "return {"]
+    for k, (sx, sz) in enumerate(starts):
+        pts = []
+        for r, a0, a1 in ((r_out, -half, half), (r_in, half, -half)):
+            for t in np.linspace(a0, a1, 5):
+                x, z = sym.polar(r, t, k)
+                pts.append((min(W, max(0, x)), min(H, max(0, z))))
+        poly = ", ".join("{%d, %d}" % (round(x), round(z)) for x, z in pts)
+        out.append(f'\t[{k}] = {{ nameLong = "Base {k + 1}", nameShort = "{k + 1}", '
+                   f'startpoints = {{ {{{sx:.0f}, {sz:.0f}}} }}, boxes = {{ {{ {poly} }} }} }},')
+    out.append("}")
+    return "\n".join(out) + "\n"

@@ -112,3 +112,122 @@ def seam_blend(a, mode, band=56, split_sigma=10.0):
     lowm, highm = _mirror_image(low, mode), _mirror_image(high, mode)
     k = np.sqrt((1 - w) ** 2 + w ** 2)               # keeps the strength of the fine detail
     return (1 - w) * low + w * lowm + ((1 - w) * high + w * highm) / k
+
+
+# ----------------------------------------------------------------------------- free-for-all (rotation)
+PLAYER_COLORS = [(60, 255, 60), (255, 70, 70), (90, 160, 255), (255, 220, 60), (200, 110, 255),
+                 (60, 230, 230), (255, 150, 40), (240, 240, 240)]
+
+
+class RotSymmetry:
+    """N-fold rotation about the map centre, for free-for-all maps with N players.
+
+    Player k owns the sector centred on angle a0 + k * 360/N degrees (angles in the x/z plane, 0 = east,
+    90 = south because z grows downwards). Every player gets the same terrain, metal and features, rotated.
+    Works on square maps; the corners outside the inscribed circle are not symmetric, so templates fill them
+    with ground nobody can use (e.g. a mountain rim)."""
+
+    def __init__(self, n, W, H=None, a0=-90.0):
+        self.n, self.W, self.H = int(n), float(W), float(H if H is not None else W)
+        self.a0 = math.radians(a0)
+        self.layout = f"rot{self.n}"
+        self.cx, self.cz = self.W / 2, self.H / 2
+
+    # points
+    def rotate(self, x, z, k):
+        a = 2 * math.pi * k / self.n
+        dx, dz = x - self.cx, z - self.cz
+        return (self.cx + dx * math.cos(a) - dz * math.sin(a), self.cz + dx * math.sin(a) + dz * math.cos(a))
+
+    def orbit(self, x, z):
+        return [self.rotate(x, z, k) for k in range(self.n)]
+
+    def ops(self):
+        return [lambda x, z, k=k: self.rotate(x, z, k) for k in range(self.n)]
+
+    def angle(self, k):
+        """Centre angle (radians) of player k's sector."""
+        return self.a0 + 2 * math.pi * k / self.n
+
+    def polar(self, r, a_deg, k=0):
+        """Point at radius r and angle a_deg (degrees, relative to the centre line of sector k)."""
+        a = self.angle(k) + math.radians(a_deg)
+        return (self.cx + r * math.cos(a), self.cz + r * math.sin(a))
+
+    def sector(self, x, z):
+        """Index of the player sector a point lies in."""
+        a = math.atan2(z - self.cz, x - self.cx) - self.a0 + math.pi / self.n
+        return int(math.floor(a / (2 * math.pi / self.n))) % self.n
+
+    def side(self, x, z):
+        """< 0 inside player 0's sector (the one that is copied to everybody)."""
+        return -1.0 if self.sector(x, z) == 0 else 1.0
+
+    def mirror(self, x, z):
+        """The same spot in the next player's sector (for code written for two sides)."""
+        return self.rotate(x, z, 1)
+
+    # grids
+    def _coords(self, shape, k):
+        """Sample coordinates (rows, cols) of the grid rotated by k sectors."""
+        nz, nx = shape
+        sx, sz = (nx - 1) / self.W, (nz - 1) / self.H
+        t = -2 * math.pi * k / self.n
+        x = (np.arange(nx, dtype=np.float32) / sx - self.cx)[None, :]
+        z = (np.arange(nz, dtype=np.float32) / sz - self.cz)[:, None]
+        X = self.cx + x * math.cos(t) - z * math.sin(t)
+        Z = self.cz + x * math.sin(t) + z * math.cos(t)
+        return np.stack([Z * sz, X * sx]).astype(np.float32)
+
+    def rotate_grid(self, a, k, order=1):
+        """Grid rotated by k sectors: out(p) = a(rotation^-k p)."""
+        from scipy import ndimage
+        return ndimage.map_coordinates(np.asarray(a, np.float32), self._coords(a.shape, k), order=order,
+                                       mode="nearest", prefilter=False)
+
+    def mirror_grid(self, a):
+        """Rotation-averaged grid (used where two-side code averages a grid with its mirror image)."""
+        return self.symmetric(a)
+
+    def symmetric(self, a, keep_detail=False, corr=12.0):
+        """Average of all N rotations: exactly fair for every player.
+        keep_detail: noise fields keep their strength (averaging N independent copies would flatten them);
+        corr = rough correlation length in cells (near the centre the copies overlap, no boost there)."""
+        return self.symmetric_many([a], keep_detail, corr)[0]
+
+    def symmetric_many(self, fields, keep_detail=False, corr=12.0):
+        """symmetric() for several grids of the same shape (the rotation is computed once per sector)."""
+        from scipy import ndimage
+        fields = [np.asarray(f, np.float32) for f in fields]
+        sums = [f.astype(np.float64) for f in fields]
+        for k in range(1, self.n):
+            c = self._coords(fields[0].shape, k)
+            for i, f in enumerate(fields):
+                sums[i] += ndimage.map_coordinates(f, c, order=1, mode="nearest", prefilter=False)
+        out = [s_ / self.n for s_ in sums]
+        if keep_detail:
+            nz, nx = fields[0].shape
+            zz, xx = np.ogrid[0:nz, 0:nx]
+            r = np.hypot(xx - (nx - 1) / 2, zz - (nz - 1) / 2)
+            boost = 1 + (math.sqrt(self.n) - 1) * smoothstep(0, corr * 2, r)
+            out = [o.mean() + (o - o.mean()) * boost for o in out]
+        return out
+
+    def starts(self, radius):
+        return [self.polar(radius, 0, k) for k in range(self.n)]
+
+
+def rot_fields(sym, *fields):
+    """Noise fields made rotationally symmetric (RotSymmetry) without losing their strength."""
+    out = tuple(f.astype(np.float32) for f in sym.symmetric_many(fields, keep_detail=True))
+    return out if len(out) > 1 else out[0]
+
+
+def rotate_points(points, sym):
+    """Mex list [(x, z, metal)] for player 0 -> every player (side = player index)."""
+    out = []
+    for x, z, v in points:
+        for k in range(sym.n):
+            rx, rz = sym.rotate(x, z, k)
+            out.append(dict(x=float(rx), z=float(rz), metal=v, side=k))
+    return out

@@ -132,8 +132,11 @@ def erode(hm, strength=0.5, protect=None, log=print, seed=0):
     return (h0 + delta).astype(np.float32)
 
 
-def symmetric_like(original, delta):
-    """Make a change field follow every mirror symmetry the original heightmap has."""
+def symmetric_like(original, delta, sym=None):
+    """Make a change field follow every mirror symmetry the original heightmap has.
+    sym: a rotation symmetry (free-for-all) is applied directly (rotated grids cannot be detected)."""
+    if sym is not None and hasattr(sym, "symmetric"):
+        return sym.symmetric(delta).astype(np.float32)
     imgs = [delta]
     for f in (lambda a: a[:, ::-1], lambda a: a[::-1, :], lambda a: a[::-1, ::-1]):
         if np.abs(original - f(original)).max() < 0.5:

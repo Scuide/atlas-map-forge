@@ -45,13 +45,14 @@ def unreachable_mexes(hm, mexes, start, cls="tanks"):
 
 
 def report(hm, team0, team1, mexes=(), gates=None, blocked=None, enemy="the enemy", movement_profile="land",
-           naval_starts=None):
+           naval_starts=None, others=()):
     """Plain-English check report.
     team0/team1: start points per team; gates: optional [(name, bool mask)] of choke areas;
     blocked: optional bool grid that no ground unit survives (e.g. lava); enemy: wording for team 1.
     movement_profile "land": ok = tanks and bots reach the enemy and every metal spot is reachable for tanks.
     movement_profile "naval": ok = ships connect the ports (naval_starts), hovers and amphibians connect the
     bases, every base reaches its port, amphibians reach every metal spot and ships every underwater one.
+    others: start points of further teams (free-for-all maps): every team must reach every other.
     Returns (ok, lines)."""
     if movement_profile not in PROFILES:
         raise ValueError(f"unknown movement profile {movement_profile!r}, expected one of {PROFILES}")
@@ -62,19 +63,19 @@ def report(hm, team0, team1, mexes=(), gates=None, blocked=None, enemy="the enem
     masks = unit_masks(hm)
     for cls in CLASSES:
         m = masks[cls] if blocked is None else masks[cls] & ~blocked
-        reach = connected(m, team0[0], team1[0])
-        own = all(connected(m, team0[0], p) for p in team0[1:]) and all(connected(m, team1[0], p) for p in team1[1:])
+        reach = connected(m, team0[0], team1[0]) and all(connected(m, team0[0], t[0]) for t in others)
+        own = all(connected(m, t[0], p) for t in (team0, team1, *others) for p in t[1:])
         text = f"{cls.capitalize():11s} can reach {enemy}: {'yes' if reach else 'NO'}"
         if not own:
             text += " (own bases are not connected!)"
         if gates:
             via = []
             for gname, gm in gates:
-                others = np.zeros(hm.shape, bool)
+                other_gates = np.zeros(hm.shape, bool)
                 for g2, gm2 in gates:
                     if g2 != gname:
-                        others |= gm2
-                if connected(m & ~others, team0[0], team1[0]):
+                        other_gates |= gm2
+                if connected(m & ~other_gates, team0[0], team1[0]):
                     via.append(gname)
             allg = np.zeros(hm.shape, bool)
             for _, gm in gates:

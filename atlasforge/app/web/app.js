@@ -4,7 +4,7 @@
 const $ = (id) => document.getElementById(id);
 const TOKEN = window.FORGE_TOKEN || new URLSearchParams(location.search).get("t") || "";
 const CLASS_NAMES = { tanks: "Tanks", bots: "Bots", spiders: "Spiders", amphibians: "Amph", hovers: "Hover" };
-const TEAM_COLORS = ["#4dff6a", "#ff4d4d", "#5aa0ff", "#ffd23c"];
+const TEAM_COLORS = ["#4dff6a", "#ff4d4d", "#5aa0ff", "#ffd23c", "#c86eff", "#3ce6e6", "#ff9628", "#f0f0f0"];
 
 const S = {
   info: null,          // /api/state
@@ -273,7 +273,7 @@ function renderParams() {
       r.oninput = () => show(r.value);
       r.onchange = () => setValue(p.key, p.kind === "float" ? parseFloat(r.value) : parseInt(r.value, 10));
     }
-    const btn = f.querySelector(".info");
+    const btn = f.querySelector(".pinfo");
     if (btn) btn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); showInfo(p, btn); };
     box.appendChild(f);
   }
@@ -283,7 +283,7 @@ const GROUP_TITLES = { Map: "Map", Resources: "Resources", Terrain: "Terrain and
 
 function infoButton(p) {
   if (!p.info && !p.help) return "";
-  return `<button class="info" type="button" title="What does this do?" aria-label="About ${esc(p.label)}">i</button>`;
+  return `<button class="pinfo" type="button" title="What does this do?" aria-label="About ${esc(p.label)}">i</button>`;
 }
 
 function rangeText(p) {
@@ -396,7 +396,8 @@ function renderReport() {
 
 function renderFacts() {
   const m = S.map;
-  const players = m.teams.map((t) => t.length).join(" vs ");
+  const players = m.teams.length > 2 && m.teams.every((t) => t.length === 1)
+    ? `${m.teams.length}-player free-for-all` : m.teams.map((t) => t.length).join(" vs ");
   const rows = [
     ["Size", `${m.size[0]} × ${m.size[1]}  (${m.W} elmos)`],
     ["Biome", m.biome || "-"],
@@ -684,6 +685,7 @@ function drawMark(k) {
 }
 
 function drawStarts() {
+  const ffa = S.map.teams.length > 2 && S.map.teams.every((t) => t.length === 1);   // number the players
   S.map.teams.forEach((team, ti) => {
     team.forEach((p, i) => {
       const [sx, sy] = toScreen(p[0], p[1]);
@@ -704,7 +706,7 @@ function drawStarts() {
       ctx.font = `800 ${Math.round(r * 0.95)}px ` + getComputedStyle(document.body).fontFamily;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(String(i + 1), sx, sy + 1);
+      ctx.fillText(String(ffa ? ti + 1 : i + 1), sx, sy + 1);
     });
   });
 }

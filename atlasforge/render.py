@@ -163,6 +163,36 @@ def render_rgb(F, r0, r1, Wpx, biome, water_h, NB, decals, emis_out=None):
     cl = mix(cl, cl * 1.25 + 10, rim * 0.5)
     cl = mix(cl, cl * 0.6, crev * 0.6)
     col = mix(col, cl, smoothstep(32, 44, sn) * 0.75)
+    # biome extras: moss on rock (jungle, swamp), muddy puddles (swamp), steel plates (industrial)
+    if biome.get("moss", 0) > 0:
+        mo = smoothstep(0.1, 0.9, ny - 0.55 + 0.3 * nM + 0.2 * np.clip(-cav / 4.0, 0, 1))
+        mo *= smoothstep(14, 24, sn) * (1 - smoothstep(48, 60, sn)) * biome["moss"]
+        col = mix(col, C["low"] * (0.85 + 0.2 * nF)[..., None], mo)
+    if biome.get("puddles", 0) > 0:
+        pd = smoothstep(0.35, 0.7, 0.6 * nM + 0.4 * nL + 0.15 * nF) * (1 - smoothstep(3, 7, s))
+        pd *= (1 - smoothstep(water_h + 40, water_h + 120, h)) * biome["puddles"]
+        mud = C["patch"] * 0.62 * (1 + 0.08 * nF)[..., None]
+        col = mix(col, mud, np.clip(pd * 1.4, 0, 1) * 0.75)
+        sheen = smoothstep(0.75, 0.95, 0.6 * nM + 0.4 * nL + 0.1 * nF) * pd
+        col = mix(col, mud * 0.7 + np.array([18, 22, 24], np.float32), np.clip(sheen * 1.5, 0, 0.8))
+    if biome.get("plates", 0) > 0:
+        zz_ = ys[:, None] * SQ
+        xx_ = xx * SQ
+        zone = smoothstep(0.15, 0.45, 0.7 * nL + 0.3 * nM) * (1 - smoothstep(4, 9, s)) * biome["plates"]
+        zone *= smoothstep(water_h + 6, water_h + 14, h)
+        P = 96.0                                                      # plate size (elmos)
+        joint = np.maximum(smoothstep(P / 2 - 3.0, P / 2 - 1.2, np.abs((xx_ % P) - P / 2)),
+                           smoothstep(P / 2 - 3.0, P / 2 - 1.2, np.abs((zz_ % P) - P / 2)))
+        px_, pz_ = np.floor(xx_ / P), np.floor(zz_ / P)
+        tone = (np.sin(px_ * 12.9898 + pz_ * 78.233) * 43758.5453) % 1.0       # brightness per plate
+        bx_, bz_ = (xx_ % P), (zz_ % P)
+        bolt = sum(1 - smoothstep(0.8, 1.8, np.hypot(bx_ - cx_, bz_ - cz_))
+                   for cx_ in (7.0, P - 7.0) for cz_ in (7.0, P - 7.0))
+        steel = np.array([122, 126, 130], np.float32) * (0.84 + 0.24 * tone + 0.05 * nF + 0.06 * nM)[..., None]
+        steel = steel * (1 - 0.45 * joint + 0.25 * bolt)[..., None]
+        rust = smoothstep(0.5, 1.3, nM + 0.5 * nF + 0.3 * joint) * 0.6
+        steel = mix(steel, np.array([118, 72, 42], np.float32) * (1 + 0.12 * nF)[..., None], rust)
+        col = mix(col, steel, zone)
     # paint layers (designed areas): glacier ice, scorch marks (flood line), lava crust, concrete, open lava
     if "paint" in F:
         pl = bilerp(F["paint"], ys, xs1)
@@ -213,7 +243,7 @@ def render_rgb(F, r0, r1, Wpx, biome, water_h, NB, decals, emis_out=None):
     # shading: fine edges, hollows, light
     col *= (1 + np.clip(cav / 7.0, -0.35, 0.22))[..., None]
     col *= (1 + 0.14 * ao)[..., None]
-    L = np.array([-0.4, 0.75, -0.5]); L /= np.linalg.norm(L)
+    L = np.array(biome.get("sundir", (-0.4, 0.75, -0.5)), np.float64); L /= np.linalg.norm(L)
     lam = nx_ * L[0] + ny * L[1] + nz_ * L[2]
     col *= (0.84 + 0.22 * np.clip(lam, 0, 1))[..., None]
     # decals (mex plates, geovent cracks)

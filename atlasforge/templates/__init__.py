@@ -17,10 +17,11 @@ from .volcano import Volcano
 from .three_lanes import ThreeLanesTemplate
 from .coastal_front import CoastalFrontTemplate
 from .atoll import AtollTemplate
+from .ffa_ring import FFARing
 
 _REGISTRY = {t.id: t for t in (Skirmish(), Chokepoint(), RiverCrossing(), Arena(), Volcano(), ChickenRings(),
                                 OpenSea(), Archipelago(), IslandStraits(), ThreeLanesTemplate(),
-                                CoastalFrontTemplate(), AtollTemplate())}
+                                CoastalFrontTemplate(), AtollTemplate(), FFARing())}
 
 
 def all_templates():

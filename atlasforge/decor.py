@@ -20,8 +20,12 @@ WRECKS_LARGE = [("tankassault_dead", 340, 60), ("jumpassault_dead", 240, 56), ("
 WRECKS_GIANT = [("striderdante_dead", 1400, 90), ("striderscorpion_dead", 1200, 90)]
 
 
-def symmetry_ops(hm):
-    """Mirror operations (on points) under which the heightmap is symmetric."""
+def symmetry_ops(hm, sym=None):
+    """Mirror operations (on points) under which the heightmap is symmetric.
+    sym: the design's symmetry; a rotation symmetry (free-for-all) gives its rotations directly,
+    because rotated grids are only symmetric up to interpolation and cannot be detected exactly."""
+    if sym is not None and hasattr(sym, "ops"):
+        return sym.ops()
     W = (hm.shape[1] - 1) * SQ
     H = (hm.shape[0] - 1) * SQ
     ops = [lambda x, z: (x, z)]
@@ -70,7 +74,7 @@ def place(d, rocks=0.5, wrecks=0.3, seed=0, biome_name=""):
     hm = d.hm
     W = (hm.shape[1] - 1) * SQ
     H = (hm.shape[0] - 1) * SQ
-    ops = symmetry_ops(hm)
+    ops = symmetry_ops(hm, d.sym)
     sides = max(1, len(ops))
     free = _free_mask(d)
     sl = slope_deg(hm)
@@ -128,8 +132,7 @@ def place(d, rocks=0.5, wrecks=0.3, seed=0, biome_name=""):
         if used:
             d.extra_files.update(files)
     if wrecks > 0:
-        team0, team1 = d.teams[0][0], d.teams[1][0]
-        D = math.hypot(team1[0] - team0[0], team1[1] - team0[1])
+        bases = [t[0] for t in d.teams if t]
         n_clusters = int(round(0.18 * wrecks * area / sides))
         tries = 0
         while n_clusters > 0 and tries < n_clusters * 200:
@@ -137,8 +140,10 @@ def place(d, rocks=0.5, wrecks=0.3, seed=0, biome_name=""):
             cx, cz = rng.uniform(0, W), rng.uniform(0, H)
             if not _canonical(ops, cx, cz):
                 continue
-            d0 = math.hypot(cx - team0[0], cz - team0[1]); d1 = math.hypot(cx - team1[0], cz - team1[1])
-            if abs(d0 - d1) > 0.45 * D:                            # battle zone between the bases
+            near = sorted(bases, key=lambda b: (cx - b[0]) ** 2 + (cz - b[1]) ** 2)[:2]
+            d0, d1 = (math.hypot(cx - b[0], cz - b[1]) for b in near)
+            D = math.hypot(near[1][0] - near[0][0], near[1][1] - near[0][1])
+            if abs(d0 - d1) > 0.45 * D:                            # battle zone between the two nearest bases
                 continue
             if not ok(cx, cz, 80, 14):
                 continue

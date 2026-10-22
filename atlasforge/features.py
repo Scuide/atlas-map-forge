@@ -30,8 +30,9 @@ def place_trees(hm, sym, mexes, geos, starts, biome, rng, water_h, keep_clear=No
         i, j = cell(x, z)
         if dens[i, j] < 0.62 or sl[i, j] > 20 or hm[i, j] < water_h + 6:
             continue
-        mx, mz = sym.mirror(x, z)
-        if keep_clear is not None and (keep_clear[i, j] or keep_clear[cell(mx, mz)]):
+        copies = sym.orbit(x, z)[1:] if hasattr(sym, "orbit") else [sym.mirror(x, z)]
+        copies = [(cx, cz) for cx, cz in copies if 0 <= cx < W and 0 <= cz < H]
+        if keep_clear is not None and (keep_clear[i, j] or any(keep_clear[cell(cx, cz)] for cx, cz in copies)):
             continue
         if rng.random() > (dens[i, j] - 0.6) * 3:
             continue
@@ -40,5 +41,34 @@ def place_trees(hm, sym, mexes, geos, starts, biome, rng, water_h, keep_clear=No
         t = int(rng.integers(0, 16))
         rot = float(rng.uniform(0, 65535))
         trees.append((t, x, float(hm[i, j]), z, rot))
-        trees.append((t, mx, float(hm[cell(mx, mz)]), mz, rot))
+        for cx, cz in copies:
+            trees.append((t, cx, float(hm[cell(cx, cz)]), cz, rot))
     return trees
+
+
+def grass_map(hm, biome, rng, water_h=0.0, keep_clear=None, paint=None, mexes=(), geos=()):
+    """Engine grass (SMF vegetation map): uint8 grid at 1/4 heightmap resolution (32 elmo cells), 255 = grass.
+    None when the biome has no grass. Grass is only decoration (no effect on movement or sight)."""
+    g = biome.get("grass") or {}
+    dens = float(g.get("density", 0)) * float(biome.get("grass_mul", 1.0))
+    if dens <= 0:
+        return None
+    nz, nx = (hm.shape[0] - 1) // 4, (hm.shape[1] - 1) // 4
+    h = hm[:-1:4, :-1:4][:nz, :nx]
+    sl = slope_deg(hm)[:-1:4, :-1:4][:nz, :nx]
+    patches = norm01(fbm((nz, nx), rng, base=max(4, nx / 24), octaves=4))
+    ok = patches > 1 - min(0.95, 0.65 * dens)
+    ok &= sl < 18
+    ok &= h > water_h + 6
+    ok &= h / 340.0 < biome.get("peak_level", 1.0) - 0.06                    # no grass in the snow
+    def coarse(a):
+        return np.asarray(a)[:-1:4, :-1:4][:nz, :nx] if a is not None else None
+    if keep_clear is not None:
+        ok &= ~coarse(keep_clear)
+    for k in ("lava", "scorch", "concrete", "molten", "path", "ice"):
+        if paint and paint.get(k) is not None:
+            ok &= coarse(paint[k]) < 0.3
+    jj, ii = np.meshgrid(np.arange(nx) * 32 + 16, np.arange(nz) * 32 + 16)
+    for x, z, r in [(m["x"], m["z"], 60) for m in mexes] + [(p[0], p[1], 100) for p in geos]:
+        ok &= (jj - x) ** 2 + (ii - z) ** 2 > r * r
+    return np.where(ok, 255, 0).astype(np.uint8)

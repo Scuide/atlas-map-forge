@@ -13,7 +13,7 @@ from .badge import draw_badge
 from .config import ForgeConfig, TOOL_NAME
 from .formats import (dds_bytes, mapinfo_lua, metal_layout_lua, minimap_dxt, png_bytes, smt_header,
                       startboxes_lua, tiles_from_strip, write_smf)
-from .features import place_trees
+from .features import grass_map, place_trees
 from .render import (PAINT_LAYERS, NoiseBank, build_texture_fields, crack_field, detail_bmp, material_files,
                      render_rgb)
 
@@ -133,7 +133,11 @@ def build_archive(name, hm, sym, starts, mexes, geos, biome, rng, outdir, desc, 
         feats.append((fname_, float(fx), float(hmq[fi, fj]), float(fz), float(frot), 1.0))
     smf_path = os.path.join(outdir, fname + ".smf.tmp")
     mapid = zlib.crc32(name.encode()) & 0x7FFFFFFF
-    write_smf(smf_path, nx, nz, hmin, hmax, hm16, typemap, minimap, metal, smt_name, ntiles, feats, mapid)
+    grass = grass_map(hmq, biome, rng, water_h, keep_clear, paint, mexes, geos)
+    if grass is not None:
+        log(f"  grass on {100 * (grass > 0).mean():.0f} % of the map")
+    write_smf(smf_path, nx, nz, hmin, hmax, hm16, typemap, minimap, metal, smt_name, ntiles, feats, mapid,
+              grass=grass)
 
     sdz = os.path.join(outdir, fname + ".sdz")
     with zipfile.ZipFile(sdz, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
@@ -141,9 +145,23 @@ def build_archive(name, hm, sym, starts, mexes, geos, biome, rng, outdir, desc, 
         if emis_rows and has_lava:
             emis_name = "light_emission.png"    # PNG: not flipped by the engine (unlike DDS)
             z.writestr("maps/" + emis_name, png_bytes(np.concatenate(emis_rows, 0)))
+        sky_name = None
+        if biome.get("skybox", True):
+            from .sky import sky_jpg
+            sky_name = "skybox.jpg"
+            z.writestr("maps/" + sky_name, sky_jpg(biome, seed=mapid & 0xFFFF))
+        shading_name = None
+        if grass is not None:
+            # grass blades = bladeColor x this texture x lighting: the ground colours around 1.0 keep the
+            # blade colour but follow the ground's local variation
+            gs = mini_clean.astype(np.float32)
+            gs = np.clip(gs / (gs.reshape(-1, 3).mean(0) + 1e-3) * 0.92, 0, 1.25) / 1.25 * 255
+            shading_name = "grass_shading.png"
+            z.writestr("maps/" + shading_name, png_bytes(np.asarray(Image.fromarray(gs.astype(np.uint8)).resize((512, 512), Image.BOX))))
         z.writestr("mapinfo.lua", mapinfo_lua(name, desc, cfg.author, hmin, hmax, smt_name, starts, biome, water_h,
                                               fname + ".smf", minimap_tex="minimap_ingame.dds" if badge else None,
-                                              emission_tex=emis_name, tool=TOOL_NAME))
+                                              emission_tex=emis_name, tool=TOOL_NAME, sky_box=sky_name,
+                                              grass_shading=shading_name))
         if badge:
             # DDS is loaded vertically flipped (OpenGL convention), the SMF minimap is not: write upside down
             z.writestr("maps/minimap_ingame.dds", dds_bytes(np.ascontiguousarray(mini_clean[::-1]), "DXT1"))
