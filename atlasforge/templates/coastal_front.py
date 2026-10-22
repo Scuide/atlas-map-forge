@@ -1,5 +1,6 @@
 """Coastal Front: an uninterrupted mainland front beside a shared coastal sea."""
 import numpy as np
+from scipy import ndimage
 
 from ..checks import connected, unit_masks
 from ..terrain import plateau
@@ -28,17 +29,22 @@ class CoastalFrontTemplate(Template):
 
     def make(self, v, seed, log=print):
         h, xx, zz, edge, rng, W = sea(v, seed)
+        # A continental shore keeps broad bays rather than small ripples in the
+        # shoreline noise; filter before elevation so shallow banks stay smooth too.
+        h = ndimage.gaussian_filter(h, 32)
+        edge = ndimage.gaussian_filter(edge, 32)
         shoreline = W * (v["land_share"] + v["headlands"] * np.cos(4 * np.pi * xx / W))
         plateau(h, zz - shoreline, 100 + 18 * edge, side_deg=v["beach_slope"],
-                noise=edge, amp=v["coast_noise"], toe=36)
+                noise=edge, amp=v["coast_noise"], round_=96, toe=48)
         # A broad submerged shelf supports expansion even with a deep sea and a shallow beach.
         # Leave the outer edge and the approach to the shore at the requested full sea depth.
         shelf_axis = W * (0.83 + 0.018 * np.cos(2 * np.pi * xx / W))
         plateau(h, np.abs(zz - shelf_axis) - 0.10 * W, -min(v["depth"], 80) + 3 * edge,
-                side_deg=12, round_=100, toe=16)
+                side_deg=12, round_=100, toe=48)
         base = (0.11 * W, 0.18 * W)
         port = (0.14 * W, 0.88 * W)
-        d = finish(self, v, h, xx, zz, W, rng, base, port)
+        # A continental shelf needs a wider blend than the small offshore islands.
+        d = finish(self, v, h, xx, zz, W, rng, base, port, bottom_scale=1024)
         # Keep a broad staging corridor intact under erosion and free of blocking decoration.
         land_route = np.abs(zz - base[1]) < 0.065 * W
         d.keep_clear |= land_route

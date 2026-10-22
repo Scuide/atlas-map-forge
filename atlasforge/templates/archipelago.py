@@ -2,7 +2,8 @@
 import numpy as np
 
 from .base import Param, Template
-from ._naval import finish, island, naval_params, sea
+from ..terrain import ellipse_sdf
+from ._naval import finish, islands, naval_params, sea
 
 
 class Archipelago(Template):
@@ -29,13 +30,15 @@ class Archipelago(Template):
 
     def make(self, v, seed, log=print):
         h, xx, zz, edge, rng, W = sea(v, seed)
-        island(h, xx, zz, edge, v, 0.115 * W, 0.5 * W, 0.085 * W, 0.18 * W)
         count = v["island_pairs"]
         # Separate rows leave transverse fleet routes between the stepping stones.
-        for k in range(count):
-            x = W * (0.38 + 0.015 * np.sin(k * 2.4))
-            z = W * (0.14 + 0.72 * (k + 0.5) / max(count, 1))
-            jitter = rng.uniform(-0.012, 0.012, 2) * W * v["scatter"]
-            r = W * 0.036 * v["island_size"]
-            island(h, xx, zz, edge, v, x + jitter[0], z + jitter[1], r, r * 1.18)
+        def shapes():
+            yield ellipse_sdf(xx, zz, 0.115 * W, 0.5 * W, 0.085 * W, 0.18 * W)
+            for k in range(count):
+                x = W * (0.38 + 0.015 * np.sin(k * 2.4))
+                z = W * (0.14 + 0.72 * (k + 0.5) / max(count, 1))
+                jitter = rng.uniform(-0.012, 0.012, 2) * W * v["scatter"]
+                r = W * 0.036 * v["island_size"]
+                yield ellipse_sdf(xx, zz, x + jitter[0], z + jitter[1], r, r * 1.18)
+        islands(h, edge, v, shapes())
         return finish(self, v, h, xx, zz, W, rng, (0.115 * W, 0.5 * W), (0.115 * W, 0.20 * W))

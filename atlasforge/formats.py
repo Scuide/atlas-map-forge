@@ -170,6 +170,18 @@ def mapinfo_lua(name, desc, author, hmin, hmax, smtname, starts, biome, water_h,
         emis_line += f'\n    grassShadingTex = "{grass_shading}",'
     sky_line = f'\n    skybox       = "{sky_box}",' if sky_box else ""
     sd = biome.get("sundir", (-0.4, 0.75, -0.5))
+    # a water plane (planecolor) also tints the lower half of the sky box: not on void maps, where the
+    # space below the edge must show the sky (Recoil CubeMapFS / MapInfo hasWaterPlane)
+    plane_line = "" if biome.get("void") else f"    planecolor     = {lua_tuple(biome['water_min'])},"
+    void_type = ""
+    if biome.get("void"):        # space below the water line: nothing can move there (typemap 255)
+        void_type = """
+    [255] = {
+      name = "Void",
+      hardness = 1000.0,
+      receivetracks = false,
+      movespeeds = { tank = 0.0, kbot = 0.0, hover = 0.0, ship = 0.0 },
+    },"""
     g = biome.get("grass") or {}
     grass_block = ""
     if grass_shading and g:
@@ -199,11 +211,11 @@ local mapinfo = {{
 
   maphardness     = 400,
   notdeformable   = false,
-  gravity         = 120,
+  gravity         = {int(b.get("gravity", 120))},
   tidalstrength   = {int(b.get("tidal", 12))},
   maxmetal        = 3.0,
   extractorradius = 80.0,
-  voidwater       = false,
+  voidwater       = {"true" if b.get("void") else "false"},
   voidground      = false,
   autoshowmetal   = false,
 
@@ -266,7 +278,7 @@ local mapinfo = {{
     surfacecolor   = {lua_tuple(b["water_surf"])},
     surfacealpha   = 0.35,
     specularcolor  = {{0.8, 0.8, 0.8}},
-    planecolor     = {lua_tuple(b["water_min"])},
+{plane_line}
     fresnelmin     = 0.2,
     fresnelmax     = 0.8,
     fresnelpower   = 4.0,
@@ -284,7 +296,7 @@ local mapinfo = {{
       hardness = 1.0,
       receivetracks = true,
       movespeeds = {{ tank = 1.0, kbot = 1.0, hover = 1.0, ship = 1.0 }},
-    }},
+    }},{void_type}
   }},
 
   custom = {{}},

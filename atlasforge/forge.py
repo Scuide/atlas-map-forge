@@ -154,6 +154,9 @@ def _relief_colors(hm, biome, paint, size):
             veins = (np.abs(np.sin(xx * 0.21 + np.sin(yy * 0.07) * 3) * np.sin(yy * 0.19 + np.sin(xx * 0.05) * 3)) < 0.12)
             col = col + (np.array([255, 120, 30], np.float32) - col) * (veins[..., None] * layer("lava") * 0.8)
     water = h < 0
+    if biome.get("void"):                                    # space around an asteroid: dark, no water tint
+        col = np.where(water[..., None], np.array([12, 12, 20], np.float32), col)
+        water &= False
     if paint and paint.get("lava") is not None:
         water &= np.clip(ndimage.zoom(paint["lava"].astype(np.float32), zoom, order=1)[:size, :size], 0, 1) < 0.5
     col = np.where(water[..., None], col * 0.55 + np.array([20, 60, 110], np.float32) * 0.45, col)

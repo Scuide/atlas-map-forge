@@ -81,6 +81,8 @@ def build_archive(name, hm, sym, starts, mexes, geos, biome, rng, outdir, desc, 
     for m in mexes:
         metal[np.hypot(mi * 16 + 8 - m["z"], mj * 16 + 8 - m["x"]) < 40] = 255
     typemap = np.zeros((nz // 2, nx // 2), np.uint8)
+    if biome.get("void"):                                                   # space: terrain type 255, impassable
+        typemap[hmq[:-1:2, :-1:2][:nz // 2, :nx // 2] < 0] = 255
 
     Wpx, Hpx = nx * TEX_PER_SQ, nz * TEX_PER_SQ
     TF = build_texture_fields(hmq)

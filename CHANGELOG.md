@@ -2,6 +2,17 @@
 
 ## 0.4.0 - unreleased
 
+- Eight new templates from the template agent: Procedural Highlands, Procedural Watershed, Procedural Dune
+  Sea, Open Dunes, Twin Plateaus, Lake District, River Delta, Fjord Coast (watermark codes 15-22).
+- Sea maps (template agent, TPL-naval-fix-1): islands merged smoothly, no hard underwater creases, layout
+  quality tests.
+- Asteroid: the void below the edge destroys units and buildings (water damage 2000/s), and the space sky
+  is visible there (no water plane over the lower half of the sky).
+- New template Asteroid (in the style of the Zero-K map Apophis): a cratered rock floating in space with a
+  high ring around a basin (or a mesa), rough flanks and an edge that drops into the void; 2 to 4 identical
+  sectors, adjustable gravity (watermark code 14). New biome "asteroid" with a starry nebula sky.
+- Void maps: `voidwater`, impassable terrain type for space, no shore or water effects, dark minimap and
+  preview around the rock; gravity per map.
 - Three new biomes: jungle (dense forest, tall grass, moss on rock), swamp (murky water, mud puddles, reeds),
   industrial (steel plate fields with rust, concrete, no trees).
 - Every map carries its own painted sky (a panorama the engine turns into a sky box): biome colours,

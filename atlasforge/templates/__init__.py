@@ -18,10 +18,21 @@ from .three_lanes import ThreeLanesTemplate
 from .coastal_front import CoastalFrontTemplate
 from .atoll import AtollTemplate
 from .ffa_ring import FFARing
+from .asteroid import Asteroid
+from .highlands import HighlandsTemplate
+from .watershed import WatershedTemplate
+from .dune_sea import DuneSeaTemplate
+from .open_dunes import OpenDunesTemplate
+from .twin_plateaus import TwinPlateausTemplate
+from .lake_district import LakeDistrictTemplate
+from .river_delta import RiverDeltaTemplate
+from .fjord_coast import FjordCoastTemplate
 
 _REGISTRY = {t.id: t for t in (Skirmish(), Chokepoint(), RiverCrossing(), Arena(), Volcano(), ChickenRings(),
                                 OpenSea(), Archipelago(), IslandStraits(), ThreeLanesTemplate(),
-                                CoastalFrontTemplate(), AtollTemplate(), FFARing())}
+                                CoastalFrontTemplate(), AtollTemplate(), FFARing(), Asteroid(), HighlandsTemplate(),
+                                WatershedTemplate(), DuneSeaTemplate(), OpenDunesTemplate(), TwinPlateausTemplate(),
+                                LakeDistrictTemplate(), RiverDeltaTemplate(), FjordCoastTemplate())}
 
 
 def all_templates():

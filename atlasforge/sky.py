@@ -90,6 +90,33 @@ def panorama(biome, sundir=None, seed=1, width=2048):
         a = (dens * biome.get("cloud_alpha", 0.85) * smoothstep(0.0, 0.06, y))[..., None]
         col = col * (1 - a) + ccol * a
 
+    # space (void maps): no horizon haze, nebula clouds and stars all around, also below
+    if biome.get("space"):
+        n = 512
+        f1 = fbm((n, n), rng, base=4, octaves=6); f2 = fbm((n, n), rng, base=7, octaves=5)
+        def sph(f):                                        # noise on the sphere: three planar maps blended
+            P = lambda u_, v_: ndimage.map_coordinates(f, [((u_ * 0.5 + 0.5) * (n - 1)).ravel(),
+                                                           ((v_ * 0.5 + 0.5) * (n - 1)).ravel()], order=1).reshape(H, W)
+            wx, wy, wz = np.abs(x) ** 4, np.abs(y) ** 4, np.abs(z) ** 4
+            s_ = wx + wy + wz + 1e-9
+            return (P(y, z) * wx + P(x, z) * wy + P(y, x) * wz) / s_
+        neb = sph(f1); neb2 = sph(f2)
+        neb = (neb - neb.mean()) / (neb.std() + 1e-6); neb2 = (neb2 - neb2.mean()) / (neb2.std() + 1e-6)
+        band = np.exp(-((0.6 * x + 0.3 * y - 0.74 * z) / 0.45) ** 2)            # a galaxy band across the sky
+        dens = np.clip(smoothstep(0.2, 2.0, neb + 0.8 * band) * (0.35 + 0.65 * band), 0, 1)
+        c1 = np.array(biome.get("nebula", (0.42, 0.22, 0.55)), np.float64)
+        c2 = np.array(biome.get("nebula2", (0.12, 0.3, 0.55)), np.float64)
+        ncol = c1[None, None] * (1 - smoothstep(-1, 1, neb2)[..., None]) + c2[None, None] * smoothstep(-1, 1, neb2)[..., None]
+        base = np.array(biome["sky"], np.float64)[None, None] * np.ones((H, W, 1))
+        col = base + ncol * dens[..., None] * 0.85
+        col = col + (sun * biome.get("sun_glow", 0.5))[None, None] * glow[..., None] * 0.6
+        col = col * (1 - disc[..., None]) + np.ones(3)[None, None] * disc[..., None]
+        k = int(W * H * 0.004)
+        si, sj = rng.integers(0, H, k), rng.integers(0, W, k)
+        b = rng.uniform(0.25, 1.0, k) ** 2
+        col[si, sj] = np.maximum(col[si, sj], b[:, None] * np.array([1.0, 0.97, 0.92]))
+        return (np.clip(col, 0, 1) * 255 + 0.5).astype(np.uint8)
+
     # stars on dark skies (moon)
     if biome.get("stars", 0) > 0:
         k = int(W * H * 0.0012 * biome["stars"])

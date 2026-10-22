@@ -24,7 +24,19 @@ report, build & install with progress. One-file Windows program built and self-t
   popup for every setting, build-finished dialog.
 - Done: more biomes (jungle, swamp, industrial), a painted sky per map, engine grass, time of day.
 
-## 0.5 - more ways to play and more templates
+## 0.5 - map editing (next big feature)
+
+Edit Forge maps by hand, in three stages, always keeping the symmetry and re-running the checks:
+
+- A - placement: move, add and delete metal spots, geothermal vents and start points in the preview;
+  undo/redo; project file (`.forge.json`: template, settings, seed, list of edits) to reopen a map later.
+- B - terrain brushes: raise, lower, flatten, smooth, draw a ramp from A to B.
+- C - painting and objects: paths, concrete, scorch, lava; place or remove trees and rocks; optional
+  16-bit PNG heightmap import/export.
+
+Before that: a new template in the style of the Zero-K map Apophis.
+
+## More ways to play and more templates
 
 - Done: free-for-all for 3 to 8 players (rotational symmetry, one start box per player, FFA Ring template).
   Open: naval free-for-all with several ports.
@@ -49,7 +61,7 @@ report, build & install with progress. One-file Windows program built and self-t
 
 ## App and distribution (alongside)
 
-- Next: Windows program attached to GitHub Releases as a direct download, code-signed through the SignPath
+- Later: Windows program attached to GitHub Releases as a direct download, code-signed through the SignPath
   Foundation (signing inside the GitHub Actions build).
 - Map codes (template + settings + seed as short text) to share and paste; compare two seeds side by side.
 - Start-up time of the one-file program, update notice.
@@ -61,6 +73,6 @@ Quick-start guide with pictures, template gallery, talk to the Zero-K moderators
 
 ## Later
 
-- Beyond All Reason (BAR) profile.
-- Mapper tools: move metal spots and start points in the preview, layout files, a simple layout editor.
+- Beyond All Reason (BAR) profile: metal map values, BAR movement rules for the checks, start boxes for
+  BAR's map database, BAR wrecks, lava through BAR's `mapconfig/lava.lua`, a game switch in the app.
 - Online configurator with preview; in-game generation from a seed.

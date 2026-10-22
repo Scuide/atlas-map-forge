@@ -1,9 +1,9 @@
 """Island Straits: long central islands split the water into named fleet passages."""
 import numpy as np
 
-from ..terrain import box_sdf, plateau
+from ..terrain import box_sdf, ellipse_sdf
 from .base import Param, Template
-from ._naval import finish, island, naval_params, sea
+from ._naval import finish, islands, naval_params, sea
 
 
 class IslandStraits(Template):
@@ -30,21 +30,20 @@ class IslandStraits(Template):
 
     def make(self, v, seed, log=print):
         h, xx, zz, edge, rng, W = sea(v, seed)
-        island(h, xx, zz, edge, v, 0.025 * W, 0.5 * W, 0.15 * W, 0.34 * W)
         count = v["passages"]
         scale = W / 8192
         gap = v["passage_width"] * scale
         # Subtract the beach run so the parameter describes water rather than plateau tops.
         shore = 100 / np.tan(np.radians(v["beach_slope"]))
         radius_z = max(24.0, (W / count - gap) / 2 - shore)
-        for k in range(count - 1):
-            radius_x = v["island_width"] * scale / 2
-            radius = min(radius_x, radius_z)
-            # Exact capsule distance keeps beach runs predictable even for very thin islands.
-            # The ellipse approximation otherwise expands diagonal shoulders into adjacent straits.
-            sdf = box_sdf(xx, zz, W / 2, (k + 1) * W / count,
-                          radius_x - radius, radius_z - radius) - radius
-            plateau(h, sdf, 100, side_deg=v["beach_slope"], noise=edge, amp=v["coast_noise"])
+        def shapes():
+            yield ellipse_sdf(xx, zz, 0.025 * W, 0.5 * W, 0.15 * W, 0.34 * W)
+            for k in range(count - 1):
+                radius_x = v["island_width"] * scale / 2
+                radius = min(radius_x, radius_z)
+                yield box_sdf(xx, zz, W / 2, (k + 1) * W / count,
+                              radius_x - radius, radius_z - radius) - radius
+        islands(h, edge, v, shapes())
         zs = [(k + 0.5) * W / count for k in range(count)]
         gates = [(f"strait {k + 1}", (np.abs(xx - W / 2) < 120 * scale) &
                   (np.abs(zz - z) < W / (2 * count))) for k, z in enumerate(zs)]

@@ -2,9 +2,9 @@
 import numpy as np
 
 from ..checks import connected, unit_masks
-from ..terrain import box_sdf, pit, plateau
+from ..terrain import box_sdf, ellipse_sdf, pit
 from .base import Param, Template
-from ._naval import finish, island, naval_params, sea
+from ._naval import finish, islands, naval_params, sea
 
 
 class AtollTemplate(Template):
@@ -35,18 +35,18 @@ class AtollTemplate(Template):
         C = W / 2
         radius = np.hypot(xx - C, zz - C)
         ring = np.abs(radius - v["ring_radius"] * W) - v["ring_width"] * W / 2
-        plateau(h, ring, 100, side_deg=v["beach_slope"],
-                noise=edge, amp=v["coast_noise"], toe=36)
+        home = ellipse_sdf(xx, zz, 0.20 * W, C, 0.085 * W, 0.16 * W)
+        islands(h, edge, v, (ring, home))
         # Cut only the two entrances, retaining the natural lagoon and outer seabed between them.
         for z in (0.20 * W, 0.80 * W):
             pit(h, box_sdf(xx, zz, C, z, v["passage_width"] / 2, 0.18 * W), seabed,
-                side_deg=v["beach_slope"], round_=60, toe=4)
-        # Widen the home arcs after cutting: stable openings must not flood the starting bases.
-        island(h, xx, zz, edge, v, 0.20 * W, C, 0.085 * W, 0.16 * W)
+                side_deg=v["beach_slope"], round_=96, toe=48)
         # Reserve an outer fleet bypass even when shallow beaches would meet the map edge.
         # Its steeper bank still remains within hover and amphibian movement limits.
-        pit(h, xx - 0.035 * W, seabed, side_deg=24, round_=40, toe=4)
-        d = finish(self, v, h, xx, zz, W, rng, (0.20 * W, C), (0.41 * W, C))
+        pit(h, xx - 0.035 * W, seabed, side_deg=24, round_=96, toe=48)
+        # The combined ring/home SDF already rounds its flank contacts. A broad
+        # seabed blur would fill the deliberately cut entrances and lagoon ports.
+        d = finish(self, v, h, xx, zz, W, rng, (0.20 * W, C), (0.41 * W, C), smooth_bottom=False)
         ships = unit_masks(d.hm)["ships"]
         port = d.naval_starts[0][0]
         entrances = [(C, 0.04 * W), (C, 0.96 * W)]

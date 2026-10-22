@@ -100,6 +100,16 @@ BIOMES = {
         gamb=(0.5, 0.5, 0.5), gdif=(0.86, 0.85, 0.82),
         water_base=(0.32, 0.38, 0.36), water_min=(0.06, 0.1, 0.1), water_surf=(0.5, 0.55, 0.52),
         wind=(6, 22), clouds=0.55, cloud=(0.8, 0.8, 0.8)),
+    "asteroid": dict(
+        bed=(12, 12, 18), shore=(104, 98, 88), low=(132, 126, 112), mid=(122, 116, 104),
+        high=(146, 140, 126), rock=(96, 90, 82), cliff=(58, 54, 50), peak=(170, 164, 150),
+        patch=(110, 100, 84), grain=0.14, patch_amt=0.5,
+        trees=False, tree_density=0.0, peak_level=9.0,
+        sun=(1.0, 0.98, 0.94), sky=(0.015, 0.015, 0.03), fog=(0.16, 0.18, 0.26),
+        gamb=(0.36, 0.38, 0.46), gdif=(0.95, 0.94, 0.9),
+        water_base=(0.0, 0.0, 0.0), water_min=(0.0, 0.0, 0.0), water_surf=(0.0, 0.0, 0.0),
+        wind=(0, 3), tidal=0, clouds=0.0, space=True, void=True, gravity=80, fog_start=0.7,
+        nebula=(0.45, 0.2, 0.6), nebula2=(0.1, 0.32, 0.6)),
 }
 
 for _k, _v in BIOMES.items():
@@ -108,4 +118,4 @@ for _k, _v in BIOMES.items():
 # ground detail material per biome (splat channel 3)
 GROUND_MAT = {"temperate": "grass", "autumn": "grass", "alien": "grass", "desert": "sand",
               "arctic": "snow", "moon": "snow", "volcanic": "pebbles", "ashland": "pebbles",
-              "jungle": "grass", "swamp": "grass", "industrial": "pebbles"}
+              "jungle": "grass", "swamp": "grass", "industrial": "pebbles", "asteroid": "pebbles"}

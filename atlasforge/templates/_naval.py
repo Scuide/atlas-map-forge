@@ -7,7 +7,7 @@ from ..biomes import BIOMES
 from ..design import Design
 from ..noise import fbm
 from ..symmetry import Symmetry, mirror_east_west, mirror_pairs
-from ..terrain import ellipse_sdf, grid, plateau
+from ..terrain import ellipse_sdf, grid, plateau, smin
 from .base import Param
 from .common import biome_param, flatten_all, size_param, sym_fields
 
@@ -62,19 +62,54 @@ def sea(v, seed):
 
 def island(h, xx, zz, edge, v, cx, cz, rx, rz):
     plateau(h, ellipse_sdf(xx, zz, cx, cz, rx, rz), LAND_HEIGHT,
-            side_deg=v["beach_slope"], noise=edge, amp=v["coast_noise"], toe=36)   # soft valleys between islands
+            side_deg=v["beach_slope"], noise=edge, amp=v["coast_noise"], round_=96, toe=48)
 
 
-def finish(template, v, h, xx, zz, W, rng, base, port, gates=()):
+def islands(h, edge, v, shapes, top=LAND_HEIGHT):
+    """Build one shore profile from a smooth union, including geometry on both sides.
+
+    Including reflected distance fields before evaluating the height avoids a cusp when
+    a flank crosses the symmetry axis. Consume fields lazily to bound large-map memory.
+    """
+    merged = None
+    for sdf in shapes:
+        if not np.array_equal(sdf, sdf[:, ::-1]):
+            sdf = smin(sdf, sdf[:, ::-1], 320.0)
+        merged = sdf if merged is None else smin(merged, sdf, 320.0)
+    if merged is not None:
+        merged = (merged + merged[:, ::-1]) * 0.5
+        plateau(h, merged, top, side_deg=v["beach_slope"], noise=edge,
+                amp=v["coast_noise"], round_=96, toe=48)
+
+
+def soften_seabed(h, xx, zz, ports, scale=640.0):
+    """Round deep flank contacts while preserving dry shores and port approach discs.
+
+    The broad filter is evaluated on a coarse grid, then reconstructed with cubic
+    interpolation. Its 640-elmo scale spreads curvature across the whole flank join;
+    a C2 blend preserves all shore samples above -20 and the 500-elmo port discs.
+    """
+    coarse = ndimage.gaussian_filter(h[::4, ::4], scale / (4 * SQ), mode="reflect")
+    soft = ndimage.zoom(coarse, (h.shape[0] / coarse.shape[0],
+                                  h.shape[1] / coarse.shape[1]), order=3)
+    soft = smin(soft, -45.0, 8.0)
+    weight = np.clip((-h - 20) / 40, 0, 1)
+    weight = weight ** 3 * (10 + weight * (-15 + 6 * weight))
+    for x, z in ports:
+        t = np.clip((np.hypot(xx - x, zz - z) - 500) / 350, 0, 1)
+        weight *= t ** 3 * (10 + t * (-15 + 6 * t))
+    return (h + weight * (soft - h)).astype(np.float32)
+
+
+def finish(template, v, h, xx, zz, W, rng, base, port, gates=(), smooth_bottom=True, bottom_scale=640.0):
     """Keep ports explicit: a land start must never be silently snapped into water by checks."""
     sym = Symmetry("ew", W, W)
     h = mirror_east_west(h)
-    # Beach flanks from both sides meet at the centre line in a V-shaped underwater crease: round it off.
-    # The smoothing is symmetric, so the map stays exactly mirrored.
-    band = np.exp(-((xx - W / 2) / 260.0) ** 2) * np.clip((-h - 20) / 30, 0, 1)
-    h = (h + band * (ndimage.gaussian_filter(h, 4) - h)).astype(np.float32)
     starts = [base, sym.mirror(*base)]
     ports = [port, sym.mirror(*port)]
+    if smooth_bottom:
+        h = soften_seabed(h, xx, zz, ports, bottom_scale)
+    h = mirror_east_west(h)
     # Select well-separated flat sites, away from beaches and the mirror seam.
     # Pairing resources after selection gives exact equality of position and income.
     from ..terrain import move_slope
@@ -143,6 +178,8 @@ def finish(template, v, h, xx, zz, W, rng, base, port, gates=()):
         under = h[int(z / SQ), int(x / SQ)] < 0
         west.append((x, z, round(min(3.4, 2.0 + 1.1 * d + (0.2 if under else 0.0)), 2)))
     mexes = mirror_pairs(west, sym)
+    for m in mexes[:6]:
+        m["fixed"] = True
     geos = [(base[0], base[1] + 420)] if v["geovents"] else []
     geos += [sym.mirror(*p) for p in list(geos)]
     flatten_all(h, starts, mexes, geos)

@@ -1,6 +1,7 @@
 """Open Sea: opposing coastal bases, a broad ocean and optional offshore island pairs."""
 from .base import Param, Template
-from ._naval import finish, island, naval_params, sea
+from ..terrain import ellipse_sdf
+from ._naval import finish, islands, naval_params, sea
 
 
 class OpenSea(Template):
@@ -24,10 +25,12 @@ class OpenSea(Template):
 
     def make(self, v, seed, log=print):
         h, xx, zz, edge, rng, W = sea(v, seed)
-        island(h, xx, zz, edge, v, 0.035 * W, 0.5 * W,
-               0.14 * W * v["coast_size"], 0.28 * W * v["coast_size"])
         count = v["island_pairs"]
-        for k in range(count):
-            z = W * (0.14 + 0.72 * k / max(count - 1, 1))
-            island(h, xx, zz, edge, v, 0.36 * W, z, 0.045 * W, 0.045 * W)
+        def shapes():
+            yield ellipse_sdf(xx, zz, 0.035 * W, 0.5 * W,
+                              0.14 * W * v["coast_size"], 0.28 * W * v["coast_size"])
+            for k in range(count):
+                z = W * (0.14 + 0.72 * k / max(count - 1, 1))
+                yield ellipse_sdf(xx, zz, 0.36 * W, z, 0.045 * W, 0.045 * W)
+        islands(h, edge, v, shapes())
         return finish(self, v, h, xx, zz, W, rng, (0.085 * W, 0.5 * W), (0.285 * W, 0.5 * W))

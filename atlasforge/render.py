@@ -130,19 +130,28 @@ def render_rgb(F, r0, r1, Wpx, biome, water_h, NB, decals, emis_out=None):
     poke = smoothstep(0.9, 1.5, nR + 0.6 * nM + 0.4 * np.clip(cav / 4.0, 0, 1)) * 0.75     # rocks poke through
     snowc = mix(snowc, C["rock"] * (1 + 0.15 * nR)[..., None], poke)
     col = mix(col, snowc, snow)
-    # shore and underwater
+    # shore and underwater (not on void maps: below the edge is empty space)
+    void = bool(biome.get("void"))
     sh = 1 - smoothstep(water_h + 4, water_h + 14 + 6 * nL, h)
+    if void:
+        sh = sh * 0
     shore = C["shore"] * (1 + 0.05 * nF + 0.05 * nM)[..., None]
     col = mix(col, shore, sh)
     wet = (1 - smoothstep(water_h + 0.5, water_h + 4 + 1.5 * nM, h)) * smoothstep(water_h - 2, water_h + 0.5, h)
+    if void:
+        wet = wet * 0
     col = mix(col, shore * 0.72, wet * 0.8)                                       # wet sand at the water line
     foam = np.exp(-((h - water_h - 0.6) / 0.9) ** 2) * (0.5 + 0.5 * smoothstep(-0.5, 1.0, nF))
     foam *= smoothstep(1.0, 4.0, s) * (1 - smoothstep(15, 30, s))                  # only where the shore has a slope
+    if void:
+        foam = foam * 0
     col = mix(col, np.array([235, 236, 230], np.float32), foam * 0.25)
     uw = 1 - smoothstep(water_h - 40, water_h + 0.5, h)
     depth = np.clip((water_h - h) / 60.0, 0, 1)
     bed = mix(C["bed"] * (1 + 0.08 * nM)[..., None], C["shore"] * 0.8, (1 - smoothstep(0.0, 0.35, depth)) * 0.6)
     bed = bed * (1 - 0.35 * depth)[..., None]                                     # deeper = darker
+    if void:
+        bed = np.broadcast_to(C["bed"], h.shape + (3,))
     col = mix(col, bed, uw)
     # rock by slope
     sn = s + 5 * nM + 2 * nF

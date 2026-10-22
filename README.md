@@ -12,7 +12,7 @@ map gadgets such as lava cliffs, lava tides and an erupting volcano.
 - **Playable maps:** every map is checked with the engine's own slope rules. Ramps are carved
   automatically until tanks can reach the enemy base and every metal spot.
 - **Good looks:** biome palettes (temperate, desert, arctic, volcanic, ashland, alien, moon, autumn, jungle, swamp,
-  industrial), a painted sky per map, engine grass, time of day,
+  industrial, asteroid), a painted sky per map, engine grass, time of day,
   slope-based rock, shores, detail normal maps, splat materials and soft terrain transitions.
 - **Fair layouts:** two-team symmetry (diagonal, north/south, east/west) for terrain and resources.
 - **Map gadgets:** maps can carry their own Lua rules, for example damaging lava on cliffs that only
@@ -95,6 +95,15 @@ and copies it into your Zero-K folder (found automatically for Steam installs; o
 | `coastal_front` | Coastal Front: a mainland front beside a broad coastal sea | mainland depth, headlands, sea depth, underwater metal share |
 | `atoll` | Atoll: opposing island arcs around a contested lagoon with two deep entrances | atoll radius, ring width, entrance width, sea depth |
 | `ffa_ring` | FFA Ring: free-for-all for 3 to 8 players, identical sectors around a rich centre | players, ridges or open borders, ridge height, pass width, centre |
+| `asteroid` | Asteroid: a cratered rock in space (in the style of Apophis), 2 to 4 identical sectors, low gravity | players, centre (basin, mesa, flat), relief, craters, rough flanks, irregular edge, gravity |
+| `highlands` | Procedural Highlands: Seeded highland regions become irregular mesas, rounded massifs or stepped uplands | teams face, relief, terrain distortion, highland form, terrain regions, terrace levels |
+| `watershed` | Procedural Watershed: Seeded river branches carve braided channels, broad wetlands or dry ravines | teams face, relief, terrain distortion, watershed form, tributaries, channel scale, channel depth |
+| `dune_sea` | Procedural Dune Sea: Changing winds and warped noise create long dune chains, crescent fields or intersecting star dunes | teams face, relief, terrain distortion, dune form, dune bands, dune height, rocky uplands |
+| `open_dunes` | Open Dunes: Broad, low dune waves and open basins favour mobile armies and wide flanks | teams face, relief, terrain distortion, dune direction, dune height, dune spacing, rocky cover |
+| `twin_plateaus` | Twin Plateaus: Each team starts on a high plateau with several deliberate ramps into a shared lowland | plateau height, plateau depth, ramps per plateau, ramp width, lowland hills |
+| `lake_district` | Lake District: Several seeded lake basins interrupt a connected mainland | teams face, relief, terrain distortion, lake basins, lake size, lake depth |
+| `river_delta` | River Delta: A central river fans into several channels around contested delta islands | relief, terrain distortion, river arms, delta spread, channel width, channel depth, crossing corridors, crossing width, crossing type |
+| `fjord_coast` | Fjord Coast: Deep inlets cut into opposing mainlands and shelter local fleet approaches | sea depth, beach slope, coast irregularity, underwater metal share, geothermal vents, coastal inlets, inlet reach, inlet width, mainland depth |
 
 Sea maps are checked for ships (heavy ships need water deeper than 15 elmos), hovers and amphibians
 instead of tanks and bots; the app shows a "Ships" route.
@@ -128,7 +137,7 @@ Options of `atlasforge procedural`:
 | Option | Meaning |
 |---|---|
 | `--size W H` | map size in Spring units, even numbers from 4 to 32 (12 12 is a typical 1v1/2v2 size) |
-| `--biome` | temperate, desert, arctic, volcanic, ashland, alien, moon, autumn, jungle, swamp, industrial |
+| `--biome` | temperate, desert, arctic, volcanic, ashland, alien, moon, autumn, jungle, swamp, industrial, asteroid |
 | `--style` | hills, plateaus, canyon, islands, crater |
 | `--layout` | diag (NW vs SE), ns (north vs south), ew (west vs east) |
 | `--seed` | any number; the same seed builds the same map |
