@@ -22,8 +22,18 @@ GATE_HW = 115
 class Arena(Template):
     id = "arena"
     title = "Arena (4 players)"
+    modes = ("team", "ffa")
+    tags = ("land", "chokes")
+    players = "2v2 or 4-player FFA"
     description = ("Four bases, each inside a rock ring with gates. Safe economy inside, open ground outside "
                    "and a rich centre. Plays as 2v2 or as a 4-player free-for-all.")
+    infos = {
+        "ring": "Distance from each base to its rock ring in elmos, so it sets how much safe room each player has inside. A small ring keeps the economy tight and the gates close to the base; a large ring gives room for more buildings but longer walks to the gates.",
+        "gates": "Openings in each ring. 1: a single gate towards the centre, very easy to defend. 2: towards the centre and the neighbouring base. 3: in every direction, so the ring is more of a fence than a fortress.",
+        "wall_height": "Height of the ring walls above the ground in elmos. Tanks, hovers and bots cannot pass the walls except through the gates; spiders can climb over. Higher walls block more line of sight and direct fire.",
+        "centre": "The rich middle of the map. hill: a low hill with extra metal that gives the holder a view over the field. flat: open ground with the same metal, easier to attack.",
+        "lava_tops": "Puts lava on top of the ring walls. Spiders that climb over take slow damage, so the walls stay a real barrier for them too.",
+    }
     params = (
         size_param((12, 14, 16, 18, 20), 16, adv_smallest=6),
         biome_param("desert"),

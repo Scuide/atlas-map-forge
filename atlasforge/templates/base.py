@@ -25,6 +25,7 @@ class Param:
     adv_max: Optional[float] = None
     adv_choices: Optional[tuple] = None
     group: str = ""                  # heading in the app ("" = template settings)
+    info: str = ""                   # long explanation for the info popup in the app (what it does, effect in game)
 
     def limits(self, advanced=False):
         lo, hi = self.min, self.max
@@ -63,7 +64,7 @@ class Param:
 
     def to_dict(self):
         d = {k: getattr(self, k) for k in ("key", "label", "kind", "default", "min", "max", "step", "help",
-                                           "adv_min", "adv_max", "group")}
+                                           "adv_min", "adv_max", "group", "info")}
         if self.choices is not None:
             d["choices"] = list(self.choices)
         if self.adv_choices is not None:
@@ -71,16 +72,30 @@ class Param:
         return d
 
 
+GROUP_ORDER = ("Map", "Resources", "Terrain", "")   # "" = the template's own settings
+
+MODES = ("1v1", "team", "ffa", "coop")          # how the map is meant to be played (filters in the app)
+TAGS = ("land", "sea", "twist", "chokes")         # terrain and features (filters in the app)
+
+
 class Template:
     id = ""
     title = ""
     description = ""
     params = ()
+    modes = ("1v1", "team")       # subset of MODES
+    tags = ("land",)              # subset of TAGS; "twist" = map gadget that changes the game over time
+    players = "1v1 to 4v4"        # short text for the gallery
+    infos = {}                    # optional {param key: long explanation} for params without an info text
 
     def all_params(self):
-        """Template parameters followed by the general ones every template has."""
+        """All settings in display order: map (size, biome), the general ones every template has
+        (resources, terrain), then the template's own settings."""
+        from dataclasses import replace
         from .common import general_params
-        return tuple(self.params) + general_params()
+        ps = tuple(replace(p, info=self.infos[p.key]) if not p.info and p.key in self.infos else p
+                   for p in self.params) + general_params()
+        return tuple(sorted(ps, key=lambda p: GROUP_ORDER.index(p.group) if p.group in GROUP_ORDER else len(GROUP_ORDER)))
 
     def param(self, key):
         for p in self.all_params():
@@ -104,5 +119,5 @@ class Template:
         raise NotImplementedError
 
     def info(self):
-        return dict(id=self.id, title=self.title, description=self.description,
-                    params=[p.to_dict() for p in self.all_params()])
+        return dict(id=self.id, title=self.title, description=self.description, modes=list(self.modes),
+                    tags=list(self.tags), players=self.players, params=[p.to_dict() for p in self.all_params()])

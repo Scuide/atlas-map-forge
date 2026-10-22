@@ -56,8 +56,19 @@ def _causeway(h, p0, p1, h0, h1):
 class Volcano(Template):
     id = "volcano"
     title = "Volcano"
+    modes = ("team", "ffa")
+    tags = ("land", "twist")
+    players = "2v2 or 4-player FFA"
     description = ("A volcano island in a sea of lava, ringed by islands with four bases (20x20). Every few minutes "
                    "the volcano erupts: lava bombs rain on the slopes and the rising lava floods every causeway.")
+    infos = {
+        "calm_seconds": "Seconds between two eruptions. During the calm all causeways are open and lava bombs stop. Short calm periods make the map hectic; long ones give time to expand.",
+        "flood_seconds": "How long each eruption lasts, in seconds. During an eruption the lava rises over the causeways (units on them take heavy damage) and lava bombs rain on the volcano and the ring.",
+        "bomb_damage": "Damage of one lava bomb at the centre of the impact; at the edge it is a quarter. 900 kills small raiders and hurts tanks; 2000 and more destroys most buildings that are not shielded.",
+        "bomb_radius": "Size of one lava bomb impact in elmos. Bombs only fall on solid ground on the volcano island and the ring of islands, never on the bases. The danger layer of the preview shows where they can land.",
+        "bomb_rate": "How many lava bombs fall per second during an eruption, over the whole map. Higher values make the volcano and the ring very dangerous while it erupts.",
+        "outer_islands": "Adds two rich islands in the corners, each linked by a causeway that floods during eruptions. They are worth taking but hard to hold.",
+    }
     params = (
         Param("calm_seconds", "Calm between eruptions (s)", "int", 170, min=90, max=360, step=10, adv_min=10, adv_max=1800),
         Param("flood_seconds", "Eruption length (s)", "int", 40, min=20, max=90, step=5, adv_min=5, adv_max=900,

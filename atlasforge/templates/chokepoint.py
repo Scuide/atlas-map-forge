@@ -29,8 +29,18 @@ MIX_ORDER = {1: [0], 2: [0, 1], 3: [1, 0, 2], 4: [1, 0, 2, 3]}     # which mix e
 class Chokepoint(Template):
     id = "chokepoint"
     title = "Chokepoint Front"
+    modes = ("1v1", "team")
+    tags = ("land", "chokes")
+    players = "1v1 to 3v3"
     description = ("West vs East, split by a long rock barrier. A few gates lead through: level ground for "
                    "everyone, rock humps only bots can climb, or water channels for hovers and amphibians.")
+    infos = {
+        "gates": "Number of openings in the rock barrier between the two sides. Each gate is a choke where armies meet. One gate makes a single front that is easy to defend and hard to break; three or four gates spread the fight out and reward raids and flanking.",
+        "gate_mix": "Which units can use each gate. level: flat ground, every unit passes. hump: a rock hump only bots and spiders can climb. water: a channel only hovers and amphibians (and ships, if deep enough) can use. mixed gives one of each; level opens every gate to everyone; 'bots and hovers' leaves tanks only one level gate in the middle.",
+        "gate_width": "Usable width of each gate in elmos (a small tank is about 30 elmos wide). Narrow gates (300) are easy to block with a few defences; wide gates (800 and more) let large armies pass and make defending harder.",
+        "wall_height": "Height of the barrier above the ground in elmos. Every height blocks tanks, hovers and bots. Higher walls block more line of sight and more direct fire; artillery and aircraft still shoot over them. Spiders can climb any height.",
+        "lava_tops": "Puts glowing lava on top of the barrier. Spiders that climb across take slow damage, so the barrier is not a free road for them. Turn it off if spiders should be able to cross safely.",
+    }
     params = (
         size_param((12, 14, 16, 18, 20), 16, adv_smallest=8),
         biome_param("temperate"),

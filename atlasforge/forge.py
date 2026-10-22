@@ -57,7 +57,15 @@ def _protect_mask(d):
 
 
 def _apply_general(d, v):
-    """Settings every template has: metal amount, tree density, erosion."""
+    """Settings every template has: metal spots, geos, wind, tidal, erosion, rocks, wrecks, metal amount, trees."""
+    if v.get("mex_count") or v.get("geos", "default") != "default":
+        from .resources import set_counts
+        set_counts(d, v.get("mex_count", 0), v.get("geos", "default"), seed=d.seed)
+    if v.get("wind", "biome") != "biome":
+        from .resources import WIND
+        d.biome = dict(d.biome, wind=WIND[v["wind"]])
+    if v.get("tidal", 12) != 12:
+        d.biome = dict(d.biome, tidal=int(v["tidal"]))
     if v.get("erosion", 0) > 0:
         from .erosion import erode, symmetric_like
         ok_before = check(d)[0]

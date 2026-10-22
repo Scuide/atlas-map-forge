@@ -24,8 +24,19 @@ FLOOD = 60
 class RiverCrossing(Template):
     id = "river"
     title = "River Crossing"
+    modes = ("1v1", "team")
+    tags = ("land", "chokes", "twist")
+    players = "1v1 to 3v3"
     description = ("West vs East across a river or a lava lake. Low fords cross it; with lava tides the fords "
                    "flood every few minutes (on-screen countdown) while a causeway in the middle stays safe.")
+    infos = {
+        "mode": "What divides the two sides. 'lava tides': a lava lake whose fords flood on a timer (a countdown is shown in game), so attacks have to be timed. 'lava': the fords stay open all game. 'water': a deep river; hovers, amphibians and ships can cross anywhere, the other units only at the fords.",
+        "fords": "Number of low crossings over the river. Fords are the chokes of this map: few fords make heavy fights at one or two places, more fords spread the front out.",
+        "causeway": "A natural land bridge in the middle of the river that never floods. It gives a safe but well-known route across, even during high tide. Without it, crossings during floods are impossible.",
+        "width": "Width of the river in elmos. A wide river keeps the bases further apart and gives artillery on the banks less reach over it; a narrow river lets units on one bank shoot the other.",
+        "calm_seconds": "Lava tides only: how long the fords stay open between floods, in seconds. Longer calm periods mean more time to attack across; short ones make crossings risky.",
+        "flood_seconds": "Lava tides only: how long the fords stay flooded, in seconds. Units on a ford when the lava rises take heavy damage.",
+    }
     params = (
         size_param((12, 14, 16, 18, 20), 16, adv_smallest=8),
         biome_param("volcanic"),

@@ -94,24 +94,88 @@ function renderWho() {
 }
 
 // ------------------------------------------------------------------ gallery and controls
-function renderGallery() {
-  const g = $("gallery");
-  g.innerHTML = "";
-  for (const t of S.info.templates) {
-    const b = document.createElement("button");
-    b.className = "tpl";
-    b.dataset.id = t.id;
-    b.title = t.description;
-    b.innerHTML = `<img src="thumbs/${t.id}.jpg" alt=""><span>${esc(t.title)}</span>`;
-    b.onclick = () => selectTemplate(t.id);
-    g.appendChild(b);
-  }
+const MODE_LABELS = { "": "All", "1v1": "1v1", team: "Teams", ffa: "FFA", coop: "Co-op" };
+const TAG_LABELS = { land: "Land", sea: "Sea", twist: "Twists", chokes: "Chokes" };
+const PF = { mode: "", tags: [], q: "" };            // picker filters (remembered per viewer)
+
+function badges(t) {
+  return [...t.modes.map((m) => `<span class="bdg m-${m}">${MODE_LABELS[m] || m}</span>`),
+          ...t.tags.filter((g) => g !== "land").map((g) => `<span class="bdg t-${g}">${TAG_LABELS[g] || g}</span>`)].join("");
 }
+
+function renderGallery() {
+  Object.assign(PF, recall("picker", {}));
+  $("tpl-count").textContent = `${S.info.templates.length} available`;
+  const fm = $("flt-mode");
+  fm.innerHTML = "";
+  for (const [k, label] of Object.entries(MODE_LABELS)) {
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.dataset.v = k;
+    b.onclick = () => { PF.mode = k; renderPicker(); };
+    fm.appendChild(b);
+  }
+  const ft = $("flt-tags");
+  ft.innerHTML = "";
+  for (const [k, label] of Object.entries(TAG_LABELS)) {
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.dataset.v = k;
+    b.onclick = () => { PF.tags = PF.tags.includes(k) ? PF.tags.filter((x) => x !== k) : [...PF.tags, k]; renderPicker(); };
+    ft.appendChild(b);
+  }
+  $("picker-search").value = PF.q || "";
+}
+
+function pickerMatches(t) {
+  if (PF.mode && !t.modes.includes(PF.mode)) return false;
+  if (PF.tags.some((g) => !t.tags.includes(g))) return false;
+  const q = (PF.q || "").trim().toLowerCase();
+  return !q || `${t.title} ${t.description} ${t.id} ${t.players}`.toLowerCase().includes(q);
+}
+
+function renderPicker() {
+  store("picker", PF);
+  for (const b of $("flt-mode").children) b.classList.toggle("on", b.dataset.v === PF.mode);
+  for (const b of $("flt-tags").children) b.classList.toggle("on", PF.tags.includes(b.dataset.v));
+  const list = S.info.templates.filter(pickerMatches);
+  const grid = $("picker-grid");
+  grid.innerHTML = "";
+  for (const t of list) {
+    const b = document.createElement("button");
+    b.className = "pcard" + (S.tpl && S.tpl.id === t.id ? " on" : "");
+    b.innerHTML = `<img src="thumbs/${t.id}.jpg" alt="" loading="lazy"><span class="pc-body"><b>${esc(t.title)}</b>
+      <span class="pc-players">${esc(t.players)}</span><span class="badges">${badges(t)}</span><p>${esc(t.description)}</p></span>`;
+    b.onclick = () => { closePicker(); if (!S.tpl || S.tpl.id !== t.id) selectTemplate(t.id); };
+    grid.appendChild(b);
+  }
+  $("picker-n").textContent = `${list.length} of ${S.info.templates.length} templates`;
+  $("picker-empty").classList.toggle("hidden", list.length > 0);
+}
+
+function openPicker() {
+  renderPicker();
+  $("picker").classList.remove("hidden");
+  setTimeout(() => $("picker-search").focus(), 30);
+}
+function closePicker() { $("picker").classList.add("hidden"); }
+$("current-tpl").onclick = openPicker;
+$("picker-close").onclick = closePicker;
+$("picker").addEventListener("click", (e) => { if (e.target === $("picker")) closePicker(); });
+$("picker-search").addEventListener("input", () => { PF.q = $("picker-search").value; renderPicker(); });
+$("picker-search").addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closePicker();
+  if (e.key === "Enter") { const first = $("picker-grid").querySelector(".pcard"); if (first) first.click(); }
+});
+$("picker-reset").onclick = (e) => { e.preventDefault(); PF.mode = ""; PF.tags = []; PF.q = ""; $("picker-search").value = ""; renderPicker(); };
 
 function selectTemplate(id) {
   S.tpl = S.info.templates.find((t) => t.id === id);
   store("template", id);
-  for (const b of document.querySelectorAll(".tpl")) b.classList.toggle("on", b.dataset.id === id);
+  $("cur-thumb").src = `thumbs/${id}.jpg`;
+  $("cur-title").textContent = S.tpl.title;
+  $("cur-meta").textContent = S.tpl.players;
+  $("cur-badges").innerHTML = badges(S.tpl);
   $("tpl-title").textContent = S.tpl.title;
   $("tpl-desc").textContent = S.tpl.description;
   const vals = Object.assign({}, ...S.tpl.params.map((p) => ({ [p.key]: p.default })), S.values[id] || {});
@@ -150,31 +214,34 @@ function renderParams() {
   const box = $("params");
   box.innerHTML = "";
   const vals = S.values[S.tpl.id];
-  let group = "";
+  let group = "", first = true;
   $("adv-note").classList.toggle("hidden", !isAdvanced());
   for (const p of S.tpl.params) {
-    if ((p.group || "") !== group) {
+    if (first || (p.group || "") !== group) {
+      first = false;
       group = p.group || "";
       const h = document.createElement("div");
       h.className = "group-head";
-      h.textContent = group;
+      h.textContent = GROUP_TITLES[group] || group || `${S.tpl.title} settings`;
       box.appendChild(h);
     }
     const f = document.createElement("div");
     f.className = "field";
     const help = p.help ? `<div class="help">${esc(p.help)}</div>` : "";
+    const ib = infoButton(p);
     if (p.kind === "bool") {
-      f.innerHTML = `<label class="switch"><input type="checkbox"><span></span>${esc(p.label)}</label>${help}`;
+      f.innerHTML = `<div class="lrow"><label class="switch"><input type="checkbox"><span></span>${esc(p.label)}</label>${ib}</div>${help}`;
       const cb = f.querySelector("input");
       cb.checked = !!vals[p.key];
       cb.onchange = () => setValue(p.key, cb.checked);
     } else if (p.kind === "choice") {
-      f.innerHTML = `<label>${esc(p.label)}</label><div class="chips"></div>${help}`;
+      f.innerHTML = `<label>${esc(p.label)}${ib}</label><div class="chips"></div>${help}`;
       const chips = f.querySelector(".chips");
       for (const c of pChoices(p)) {
         const b = document.createElement("button");
         b.dataset.v = String(c);
         let label = esc(c);
+        if (c === "default" || c === "biome") label = c === "biome" ? "biome" : "template";
         if (p.key === "size") label = `${c}&times;${c}`;
         if (p.key === "biome" && S.info.biomes[c]) {
           label = `<span class="sw">${S.info.biomes[c].map((x) => `<i style="background:${rgb(x)}"></i>`).join("")}</span>` + label;
@@ -191,13 +258,13 @@ function renderParams() {
     } else {
       const fmt = (v) => (p.kind === "float" ? Number(v).toFixed(1) : String(v));
       const [lo, hi] = pLimits(p);
-      f.innerHTML = `<label>${esc(p.label)} <span class="val"></span></label>
+      f.innerHTML = `<label>${esc(p.label)}${ib} <span class="val"></span></label>
         <input type="range" min="${lo}" max="${hi}" step="${p.step || (p.kind === "float" ? 0.1 : 1)}">${help}`;
       const r = f.querySelector("input");
       const out = f.querySelector(".val");
       r.value = vals[p.key];
       const show = (v) => {
-        out.textContent = fmt(v) + (p.key === "mexes" && Number(v) === 0 ? " (auto)" : "");
+        out.textContent = p.key === "mex_count" && Number(v) === 0 ? "template default" : fmt(v);
         const b = beyond(p, Number(v));
         out.classList.toggle("beyond", b);
         f.classList.toggle("beyond", b);
@@ -206,9 +273,50 @@ function renderParams() {
       r.oninput = () => show(r.value);
       r.onchange = () => setValue(p.key, p.kind === "float" ? parseFloat(r.value) : parseInt(r.value, 10));
     }
+    const btn = f.querySelector(".info");
+    if (btn) btn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); showInfo(p, btn); };
     box.appendChild(f);
   }
 }
+
+const GROUP_TITLES = { Map: "Map", Resources: "Resources", Terrain: "Terrain and decoration" };
+
+function infoButton(p) {
+  if (!p.info && !p.help) return "";
+  return `<button class="info" type="button" title="What does this do?" aria-label="About ${esc(p.label)}">i</button>`;
+}
+
+function rangeText(p) {
+  const show = (v) => (v === "default" ? "template default" : v === "biome" ? "biome default" : String(v));
+  if (p.kind === "bool") return `Default: ${p.default ? "on" : "off"}`;
+  if (p.kind === "choice") {
+    let t = `Options: ${p.choices.map(show).join(", ")}. Default: ${show(p.default)}.`;
+    if (p.adv_choices) t += ` Advanced mode adds: ${p.adv_choices.filter((c) => !p.choices.map(String).includes(String(c))).map(show).join(", ")}.`;
+    return t;
+  }
+  let t = `Range ${p.min} to ${p.max}, default ${p.key === "mex_count" && p.default === 0 ? "0 (template default)" : p.default}.`;
+  if (p.adv_min != null || p.adv_max != null) t += ` Advanced mode: ${p.adv_min ?? p.min} to ${p.adv_max ?? p.max}.`;
+  return t;
+}
+
+function showInfo(p, anchor) {
+  const pop = $("infopop");
+  if (!pop.classList.contains("hidden") && pop.dataset.key === p.key) { hideInfo(); return; }
+  pop.dataset.key = p.key;
+  pop.innerHTML = `<b>${esc(p.label)}</b><p>${esc(p.info || p.help)}</p><div class="range">${esc(rangeText(p))}</div>`;
+  pop.classList.remove("hidden");
+  const r = anchor.getBoundingClientRect();
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  let x = r.right + 10, y = r.top - 8;
+  if (x + w > innerWidth - 8) x = Math.max(8, r.left - w - 10);
+  if (y + h > innerHeight - 8) y = Math.max(8, innerHeight - h - 8);
+  pop.style.left = `${x}px`;
+  pop.style.top = `${y}px`;
+}
+function hideInfo() { $("infopop").classList.add("hidden"); }
+document.addEventListener("click", (e) => { if (!e.target.closest("#infopop")) hideInfo(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideInfo(); });
+$("params").addEventListener("scroll", hideInfo, true);
 
 function setValue(k, v) {
   S.values[S.tpl.id][k] = v;
@@ -749,6 +857,7 @@ function updateBuildButton() {
 $("btn-build").onclick = async () => {
   if (!S.map) return;
   $("result").classList.add("hidden");
+  unlockAudio();
   try {
     const job = await api("build", { id: S.map.id, title: $("title").value.trim(), version: parseInt($("version").value, 10), install: $("install").checked });
     S.job = job;
@@ -788,6 +897,7 @@ async function pollJob(id) {
     if (res.installed) $("open-inst").onclick = () => api("open", { path: res.installed }).catch((e) => toast(e.message));
     refreshVersions.manual = false;
     refreshVersions();
+    showDone(res, j.seconds);
   } else {
     r.className = "result err";
     r.innerHTML = `<div class="ttl">Build failed</div>${esc(j.error || "unknown error")}`;
@@ -883,6 +993,7 @@ $("auto").onchange = () => store("auto", $("auto").checked);
 
 document.addEventListener("keydown", (e) => {
   if (e.target.matches("input, textarea") || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (!$("picker").classList.contains("hidden")) { if (e.key === "Escape") closePicker(); return; }
   if (!$("adv-warn").classList.contains("hidden")) { if (e.key === "Escape") $("adv-warn").classList.add("hidden"); return; }
   if (!$("settings").classList.contains("hidden")) { if (e.key === "Escape") $("settings").classList.add("hidden"); return; }
   const k = e.key.toLowerCase();
@@ -890,6 +1001,7 @@ document.addEventListener("keydown", (e) => {
   else if (k === "+" || k === "=") zoomAt(1.5);
   else if (k === "-") zoomAt(1 / 1.5);
   else if (k === "r") $("btn-dice").click();
+  else if (k === "t") { e.preventDefault(); openPicker(); }
   else if (k === "m") toggleLayer("mexes");
   else if (k === "s") toggleLayer("starts");
   else if (k === "b") toggleLayer("boxes");
@@ -899,3 +1011,69 @@ document.addEventListener("keydown", (e) => {
 
 new ResizeObserver(resize).observe(cv);
 init();
+
+// ------------------------------------------------------------------ build finished dialog
+let audioCtx = null;
+function unlockAudio() {
+  // created on the click that starts the build, so the browser allows the sound later
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  } catch (e) { audioCtx = null; }
+}
+
+function playDone() {
+  // short rising anvil-like chime (three bell tones), made in code: no sound file needed
+  try {
+    unlockAudio();
+    if (!audioCtx) return;
+    const t0 = audioCtx.currentTime + 0.02;
+    const out = audioCtx.createGain();
+    out.gain.value = 0.22;
+    out.connect(audioCtx.destination);
+    [[523.25, 0], [659.25, 0.12], [1046.5, 0.24]].forEach(([f, dt]) => {
+      for (const [mul, vol] of [[1, 1], [2.76, 0.25], [5.4, 0.08]]) {
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.type = "sine";
+        o.frequency.value = f * mul;
+        g.gain.setValueAtTime(0, t0 + dt);
+        g.gain.linearRampToValueAtTime(vol, t0 + dt + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.0008, t0 + dt + (mul === 1 ? 1.4 : 0.5));
+        o.connect(g); g.connect(out);
+        o.start(t0 + dt); o.stop(t0 + dt + 1.5);
+      }
+    });
+  } catch (e) { /* no sound is fine */ }
+}
+
+function showDone(res, seconds) {
+  $("done-name").textContent = res.name;
+  $("done-meta").textContent = `${(res.bytes / 1e6).toFixed(1)} MB \u00b7 built in ${Math.round(seconds)} s`;
+  $("done-note").innerHTML = res.installed
+    ? "Installed into Zero-K. In the lobby, switch off <b>Only show featured maps</b> to find it."
+    : esc(res.warning || "Saved to your output folder.");
+  const shot = $("done-shot");
+  try {
+    const src = S.img && S.img.relief;
+    if (!src) throw new Error("no preview");
+    const c = document.createElement("canvas");
+    const w = src.naturalWidth || src.width, h = src.naturalHeight || src.height, k = Math.min(1, 600 / Math.max(w, h));
+    c.width = Math.round(w * k); c.height = Math.round(h * k);
+    c.getContext("2d").drawImage(src, 0, 0, c.width, c.height);
+    shot.src = c.toDataURL("image/jpeg", 0.88);
+    shot.classList.remove("hidden");
+  } catch (e) { shot.classList.add("hidden"); }
+  const acts = $("done-acts");
+  acts.innerHTML = `<button class="ghost" id="done-file">Show file</button>`
+    + (res.installed ? `<button class="ghost" id="done-inst">Show in Zero-K maps</button>` : "");
+  $("done-file").onclick = () => api("open", { path: res.path }).catch((e) => toast(e.message));
+  if (res.installed) $("done-inst").onclick = () => api("open", { path: res.installed }).catch((e) => toast(e.message));
+  $("done").classList.remove("hidden");
+  playDone();
+  setTimeout(() => $("done-close").focus(), 50);
+}
+const closeDone = () => $("done").classList.add("hidden");
+$("done-close").onclick = closeDone;
+$("done-kofi").onclick = openKofi;
+$("done").addEventListener("click", (e) => { if (e.target.id === "done") closeDone(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("done").classList.contains("hidden")) closeDone(); });

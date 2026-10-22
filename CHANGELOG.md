@@ -2,6 +2,19 @@
 
 ## 0.4.0 - unreleased
 
+- When a build finishes, a dialog opens in the middle of the window with a short chime: map name, preview,
+  size and build time, buttons to show the file or the Zero-K maps folder, and the Ko-fi support button.
+- General settings on every map, shown first: Map (size, biome), Resources (number of metal spots per
+  side, metal per spot, geothermal vents, wind, tidal strength), Terrain (trees, rocks, wrecks, erosion),
+  then the template's own settings. Metal spots and vents are added or removed in mirrored sets; base
+  spots stay.
+- Every setting has an info button with a full explanation (what it does, unit, effect in a game, range
+  and advanced range).
+- Template picker for many templates: the current template is a compact card; "Change" (or key T) opens
+  a gallery with search and filters for 1v1, Teams, FFA, Co-op and for Land, Sea, Twists, Chokes.
+  Templates declare `modes`, `tags` and `players`.
+- Sea maps: metal spots spread evenly (no rows along the map edge or pairs at the centre line), richer
+  further from the base, land spots prefer islands other than the home island.
 - Three sea templates (built from the template guide): Open Sea, Archipelago, Island Straits. Naval check
   profile: ships between the ports, hovers and amphibians between the bases, amphibian access to all metal,
   ships to underwater metal; "Ships" route in the app.
@@ -22,7 +35,6 @@
   local edits of the heightmap.
 - Advanced mode (Settings, with a warning): lifts the limits of every map setting - sizes 4-32, more
   gates/fords/rings, extreme heights and timings. Values beyond the safe range are shown in orange.
-- General settings for every template: metal amount, tree density, erosion.
 - Erosion: simulated rain carves gullies and valleys into natural slopes; start areas, metal spots,
   chokes, walls and ramps are protected. If erosion would cut a route, it is lowered automatically.
 - Seamless symmetry: the noise is made symmetric with a blend at the dividing line before anything is

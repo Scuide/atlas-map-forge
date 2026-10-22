@@ -30,8 +30,12 @@
   <!-- left: templates and settings -->
   <aside class="side left">
     <section class="block">
-      <h2>Template</h2>
-      <div class="gallery" id="gallery"></div>
+      <h2>Template <span class="count" id="tpl-count"></span></h2>
+      <button class="current" id="current-tpl" title="Browse all templates (T)">
+        <img id="cur-thumb" alt="">
+        <span class="cur-text"><b id="cur-title"></b><span id="cur-meta"></span><span class="badges" id="cur-badges"></span></span>
+        <span class="cur-change">Change</span>
+      </button>
     </section>
     <section class="block grow">
       <h2 id="tpl-title">Settings</h2>
@@ -131,6 +135,24 @@
   </aside>
 </main>
 
+<div class="picker hidden" id="picker" role="dialog" aria-modal="true" aria-labelledby="picker-title">
+  <div class="picker-card">
+    <div class="picker-head">
+      <h2 id="picker-title">Choose a template</h2>
+      <input id="picker-search" type="search" placeholder="Search templates" spellcheck="false" autocomplete="off">
+      <button class="ghost" id="picker-close" title="Close (Esc)">Close</button>
+    </div>
+    <div class="picker-filters">
+      <div class="chips" id="flt-mode"></div>
+      <span class="flt-sep"></span>
+      <div class="chips" id="flt-tags"></div>
+      <span class="picker-n" id="picker-n"></span>
+    </div>
+    <div class="picker-grid" id="picker-grid"></div>
+    <div class="picker-empty hidden" id="picker-empty">No template matches. <a href="#" id="picker-reset">Show all</a></div>
+  </div>
+</div>
+
 <div class="modal hidden" id="settings" role="dialog" aria-modal="true" aria-labelledby="set-title">
   <div class="card">
     <h2 id="set-title">Settings</h2>
@@ -166,6 +188,26 @@
   </div>
 </div>
 
+<div class="modal hidden" id="done" role="dialog" aria-modal="true" aria-labelledby="done-title">
+  <div class="card donecard">
+    <div class="done-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+    <h2 id="done-title">Map forged</h2>
+    <div class="done-name" id="done-name"></div>
+    <img class="done-shot hidden" id="done-shot" alt="">
+    <div class="done-meta" id="done-meta"></div>
+    <p class="done-note" id="done-note"></p>
+    <div class="done-acts" id="done-acts"></div>
+    <div class="done-kofi">
+      <p>Enjoying Atlas Map Forge? Support me on Ko-fi to help development.</p>
+      <button class="kofi big" id="done-kofi">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M4 6h12a1 1 0 0 1 1 1v1h1.5a3.5 3.5 0 0 1 0 7H16.6A6 6 0 0 1 11 19H9a6 6 0 0 1-6-6V7a1 1 0 0 1 1-1Zm13 4v3h1.5a1.5 1.5 0 0 0 0-3H17Zm-7.6 1.1c-.9-.9-2.4-.3-2.4 1 0 1.3 1.9 2.5 3 3.3 1.1-.8 3-2 3-3.3 0-1.3-1.5-1.9-2.4-1l-.6.6-.6-.6Z"/></svg>
+        Support on Ko-fi</button>
+    </div>
+    <div class="actions"><button class="primary" id="done-close">Close</button></div>
+  </div>
+</div>
+
+<div class="infopop hidden" id="infopop" role="tooltip"></div>
 <div class="toast hidden" id="toast"></div>
 <script src="app.js"></script>
 </body>

@@ -90,6 +90,9 @@ from atlasforge.templates.common import biome_param, size_param
 class MyTemplate(Template):
     id = "my_template"            # lowercase, underscores; used on the command line
     title = "My Template"         # shown in the app gallery
+    modes = ("1v1", "team")       # any of "1v1", "team", "ffa", "coop" - filters in the app
+    tags = ("land", "chokes")     # any of "land", "sea", "twist" (map gadget changes the game), "chokes"
+    players = "1v1 to 3v3"        # short text on the gallery card
     description = "One or two sentences for the player: what makes this map special."
     params = (
         size_param((12, 14, 16, 18, 20), 16, adv_smallest=10),
@@ -114,13 +117,22 @@ class MyTemplate(Template):
 | `choices` | tuple for `"choice"` |
 | `adv_min`, `adv_max`, `adv_choices` | wider range for **advanced mode**. The template must not crash anywhere inside it (a failing check is fine) |
 | `help` | one short English sentence, shown under the control |
-| `group` | leave empty (the app groups template settings first) |
+| `info` | **required**: 2-5 English sentences for the info popup ("i" next to the label): what the setting does, its unit, and what it changes in a game (which units profit, faster/slower, easier/harder to defend). Write for players who have never made a map. Alternatively set a class attribute `infos = {key: text}` |
+| `group` | leave empty: the app shows Map (size, biome), Resources, Terrain and then your settings under the template's title |
 
 - `size_param(choices, default, adv_smallest)` and `biome_param(default)` are the standard map size and
   biome controls. `adv_smallest` = smallest size your template can still build without crashing.
-- **Do not** add `metal`, `trees`, `rocks`, `wrecks` or `erosion`: every template gets them automatically
+- **Do not** add `mex_count`, `metal`, `geos`, `wind`, `tidal`, `trees`, `rocks`, `wrecks` or `erosion`
+  (and no own "number of metal spots" setting): every template gets them automatically
   (`general_params()`); `forge.make` applies them after your `make()`. Rocks and wrecks keep away from
   starts, metal spots, `gates`, `keep_clear`, `hazard` and `blocked`, so register those areas.
+- Metal spot and geo counts (`atlasforge.resources`): the user picks "Metal spots" per side (per quarter on
+  four-way maps, whole map when not symmetric) and "Geothermal vents" per side. The core removes the most
+  crowded expansion spots or adds new ones in mirrored sets on flat ground that builders reach
+  (tanks; amphibians on naval maps), outside `keep_clear`, `blocked`, `hazard` and `gates`. Spots within
+  900 elmos of a start and spots with `"fixed": True` in their dict are never removed - mark spots that
+  your design depends on (e.g. the metal in a ring centre) as fixed. Your template should still pick a good
+  default count for the map size.
 - Make as much adjustable as is sensible (counts, widths, heights, timings, on/off features). The user
   wants many settings; give every numeric setting a generous advanced range.
 

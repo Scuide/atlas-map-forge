@@ -17,29 +17,82 @@ H_LOW = 100.0
 def size_param(choices, default, adv_smallest=4):
     """adv_smallest: smallest size the template can still build in advanced mode."""
     return Param("size", "Map size", "choice", default, choices=tuple(choices),
-                 adv_choices=tuple(range(adv_smallest, 33, 2)),
-                 help="Width and height in Spring map units (8 = small 1v1, 16 = 2v2, 20 = large team game)")
+                 adv_choices=tuple(range(adv_smallest, 33, 2)), group="Map",
+                 help="Width and height in Spring map units (8 = small 1v1, 16 = 2v2, 20 = large team game)",
+                 info="Width and height of the map in Spring map units; one unit is 512 elmos (a small tank is "
+                      "about 30 elmos long). 8x8 suits a fast 1v1, 12-16 a 2v2 or 3v3, 20 and more large team games. "
+                      "Bigger maps take longer to build, need more metal spots to stay interesting and make "
+                      "travel times (and raids) longer.")
 
 
 def general_params():
     """Settings every template has (applied by forge.make after the template)."""
     return (
-        Param("metal", "Metal amount", "float", 1.0, min=0.5, max=2.0, step=0.1, adv_min=0.1, adv_max=5.0,
-              group="General", help="Multiplies the value of every metal spot"),
-        Param("trees", "Trees", "float", 1.0, min=0.0, max=2.0, step=0.1, adv_max=5.0, group="General",
-              help="Tree density (biomes without trees stay bare)"),
-        Param("rocks", "Rocks", "float", 0.5, min=0.0, max=2.0, step=0.1, adv_max=6.0, group="General",
-              help="Rock clusters with reclaimable metal (glowing crystals on alien and moon maps)"),
-        Param("wrecks", "Wrecks", "float", 0.3, min=0.0, max=2.0, step=0.1, adv_max=6.0, group="General",
-              help="Battlefield wrecks of Zero-K units between the bases (reclaimable metal)"),
-        Param("erosion", "Erosion", "float", 0.6, min=0.0, max=1.5, step=0.1, adv_max=4.0, group="General",
+        Param("mex_count", "Metal spots", "int", 0, min=0, max=40, step=1, adv_max=120, group="Resources",
+              help="Metal spots per side; 0 = what the template picks for this size",
+              info="How many metal spots each side gets (each quarter on four-way maps, the whole map on "
+                   "co-op maps), base spots included. 0 keeps the template's own number, which grows with "
+                   "the map size. More spots mean a faster economy and more places to fight over; fewer "
+                   "spots make every expansion count. Spots are added and removed in mirrored sets so "
+                   "every side stays equal; spots inside the bases are never removed, and new ones only go "
+                   "on flat ground your builders can reach."),
+        Param("metal", "Metal per spot", "float", 1.0, min=0.5, max=2.0, step=0.1, adv_min=0.1, adv_max=5.0,
+              group="Resources", help="Multiplies the value of every metal spot",
+              info="Multiplies the metal income of every spot. 1.0 is the template's normal value (a normal "
+                   "spot gives about 2 metal per second with a mex on it). 0.5 halves the economy, so games "
+                   "are slower and smaller; 2.0 doubles it, so big units and superweapons come much earlier."),
+        Param("geos", "Geothermal vents", "choice", "default", choices=("default", 0, 1, 2, 3),
+              adv_choices=("default", 0, 1, 2, 3, 4, 5, 6, 8), group="Resources",
+              help="Geothermal vents per side; default = what the template picks",
+              info="Geothermal vents per side. A geothermal plant on a vent gives a lot of energy (25 E/s, "
+                   "the advanced one 100 E/s) but explodes hard when destroyed. 'default' keeps the "
+                   "template's vents; 0 removes them all. New vents are placed in mirrored sets on flat, "
+                   "reachable ground, preferably out in the field where they are worth fighting over."),
+        Param("wind", "Wind", "choice", "biome", choices=("biome", "calm", "low", "medium", "high", "storm"),
+              group="Resources", help="Wind strength for wind generators; biome = the biome's usual wind",
+              info="Wind speed range of the map, which sets how much energy wind generators make (they "
+                   "make between the minimum and maximum, changing over time). calm 0-5, low 2-12, medium "
+                   "5-20, high 10-28, storm 18-35. 'biome' uses the biome's own range (e.g. moon has "
+                   "almost no wind). Higher wind makes cheap wind generators the best energy source; low "
+                   "wind pushes players to solar panels and geothermal plants."),
+        Param("tidal", "Tidal strength", "int", 12, min=0, max=25, step=1, adv_max=50, group="Resources",
+              help="Energy of tidal generators in water",
+              info="Energy per second that a tidal generator in water makes. Only matters on maps with "
+                   "water deep enough to build tidals. 12 is the usual Zero-K value; 0 makes tidals useless, "
+                   "20 and more makes the sea the best place for energy."),
+        Param("trees", "Trees", "float", 1.0, min=0.0, max=2.0, step=0.1, adv_max=5.0, group="Terrain",
+              help="Tree density (biomes without trees stay bare)",
+              info="Density of trees on grass and forest ground. Trees block line of sight a little, can be "
+                   "reclaimed for energy and burn when hit. 0 removes them, 2.0 gives dense forests. "
+                   "Biomes without trees (desert, moon, alien) stay bare. Many trees cost frame rate on "
+                   "large maps."),
+        Param("rocks", "Rocks", "float", 0.5, min=0.0, max=2.0, step=0.1, adv_max=6.0, group="Terrain",
+              help="Rock clusters with reclaimable metal (glowing crystals on alien and moon maps)",
+              info="Clusters of rocks (glowing crystals on alien and moon maps) that hold metal. Constructors "
+                   "can reclaim them for a quick metal boost early in the game. They are placed in mirrored "
+                   "sets away from bases, metal spots and chokes, so every side gets the same amount; the "
+                   "check report shows the total reclaim metal. 0 = none."),
+        Param("wrecks", "Wrecks", "float", 0.3, min=0.0, max=2.0, step=0.1, adv_max=6.0, group="Terrain",
+              help="Battlefield wrecks of Zero-K units between the bases (reclaimable metal)",
+              info="Wrecks of Zero-K units from an old battle, mostly between the bases. Each wreck holds "
+                   "about 40 % of the unit's cost in metal, so they reward early scouting and reclaim. "
+                   "Large wrecks also block paths a little and give cover. Placed in mirrored sets; 0 = none."),
+        Param("erosion", "Erosion", "float", 0.6, min=0.0, max=1.5, step=0.1, adv_max=4.0, group="Terrain",
               help="Rain-carved gullies and valleys on natural slopes; bases, metal spots, chokes and walls "
-                   "stay as designed"),
+                   "stay as designed",
+              info="Simulates rain running down the slopes for a natural look: gullies, small valleys and "
+                   "soft deposits at the foot of hills. Bases, metal spots, chokes, ramps and walls are "
+                   "protected. If erosion would cut off a route, it is lowered automatically (the check "
+                   "report says so). 0 gives the clean designed shapes, 1.5 a strongly weathered look."),
     )
 
 
 def biome_param(default):
-    return Param("biome", "Biome", "choice", default, choices=BIOME_CHOICES, help="Colours, sky, light and trees")
+    return Param("biome", "Biome", "choice", default, choices=BIOME_CHOICES, group="Map",
+                 help="Colours, sky, light and trees",
+                 info="The look of the map: ground colours and textures, sky, sun, water colour, trees and "
+                      "the usual wind. It does not change the shape of the terrain. Some biomes have no trees "
+                      "(desert, moon, alien) and moon has almost no wind.")
 
 
 def sym_fields(mode, *fields):

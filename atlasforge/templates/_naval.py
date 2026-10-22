@@ -71,11 +71,6 @@ def finish(template, v, h, xx, zz, W, rng, base, port, gates=()):
     sea_labels, _ = ndimage.label(h < -SHIP_DEPTH)
     port_label = sea_labels[int(port[1] / SQ), int(port[0] / SQ)]
     water &= (sea_labels == port_label) & (port_label != 0)
-    spacing = max(220.0, W / 32)
-    coords = np.arange(spacing, W / 2 - spacing, spacing)
-    zs = np.arange(spacing, W - spacing, spacing)
-    candidates = [(float(x), float(z)) for z in zs for x in coords]
-    rng.shuffle(candidates)
     west = []
     # Three nearby safe spots keep opening economy independent of expansion density.
     for dx, dz in ((-170, -220), (-170, 220), (240, 0)):
@@ -83,23 +78,49 @@ def finish(template, v, h, xx, zz, W, rng, base, port, gates=()):
         west.append((x, z, 2.0))
     count = max(6, round(v["size"] * 1.45))
     sea_count = round(count * v["sea_metal"])
-    for mask, wanted in ((water, sea_count), (land, count - sea_count)):
-        if wanted == 0:
-            continue
-        picked = 0
-        for x, z in candidates:
-            if not mask[int(z / SQ), int(x / SQ)]:
-                continue
-            if any(np.hypot(x - a, z - b) < spacing * 0.95 for a, b, _ in west):
-                continue
-            if any(np.hypot(x - a, z - b) < 240 for a, b in ports):
-                continue
-            value = round(2.0 + 0.9 * x / (W / 2), 2)
-            west.append((x, z, value))
-            picked += 1
-            if picked >= wanted:
-                break
-            # No suitable sites at extreme settings is buildable, but reported below.
+    # Expansion spots are spread evenly (random dart throwing with the largest gap that still fits them)
+    # over the west half: away from the map edge, the mirror line, the bases and the ports. Land spots
+    # prefer islands other than the home island.
+    step = 48.0
+    edge = 0.085 * W
+    xs = np.arange(edge, W / 2 - 0.04 * W, step)
+    zs = np.arange(edge, W - edge, step)
+    gx, gz = np.meshgrid(xs, zs)
+    gx, gz = gx.ravel(), gz.ravel()
+    gi, gj = (gz / SQ).astype(int), (gx / SQ).astype(int)
+    land_lab, _ = ndimage.label(h > 30)
+    home = land_lab[int(base[1] / SQ), int(base[0] / SQ)]
+    fixed = [(x, z) for x, z, _ in west] + [tuple(port)]
+    order = rng.permutation(len(gx))
+
+    def throw(mask, wanted, first=None, others=()):
+        ok = mask[gi[order], gj[order]]
+        idx = order[ok]
+        if first is not None:                                       # preferred candidates first
+            pref = first[idx]
+            idx = np.concatenate([idx[pref], idx[~pref]])
+        if wanted <= 0 or not len(idx):
+            return []
+        gap = W / 12
+        while gap >= 260:
+            got = []
+            pts = fixed + list(others)
+            for k in idx:
+                x, z = float(gx[k]), float(gz[k])
+                if all((x - a) ** 2 + (z - b) ** 2 >= gap * gap for a, b in pts + got) and \
+                        (x - base[0]) ** 2 + (z - base[1]) ** 2 >= (gap * 1.4) ** 2:
+                    got.append((x, z))
+                    if len(got) == wanted:
+                        return got
+            gap *= 0.9
+        return got
+
+    picked = throw(water, sea_count)
+    picked += throw(land, count - len(picked), first=land_lab[gi, gj] != home, others=picked)
+    for x, z in picked:
+        d = np.hypot(x - base[0], z - base[1]) / (W / 2)
+        under = h[int(z / SQ), int(x / SQ)] < 0
+        west.append((x, z, round(min(3.4, 2.0 + 1.1 * d + (0.2 if under else 0.0)), 2)))
     mexes = mirror_pairs(west, sym)
     geos = [(base[0], base[1] + 420)] if v["geovents"] else []
     geos += [sym.mirror(*p) for p in list(geos)]

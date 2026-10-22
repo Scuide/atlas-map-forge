@@ -23,8 +23,17 @@ WALL_HALF = 90
 class ChickenRings(Template):
     id = "chicken"
     title = "Chicken Defense"
+    modes = ("coop",)
+    tags = ("land", "chokes")
+    players = "1-4 players vs chickens"
     description = ("Co-op against chickens. Players start inside nested ring walls whose gates alternate, so "
                    "chickens walk the longest way and players can fall back ring by ring.")
+    infos = {
+        "rings": "Number of nested ring walls around the players. The chickens come from one corner and have to walk around each ring to its gate, and the gates alternate sides. More rings mean longer walks for the chickens and more lines to fall back to.",
+        "gate_width": "Width of the ring gates in elmos. Narrow gates are easier to block with defences but also funnel your own army; wide gates let large waves through.",
+        "wall_height": "Height of the ring walls above the ground in elmos. Walking chickens must use the gates; flying chickens ignore the walls.",
+        "lava_tops": "Puts lava on top of the ring walls so climbing units take slow damage and cannot use the walls as a shortcut.",
+    }
     params = (
         size_param((16, 18, 20), 20),
         biome_param("alien"),
