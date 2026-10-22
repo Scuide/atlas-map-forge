@@ -1077,3 +1077,6 @@ $("done-close").onclick = closeDone;
 $("done-kofi").onclick = openKofi;
 $("done").addEventListener("click", (e) => { if (e.target.id === "done") closeDone(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("done").classList.contains("hidden")) closeDone(); });
+
+// the page itself never scrolls (only the side panels do); undo any scroll a focus change caused
+window.addEventListener("scroll", () => { if (scrollX || scrollY) scrollTo(0, 0); });

@@ -22,7 +22,7 @@
 }
 
 * { box-sizing: border-box; }
-html, body { height: 100%; margin: 0; }
+html, body { height: 100%; margin: 0; overflow: hidden; }
 body { background: var(--bg); color: var(--text); font: 13.5px/1.45 var(--ui); overflow: hidden; }
 button, input, select { font: inherit; color: inherit; }
 .hidden { display: none !important; }
@@ -45,7 +45,7 @@ button, input, select { font: inherit; color: inherit; }
 .who { color: var(--muted); font-size: 12.5px; }
 
 /* ---------------------------------------------------------------- layout */
-.layout { display: grid; grid-template-columns: 330px 1fr 330px; height: calc(100% - 46px); }
+.layout { display: grid; grid-template-columns: 330px 1fr 330px; grid-template-rows: minmax(0, 1fr); height: calc(100% - 46px); }
 .side { background: var(--panel); display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
 .side.left { border-right: 1px solid var(--line); }
 .side.right { border-left: 1px solid var(--line); }

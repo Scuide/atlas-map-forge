@@ -15,7 +15,22 @@ LAND_HEIGHT = 100.0
 SHIP_DEPTH = 15.0
 
 
+NAVAL_INFOS = {
+    "depth": "Depth of the open sea in elmos below the water surface. Ships need more than 15 elmos; submarines are hidden better in deep water. Shallow seas (100) let amphibians walk across quickly; deep seas (300) keep the ocean a ship's world.",
+    "beach_slope": "Steepness of the beaches in degrees between the seabed and the dry land. Tanks and hovers can drive up to about 27 degrees, so gentle beaches (10) make landings easy; steep ones (18) slow down amphibious attacks.",
+    "coast_noise": "How irregular the coastlines are, in elmos. 0 gives smooth coasts; 100 gives bays and capes that offer cover and landing spots.",
+    "sea_metal": "Share of the expansion metal spots that lie on the seabed instead of on land. Underwater spots can be taken by amphibious builders and naval constructors and are defended with ships and torpedo turrets. 0.3 keeps most metal on land, 0.8 makes the sea the main economy.",
+    "geovents": "Adds one geothermal vent in each home base. The general 'Geothermal vents' setting overrides this when it is not set to 'template'.",
+}
+
+
 def naval_params():
+    """Settings every sea template shares (with their explanations)."""
+    from dataclasses import replace
+    return tuple(replace(p, info=NAVAL_INFOS.get(p.key, p.info)) for p in _naval_params())
+
+
+def _naval_params():
     return (
         size_param((12, 14, 16, 18, 20), 16, adv_smallest=8),
         biome_param("temperate"),
@@ -102,7 +117,7 @@ def finish(template, v, h, xx, zz, W, rng, base, port, gates=()):
         if wanted <= 0 or not len(idx):
             return []
         gap = W / 12
-        while gap >= 260:
+        while gap >= max(300.0, 0.06 * W):           # closer than this looks like a clump: place fewer
             got = []
             pts = fixed + list(others)
             for k in idx:
@@ -117,6 +132,12 @@ def finish(template, v, h, xx, zz, W, rng, base, port, gates=()):
 
     picked = throw(water, sea_count)
     picked += throw(land, count - len(picked), first=land_lab[gi, gj] != home, others=picked)
+    if len(picked) < count:                       # not enough land: put the rest on the seabed
+        picked += throw(water, count - len(picked), others=picked)
+    if len(picked) < count:                       # still short: accept gentler slopes and lower ground
+        loose = (move_slope(h) < 7) & (((h > 40) & (ndimage.distance_transform_edt(h > 30) * SQ > 100))
+                                       | ((h < -SHIP_DEPTH - 10) & (sea_labels == port_label) & (port_label != 0)))
+        picked += throw(loose, count - len(picked), others=picked)
     for x, z in picked:
         d = np.hypot(x - base[0], z - base[1]) / (W / 2)
         under = h[int(z / SQ), int(x / SQ)] < 0
@@ -140,8 +161,9 @@ def finish(template, v, h, xx, zz, W, rng, base, port, gates=()):
                   movement_profile="naval", naval_starts=[[ports[0]], [ports[1]]],
                   marks=[(x, z, "Port", (110, 200, 255)) for x, z in ports],
                   notes=["Naval map: sea crossings and underwater metal use naval validation.",
-                         f"Expansion metal sites placed: {len(west) - 3} of {count}"],
-                  notes_ok=len(west) - 3 == count)
+                         f"Expansion metal sites placed: {len(west) - 3} of {count}"
+                         + ("" if len(west) - 3 == count else " (no room for more at an even spacing)")],
+                  notes_ok=len(west) - 3 >= min(count, 6))
 
 
 def _base_boxes(starts, W):

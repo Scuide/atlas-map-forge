@@ -11,7 +11,7 @@ SMALL = {"skirmish": {"size": 8}, "chokepoint": {"size": 12}, "river": {"size": 
 
 @pytest.mark.parametrize("tid", [t.id for t in all_templates()])
 def test_template_designs_and_checks(tid):
-    d = forge.make(tid, SMALL[tid], seed=3, log=lambda *a: None)
+    d = forge.make(tid, SMALL.get(tid, {}), seed=3, log=lambda *a: None)
     ok, lines = forge.check(d)
     assert ok, "\n".join(lines)
     assert d.mexes and d.starts and len(d.teams) == 2

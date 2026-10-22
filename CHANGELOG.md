@@ -2,6 +2,12 @@
 
 ## 0.4.0 - unreleased
 
+- Three new templates from the template agent: Three Lanes (land, three lanes with ridges and crossings),
+  Coastal Front (mainland front beside a coastal sea) and Atoll (island arcs around a lagoon). Watermark
+  codes 10, 11 and 12.
+- Sea maps: expansion spots keep at least 6 % of the map width apart; when a sea layout has too little
+  room the remaining spots go on the seabed or gentler ground instead of failing the check.
+- The window no longer scrolls away when the settings list is longer than the window.
 - When a build finishes, a dialog opens in the middle of the window with a short chime: map name, preview,
   size and build time, buttons to show the file or the Zero-K maps folder, and the Ko-fi support button.
 - General settings on every map, shown first: Map (size, biome), Resources (number of metal spots per

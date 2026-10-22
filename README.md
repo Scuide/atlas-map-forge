@@ -90,6 +90,9 @@ and copies it into your Zero-K folder (found automatically for Steam installs; o
 | `open_sea` | Open Sea: coastal bases facing a broad ocean with underwater metal | sea depth, beach slope, coast, underwater metal share, offshore islands |
 | `archipelago` | Archipelago: home islands and scattered expansion islands, winding fleet routes | island pairs, island size, scatter, sea depth |
 | `straits` | Island Straits: long central islands split the sea into fleet passages | passages, passage width, island width, sea depth |
+| `three_lanes` | Three Lanes: three parallel battle lanes divided by ridges, side crossings to switch lanes | ridge height and width, crossing width, central crossing |
+| `coastal_front` | Coastal Front: a mainland front beside a broad coastal sea | mainland depth, headlands, sea depth, underwater metal share |
+| `atoll` | Atoll: opposing island arcs around a contested lagoon with two deep entrances | atoll radius, ring width, entrance width, sea depth |
 
 Sea maps are checked for ships (heavy ships need water deeper than 15 elmos), hovers and amphibians
 instead of tanks and bots; the app shows a "Ships" route.

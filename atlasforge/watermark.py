@@ -29,7 +29,8 @@ from scipy import ndimage
 KEY = b"Atlas Map Forge / heightmap watermark / v1"
 MAGIC = b"AMF1"
 TEMPLATE_CODES = {"procedural": 0, "skirmish": 1, "chokepoint": 2, "river": 3, "arena": 4, "volcano": 5,
-                  "chicken": 6, "open_sea": 7, "archipelago": 8, "straits": 9}
+                  "chicken": 6, "open_sea": 7, "archipelago": 8, "straits": 9, "three_lanes": 10,
+                  "coastal_front": 11, "atoll": 12}
 EPOCH = datetime.date(2026, 1, 1)
 PAYLOAD_LEN = 4 + 3 + 1 + 4 + 2 + 4 + 4          # magic, version, template, seed, day, build id, crc32
 PATTERN_ELMOS = 0.04                              # amplitude of the robust layer
