@@ -306,13 +306,13 @@ button:disabled { opacity: .45; cursor: default; filter: none; }
 .flt-sep { width: 1px; height: 22px; background: var(--line-2); }
 .picker-n { margin-left: auto; color: var(--faint); font-size: 12px; }
 .picker-grid { flex: 1; overflow-y: auto; padding: 16px; display: grid; gap: 14px;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); align-content: start; }
-.pcard { display: flex; flex-direction: column; text-align: left; padding: 0; border-radius: 10px; overflow: hidden;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); align-content: start; grid-auto-rows: max-content; }
+.pcard { min-height: min-content; display: flex; flex-direction: column; text-align: left; padding: 0; border-radius: 10px; overflow: hidden;
   border: 1px solid var(--line-2); background: var(--panel-2); cursor: pointer; transition: border-color .12s, transform .12s; }
 .pcard:hover { border-color: #4a505b; transform: translateY(-1px); }
 .pcard.on { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember); }
-.pcard img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
-.pcard .pc-body { padding: 10px 12px 12px; display: grid; gap: 6px; }
+.pcard img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; flex: none; }
+.pcard .pc-body { padding: 10px 12px 12px; display: grid; gap: 6px; flex: 1 0 auto; align-content: start; min-height: min-content; }
 .pcard b { font-size: 14px; }
 .pcard .pc-players { color: var(--muted); font-size: 12px; }
 .pcard p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3;
