@@ -15,6 +15,8 @@
   changes will be discarded - continue?").
 - Editor: a start point outside its start box is reported as a warning. Templates with their own start box
   Lua string keep their boxes; the start point is not moved.
+- Fixed: saving a project now writes the `.forge.json` to the project folder (Settings > Project folder) and
+  shows the path with an Open folder button; Open starts in that folder.
 
 ## 0.4.0 - unreleased
 

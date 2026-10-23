@@ -37,6 +37,7 @@ class ForgeConfig:
     author: str = ""                 # shown on the map page (mapinfo author); required to build maps
     zerok: str = ""                  # Zero-K folder for installing maps; empty = find automatically
     outdir: str = ""                 # where built maps are written; empty = default_outdir()
+    projdir: str = ""                # where saved .forge.json projects are written; empty = default_projdir()
     advanced: bool = False           # advanced mode: wider parameter limits, maps may break
 
     prefix = PREFIX                  # fixed, not a setting
@@ -68,6 +69,11 @@ def default_outdir():
     if sys.platform.startswith("win"):
         return os.path.join(os.path.expanduser("~"), "Documents", "Atlas Map Forge")
     return os.path.join(os.path.expanduser("~"), "AtlasMapForge")
+
+
+def default_projdir():
+    """Default folder for saved projects: Documents/Atlas Map Forge/projects (Windows) or ~/AtlasMapForge/projects."""
+    return os.path.join(default_outdir(), "projects")
 
 
 def config_path():

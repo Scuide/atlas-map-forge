@@ -10,7 +10,9 @@ the session token that is written into the page, so other web pages cannot use t
   POST /api/edit     {id, edits, symmetry}  -> moved/added/deleted spots, check report, problems
   POST /api/build    {id, title, version, install}  -> job id
   GET  /api/job/<job>                   progress, log, result
-  POST /api/config   {author, zerok, outdir, advanced}
+  POST /api/config   {author, zerok, outdir, projdir, advanced}
+  POST /api/project_save {data}        write a project to the project folder -> {path, folder}
+  POST /api/project_load {text} or {path}  read a project from text or from a .forge.json file
   POST /api/verify   {path}             does a map file carry the Forge watermark?
   POST /api/open     {path}             show a built map in the file manager
   POST /api/link     {to}               open a known web page (Ko-fi) in the default browser
@@ -36,6 +38,7 @@ from scipy import ndimage
 
 from .. import SQ, __version__
 from .. import config as C
+from .. import project
 
 WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 MIME = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
@@ -105,11 +108,12 @@ class Forge:
         cfg = C.load()
         found = find_zerok()
         return dict(config=dict(cfg.__dict__, prefix=C.PREFIX), zerok_found=found, zerok=cfg.zerok or (found[0] if found else ""),
-                    outdir=cfg.outdir or C.default_outdir(), default_outdir=C.default_outdir())
+                    outdir=cfg.outdir or C.default_outdir(), default_outdir=C.default_outdir(),
+                    projdir=cfg.projdir or C.default_projdir(), default_projdir=C.default_projdir())
 
     def set_config(self, data):
         cfg = C.load()
-        for k in ("author", "zerok", "outdir"):
+        for k in ("author", "zerok", "outdir", "projdir"):
             if k in data and data[k] is not None:
                 setattr(cfg, k, str(data[k]).strip())
         if "advanced" in data:
@@ -218,19 +222,44 @@ class Forge:
 
     # ------------------------------------------------------------------ project files (.forge.json)
     def project_dump(self, data):
-        from .. import project
-        d = dict(data["data"])
+        return dict(text=project.dumps(self._project_from(data["data"])))
+
+    def project_save(self, data):
+        """Write the project to the project folder as <title>.forge.json (an existing file of that name is replaced)."""
+        base = self._project_from(data["data"])
+        name = re.sub(r"[^A-Za-z0-9 ._()-]", "_", str(base.get("title") or "")).strip() or "map"
+        cfg = C.load()
+        folder = cfg.projdir or C.default_projdir()
+        path = os.path.abspath(os.path.join(folder, name + ".forge.json"))
+        try:
+            os.makedirs(folder, exist_ok=True)
+            project.save(path, base)
+        except OSError as ex:
+            raise ValueError(f"Cannot write the project file: {ex.strerror or ex}") from None
+        return dict(path=path, folder=os.path.abspath(folder))
+
+    def _project_from(self, data):
+        d = dict(data)
         d.pop("format", None)
         d.pop("version", None)
         base = project.new_project(d.pop("template"), d.pop("values", {}), d.pop("seed", 1), d.pop("symmetry", True),
                                    d.pop("edits", []), d.pop("title", None), d.pop("app_version", __version__))
         base.update(d)                                         # unknown fields of a loaded file are kept
         project.validate(base, templates=self._template_ids())
-        return dict(text=project.dumps(base))
+        return base
 
     def project_load(self, data):
-        from .. import project
-        p = project.loads(str(data.get("text", "")))
+        if data.get("path"):
+            p = os.path.abspath(str(data["path"]))
+            if not p.endswith((".forge.json", ".json")):
+                raise ValueError("Projects are .forge.json files")
+            if not os.path.isfile(p) or os.path.getsize(p) > 5 * 1024 * 1024:
+                raise ValueError("Project file not found or larger than 5 MB")
+            with open(p, encoding="utf8") as f:
+                text = f.read()
+        else:
+            text = str(data.get("text", ""))
+        p = project.loads(text)
         project.validate(p, templates=self._template_ids())
         known = ("format", "version", "app_version", "template", "values", "seed", "symmetry", "edits", "title")
         return dict(project=p, extra={k: v for k, v in p.items() if k not in known})
@@ -415,10 +444,10 @@ class Forge:
     # ------------------------------------------------------------------ file manager
     def open_path(self, path):
         s = self.settings()
-        allowed = [os.path.abspath(s["outdir"])] + ([os.path.abspath(s["zerok"])] if s["zerok"] else [])
+        allowed = [os.path.abspath(s["outdir"]), os.path.abspath(s["projdir"])] +             ([os.path.abspath(s["zerok"])] if s["zerok"] else [])
         p = os.path.abspath(path)
         if not any(p == a or p.startswith(a + os.sep) for a in allowed):
-            raise PermissionError("Only the output folder and the Zero-K folder can be opened.")
+            raise PermissionError("Only the output, project and Zero-K folders can be opened.")
         if sys.platform.startswith("win"):
             if os.path.isfile(p):
                 subprocess.Popen(["explorer", "/select,", p])
@@ -501,7 +530,8 @@ def make_handler(forge_state, quiet=True):
                 data = json.loads(self.rfile.read(n) or b"{}")
                 route = u.path[len("/api/"):]
                 fn = {"preview": forge_state.preview, "edit": forge_state.edit, "project_dump": forge_state.project_dump,
-                      "project_load": forge_state.project_load, "build": forge_state.build,
+                      "project_load": forge_state.project_load,
+                      "project_save": forge_state.project_save, "build": forge_state.build,
                       "clientlog": lambda d: (print("page:", str(d.get("msg", ""))[:500], flush=True), {"ok": True})[1],
                       "config": forge_state.set_config, "verify": forge_state.verify,
                       "open": lambda d: forge_state.open_path(d["path"]),
