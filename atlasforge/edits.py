@@ -10,6 +10,7 @@ Edit entries (one per user action, positions in elmos, address the object the us
     {"op": "set_metal", "at": [x, z], "metal": 3.0}
     {"op": "move_geo" | "add_geo" | "del_geo", ...}        (as for mexes, no metal)
     {"op": "move_start", "from": [x, z], "to": [x, z]}    (the number of players comes from the template)
+    {"op": "set_box", "team": k, "poly": i, "points": [[x, z], ...]}   (polygon i of team k's start box, 3+ points)
 
 Objects are found by position (nearest within TOL elmos), not by index, so edits stay meaningful after the
 settings change. With symmetry on, an edit acts on the whole orbit of the clicked object (mirror image, or the
@@ -23,7 +24,7 @@ from .symmetry import RotSymmetry, match_orbit, orbit, orbit_degenerate
 TOL = 24.0            # elmos: how far from an object a click may be to address it
 MIN_GAP = 40.0        # elmos: closest allowed distance between two metal spots / geovents
 
-OPS = ("move_mex", "add_mex", "del_mex", "set_metal", "move_geo", "add_geo", "del_geo", "move_start")
+OPS = ("move_mex", "add_mex", "del_mex", "set_metal", "move_geo", "add_geo", "del_geo", "move_start", "set_box")
 
 
 def copy_design(d):
@@ -122,6 +123,8 @@ def _apply_one(d, sym, e, on, fail):
     op = e.get("op") if isinstance(e, dict) else None
     if op not in OPS:
         return fail("unknown edit")
+    if op == "set_box":
+        return _set_box(d, sym, e, on, fail)
     kind = op.split("_")[1] if op != "set_metal" else "mex"
     verb = op.split("_")[0] if op != "set_metal" else "set"
     if kind == "mex":
@@ -209,6 +212,53 @@ def _apply_one(d, sym, e, on, fail):
                 for j, q in enumerate(team):
                     if tuple(q) == tuple(old):
                         team[j] = new
+    return None
+
+
+def _set_box(d, sym, e, on, fail):
+    """Replace one polygon of a team's start box. With symmetry on, the same polygon is mirrored (rotated) onto the
+    team whose start point is the image of this team's start point, so each team keeps its own box."""
+    from .app.luatable import startboxes
+    from .formats import startboxes_lua, startboxes_to_lua
+
+    team, pi = e.get("team"), e.get("poly")
+    if any(not isinstance(v, int) or isinstance(v, bool) for v in (team, pi)):
+        raise ValueError("team and poly: integers expected")
+    pts = e.get("points")
+    if not isinstance(pts, list) or len(pts) < 3:
+        raise ValueError("points: at least 3 [x, z] points")
+    poly = [_pt(p, "points") for p in pts]
+
+    boxes = startboxes(d.startboxes if d.startboxes is not None else startboxes_lua(sym, d.starts))
+    by_team = {b["team"]: b for b in boxes}
+    if team not in by_team or not 0 <= pi < len(by_team[team]["polygons"]):
+        return fail("start box not found")
+
+    updates = [(team, poly)]
+    if on:
+        owners = [b for b in boxes if b["startpoints"]]              # teams that have a start point to mirror
+        src = by_team[team]["startpoints"]
+        if not src:
+            return fail("start box not found")
+        s = tuple(src[0])
+        hits = match_orbit(sym, s, [tuple(b["startpoints"][0]) for b in owners], tol=TOL)
+        if hits[0] is None:
+            return fail("start box not found")
+        for j, h in enumerate(hits):
+            if j == 0 or h is None:
+                continue
+            t = owners[h]["team"]
+            if not 0 <= pi < len(by_team[t]["polygons"]):
+                return fail("start box not found")
+            image = [orbit(sym, p[0], p[1])[j] for p in poly]
+            updates.append((t, image))
+    for _, q in updates:
+        if not all(_inside(sym, p) for p in q):
+            return fail("outside the map")
+
+    for t, q in updates:
+        by_team[t]["polygons"][pi] = [[float(p[0]), float(p[1])] for p in q]
+    d.startboxes = startboxes_to_lua(boxes)
     return None
 
 
