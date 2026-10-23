@@ -73,3 +73,30 @@ def smooth(hm, cx, cz, radius, strength):
     out = hm.astype(np.float64, copy=True)
     out += float(strength) * _weights(hm, cx, cz, radius) * (_box3(out) - out)
     return out.astype(hm.dtype)
+
+
+def ramp(hm, x0, z0, x1, z1, width, strength=1.0):
+    """Lay heights along A(x0,z0)->B(x1,z1) linearly from hm(A) to hm(B), in a strip of half-width
+    width/2 around the line with smoothstep falloff at the edges: hm + strength * w(d) * (h_line - hm).
+    d is the elmo distance to the clamped segment (A/B outside the array use the border cell height);
+    degenerate segment (A == B) or width <= 0 return an unchanged copy. Returns a new array."""
+    nz, nx = hm.shape[:2]
+    if not hm.size or float(width) <= 0.0:
+        return hm.copy()
+    dx, dz = float(x1) - float(x0), float(z1) - float(z0)
+    seg2 = dx * dx + dz * dz
+    if seg2 == 0.0:
+        return hm.copy()
+    iz, ix = _centre(hm, x0, z0)
+    ha = float(hm[iz, ix])
+    iz, ix = _centre(hm, x1, z1)
+    hb = float(hm[iz, ix])
+    out = hm.astype(np.float64, copy=True)
+    x = np.arange(nx)[None, :] * SQ - float(x0)
+    z = np.arange(nz)[:, None] * SQ - float(z0)
+    uc = np.clip((x * dx + z * dz) / seg2, 0.0, 1.0)
+    d = np.hypot(x - uc * dx, z - uc * dz)
+    t = np.clip(1.0 - d / (0.5 * float(width)), 0.0, 1.0)
+    w = t * t * (3.0 - 2.0 * t) * float(strength)
+    out += w * ((ha + uc * (hb - ha)) - out)
+    return out.astype(hm.dtype)

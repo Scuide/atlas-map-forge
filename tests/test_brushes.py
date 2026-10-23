@@ -3,7 +3,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from atlasforge import SQ
-from atlasforge.brushes import flatten, lower, raise_, smooth
+from atlasforge.brushes import flatten, lower, ramp, raise_, smooth
 
 
 def _hm(dtype=np.float32, nz=32, nx=48):
@@ -108,3 +108,77 @@ def test_deterministic():
     assert np.array_equal(a, b)
     a, b = smooth(hm, CX, CZ, RADIUS, 0.8), smooth(hm, CX, CZ, RADIUS, 0.8)
     assert np.array_equal(a, b)
+
+
+# horizontal segment across row 16 of the 32x48 array; half-width 6 < SQ, so only row 16 carries weight on it
+AX, AZ = 10.0 * SQ, 16.0 * SQ
+BX, BZ = 38.0 * SQ, 16.0 * SQ
+WIDTH = 12.0
+
+
+def test_ramp_centreline_monotonic():
+    for dtype in (np.float32, np.float64):
+        hm = _hm(dtype)
+        ha, hb = float(hm[16, 10]), float(hm[16, 38])          # heights at the line endpoints
+        if hb < ha:                                             # orient A->B so the profile rises
+            x0, z0, x1, z1 = BX, BZ, AX, AZ
+        else:
+            x0, z0, x1, z1 = AX, AZ, BX, BZ
+        out = ramp(hm, x0, z0, x1, z1, WIDTH, 1.0)
+        line = out[16, 10:39].astype(np.float64)                # w == 1 on the centreline at strength 1
+        assert np.all(np.diff(line) >= 0.0)                     # monotonically from hm(A) to hm(B)
+
+
+def test_ramp_endpoints_exact_at_strength_one():
+    x = np.arange(48)[None, :] * SQ
+    z = np.arange(32)[:, None] * SQ
+    h = 5.0 + x / 16.0 + z / 32.0                               # dyadic values: exact in both dtypes
+    for dtype in (np.float32, np.float64):
+        hm = h.astype(dtype)
+        out = ramp(hm, AX, AZ, BX, BZ, WIDTH, 1.0)             # w == 1 at A and B
+        assert float(out[16, 10]) == 5.0 + AX / 16.0 + AZ / 32.0      # hm(A) ...
+        assert float(out[16, 38]) == 5.0 + BX / 16.0 + BZ / 32.0      # ... and hm(B), exactly
+
+
+def test_ramp_outside_strip_identical():
+    for dtype in (np.float32, np.float64):
+        hm = _hm(dtype)
+        out = ramp(hm, AX, AZ, BX, BZ, WIDTH, 0.7)             # half-width 6 < SQ: strip is row 16 only
+        mask = np.ones_like(hm, dtype=bool)                    # every cell but the centreline ones ...
+        mask[16, 10:39] = False                                # ... has d >= width/2 and w == 0 exactly
+        assert np.array_equal(out[mask], hm[mask])             # ... and is left bit-exact untouched
+
+
+def test_ramp_input_unchanged_and_dtype_preserved():
+    for dtype in (np.float32, np.float64):
+        hm = _hm(dtype)
+        before = hm.copy()
+        out = ramp(hm, 8.0 * SQ, 8.0 * SQ, 40.0 * SQ, 24.0 * SQ, 20.0, 1.0)   # diagonal segment inside the array
+        assert np.array_equal(hm, before)                       # input never modified
+        assert out is not hm                                    # a new array ...
+        assert out.shape == hm.shape and out.dtype == hm.dtype  # ... with shape and dtype preserved
+
+
+def test_ramp_degenerate_segment_unchanged():
+    for dtype in (np.float32, np.float64):
+        hm = _hm(dtype)
+        before = hm.copy()
+        out = ramp(hm, 16.0 * SQ, 10.0 * SQ, 16.0 * SQ, 10.0 * SQ, WIDTH, 1.0)   # A == B
+        assert np.array_equal(out, before)                    # unchanged copy ...
+        assert out is not hm and out.dtype == hm.dtype        # ... still a new array of the same dtype
+
+
+def test_ramp_segment_partly_outside_array():
+    for dtype in (np.float32, np.float64):
+        hm = _hm(dtype)
+        before = hm.copy()
+        out = ramp(hm, -8.0 * SQ, 16.0 * SQ, 50.0 * SQ, 16.0 * SQ, WIDTH, 1.0)   # A left of the array, B right of it
+        assert np.array_equal(hm, before)                     # input never modified ...
+        assert out.shape == hm.shape and out.dtype == hm.dtype   # ... borders clipped, dtype preserved
+        assert np.all(np.isfinite(out))                       # clamped segment stays finite
+        ha, hb = float(hm[16, 0]), float(hm[16, -1])          # A/B clamp to the border cells of row 16
+        line = out[16, :].astype(np.float64)                  # whole row lies on the clamped line (w == 1)
+        if hb >= ha:
+            assert np.all(np.diff(line) >= 0.0)               # monotone along the clamped segment
+        else:
+            assert np.all(np.diff(line) <= 0.0)
