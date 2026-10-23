@@ -37,12 +37,14 @@ def test_untouched_standard_design_has_no_errors(skirmish):
     assert not errors
 
 
-def test_mex_moved_under_water_is_an_error(ocean):
+def test_geo_moved_under_water_is_an_error(ocean):
     ocean = dataclasses.replace(ocean, movement_profile="land")
-    m = ocean.mexes[0]
+    if not ocean.geos:
+        pytest.skip("no geovent in this design")
+    g = ocean.geos[0]
     to = _deep_water(ocean)
     d, problems = apply_edits(
-        ocean, [{"op": "move_mex", "from": [m["x"], m["z"]], "to": list(to)}], symmetry=False)
+        ocean, [{"op": "move_geo", "from": [g[0], g[1]], "to": list(to)}], symmetry=False)
     assert not problems
     errs = [i for i in editor_checks(d) if i["level"] == "error" and "under water" in i["text"]]
     assert any(math.hypot(i["x"] - to[0], i["z"] - to[1]) < 1e-6 for i in errs), errs
@@ -97,8 +99,9 @@ def test_start_point_in_water_is_an_error(skirmish):
     assert any(math.hypot(i["x"] - sx, i["z"] - sz) < 1e-6 for i in errs), errs
 
 
-def test_underwater_mex_on_a_naval_map_is_not_an_error(ocean):
-    assert ocean.movement_profile == "naval"
+@pytest.mark.parametrize("profile", ["naval", "land"])
+def test_underwater_mex_is_never_an_error(ocean, profile):
+    ocean = dataclasses.replace(ocean, movement_profile=profile)
     m = ocean.mexes[0]
     to = _deep_water(ocean)
     d, problems = apply_edits(
