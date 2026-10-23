@@ -2,6 +2,7 @@
 
 ## 0.4.0 - unreleased
 
+- Tests: pytest-xdist added to the [test] extras; CI runs the suite in parallel (-n auto).
 - Eight new templates from the template agent: Procedural Highlands, Procedural Watershed, Procedural Dune
   Sea, Open Dunes, Twin Plateaus, Lake District, River Delta, Fjord Coast (watermark codes 15-22).
 - Sea maps (template agent, TPL-naval-fix-1): islands merged smoothly, no hard underwater creases, layout
