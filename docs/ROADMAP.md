@@ -23,6 +23,7 @@ report, build & install with progress. One-file Windows program built and self-t
   (metal spots, metal per spot, geothermal vents, wind, tidal, trees, rocks, wrecks, erosion) with an info
   popup for every setting, build-finished dialog.
 - Done: more biomes (jungle, swamp, industrial), a painted sky per map, engine grass, time of day.
+- Done: parameter groups collapse and keep their state; Map, Resources, Terrain, then the rest; seed under Map size.
 
 ## 0.5 - map editing (in progress)
 

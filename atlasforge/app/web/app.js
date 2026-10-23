@@ -225,21 +225,59 @@ function clampValues(id) {
   }
 }
 
+// Group order: Map, Resources, Terrain, template-specific groups, Advanced last.
+const GROUP_ORDER = ["Map", "Resources", "Terrain"];
+function groupRank(g) {
+  if (g === "Advanced") return 4;
+  const i = GROUP_ORDER.indexOf(g);
+  return i >= 0 ? i : 3;
+}
+function groupTitle(g) { return GROUP_TITLES[g] || g || `${S.tpl.title} settings`; }
+
 function renderParams() {
   const box = $("params");
   box.innerHTML = "";
   const vals = S.values[S.tpl.id];
-  let group = "", first = true;
   $("adv-note").classList.toggle("hidden", !isAdvanced());
+  const groups = new Map();
   for (const p of S.tpl.params) {
-    if (first || (p.group || "") !== group) {
-      first = false;
-      group = p.group || "";
-      const h = document.createElement("div");
-      h.className = "group-head";
-      h.textContent = GROUP_TITLES[group] || group || `${S.tpl.title} settings`;
-      box.appendChild(h);
+    const g = p.group || "";
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(p);
+  }
+  const sorted = [...groups].sort((a, b) => groupRank(a[0]) - groupRank(b[0]));
+  const collapsedSaved = recall("groups", {});
+  const seedRow = $("seed").closest(".seed-row");
+  let seedPending = !S.tpl.params.some((p) => p.key === "size");
+  for (const [g, params] of sorted) {
+    const title = groupTitle(g);
+    const collapsed = title in collapsedSaved ? !!collapsedSaved[title] : g === "Advanced";
+    const head = document.createElement("button");
+    head.type = "button";
+    head.className = "group-head";
+    head.setAttribute("aria-expanded", String(!collapsed));
+    head.innerHTML = `<span class="chev" aria-hidden="true">&#9662;</span>${esc(title)}`;
+    const body = document.createElement("div");
+    body.className = "group-body";
+    body.hidden = collapsed;
+    head.onclick = () => {
+      const open = head.getAttribute("aria-expanded") === "true";
+      head.setAttribute("aria-expanded", String(!open));
+      body.hidden = open;
+      if (open) hideInfo();
+      store("groups", { ...recall("groups", {}), [title]: open });
+    };
+    box.appendChild(head);
+    box.appendChild(body);
+    if (seedPending) { body.appendChild(seedRow); seedPending = false; }
+    for (const p of params) {
+      body.appendChild(paramField(p, vals));
+      if (p.key === "size") body.appendChild(seedRow);
     }
+  }
+}
+
+function paramField(p, vals) {
     const f = document.createElement("div");
     f.className = "field";
     const help = p.help ? `<div class="help">${esc(p.help)}</div>` : "";
@@ -290,8 +328,7 @@ function renderParams() {
     }
     const btn = f.querySelector(".pinfo");
     if (btn) btn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); showInfo(p, btn); };
-    box.appendChild(f);
-  }
+    return f;
 }
 
 const GROUP_TITLES = { Map: "Map", Resources: "Resources", Terrain: "Terrain and decoration" };

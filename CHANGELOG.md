@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- App: parameter groups are collapsible (click the group title, state remembered), ordered Map, Resources,
+  Terrain, template groups, Advanced; the seed sits directly under Map size.
 - Editor checks: a metal spot under water is no longer an error on any map; underwater metal is allowed
   everywhere and reachability is still checked by the check report.
 - Check report: traffic-light colours fixed. Errors are red, warnings yellow (badge shows WARNINGS), OK green;
