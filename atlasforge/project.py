@@ -26,6 +26,7 @@ _OPS = {
     "add_geo": (("at",), False),
     "del_geo": (("at",), False),
     "move_start": (("from", "to"), False),
+    "set_box": ((), False),                              # checked separately below (team, poly, points)
 }
 
 
@@ -48,6 +49,14 @@ def validate_edits(edits) -> list:
         op = e.get("op")
         if op not in _OPS:
             raise ValueError(f"{p}.op: unknown op {op!r}")
+        if op == "set_box":                                # team, poly and a polygon of 3+ points
+            if not (_is_int(e.get("team")) and _is_int(e.get("poly"))):
+                raise ValueError(f"{p}.team: expected integers team and poly")
+            pts = e.get("points")
+            if not (isinstance(pts, list) and len(pts) >= 3 and all(
+                    isinstance(pt, (list, tuple)) and len(pt) == 2 and all(_is_num(c) for c in pt) for pt in pts)):
+                raise ValueError(f"{p}.points: expected at least 3 [x, z] points")
+            continue
         points, needs_metal = _OPS[op]
         for f in points:
             pt = e.get(f)
