@@ -40,7 +40,7 @@ def test_sun_presets_change_light():
 
 @pytest.mark.parametrize("biome, grass", [("swamp", True), ("industrial", False)])
 def test_build_sky_and_grass(tmp_path, biome, grass):
-    d = forge.make("chokepoint", {"size": 12, "biome": biome, "erosion": 0, "rocks": 0, "wrecks": 0}, seed=1, **QUIET)
+    d = forge.make("chokepoint", {"size": 12, "biome": biome, "erosion": 0, "grass": 1.0, "rocks": 0, "wrecks": 0}, seed=1, **QUIET)
     info = forge.build(d, outdir=str(tmp_path), config=ForgeConfig(author="Test"), log=lambda *a: None)
     with zipfile.ZipFile(info["path"]) as z:
         names = z.namelist()

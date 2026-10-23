@@ -74,26 +74,26 @@ def general_params():
                    "sun at the right place, stars on the moon - and the horizon matches the fog, so the "
                    "edge of the map fades into the sky. engine: no sky picture, Zero-K draws its plain "
                    "default sky in the biome's colours (a little smaller map file). Purely visual."),
-        Param("grass", "Grass", "float", 1.0, min=0.0, max=2.0, step=0.1, adv_max=4.0, group="Terrain",
+        Param("grass", "Grass", "float", 0.0, min=0.0, max=2.0, step=0.1, adv_max=4.0, group="Terrain",
               help="Engine grass on flat ground (biomes with grass only)",
               info="Grass blades drawn by the engine on gentle ground: patches of meadow in temperate, "
                    "autumn and jungle maps, reeds in swamps, sparse tufts in deserts and the arctic. Grass is "
                    "only decoration: it does not block units, shots or sight. 0 removes it, 2.0 doubles the "
                    "covered area. Players can turn grass off in their graphics settings; biomes without "
                    "grass (moon, volcanic, ashland, industrial) stay bare."),
-        Param("trees", "Trees", "float", 1.0, min=0.0, max=2.0, step=0.1, adv_max=5.0, group="Terrain",
+        Param("trees", "Trees", "float", 0.4, min=0.0, max=2.0, step=0.1, adv_max=5.0, group="Terrain",
               help="Tree density (biomes without trees stay bare)",
               info="Density of trees on grass and forest ground. Trees block line of sight a little, can be "
                    "reclaimed for energy and burn when hit. 0 removes them, 2.0 gives dense forests. "
                    "Biomes without trees (desert, moon, alien) stay bare. Many trees cost frame rate on "
                    "large maps."),
-        Param("rocks", "Rocks", "float", 0.5, min=0.0, max=2.0, step=0.1, adv_max=6.0, group="Terrain",
+        Param("rocks", "Rocks", "float", 0.0, min=0.0, max=2.0, step=0.1, adv_max=6.0, group="Terrain",
               help="Rock clusters with reclaimable metal (glowing crystals on alien and moon maps)",
               info="Clusters of rocks (glowing crystals on alien and moon maps) that hold metal. Constructors "
                    "can reclaim them for a quick metal boost early in the game. They are placed in mirrored "
                    "sets away from bases, metal spots and chokes, so every side gets the same amount; the "
                    "check report shows the total reclaim metal. 0 = none."),
-        Param("wrecks", "Wrecks", "float", 0.3, min=0.0, max=2.0, step=0.1, adv_max=6.0, group="Terrain",
+        Param("wrecks", "Wrecks", "float", 0.0, min=0.0, max=2.0, step=0.1, adv_max=6.0, group="Terrain",
               help="Battlefield wrecks of Zero-K units between the bases (reclaimable metal)",
               info="Wrecks of Zero-K units from an old battle, mostly between the bases. Each wreck holds "
                    "about 40 % of the unit's cost in metal, so they reward early scouting and reclaim. "
