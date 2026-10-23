@@ -24,6 +24,8 @@
   changes will be discarded - continue?").
 - Editor: a start point outside its start box is reported as a warning. Templates with their own start box
   Lua string keep their boxes; the start point is not moved.
+- Editor: start boxes can be dragged in the preview (drag the inside to move, drag a corner to resize a
+  rectangle); undo/redo and `.forge.json` include the box edits.
 - Fixed: saving a project now writes the `.forge.json` to the project folder (Settings > Project folder) and
   shows the path with an Open folder button; Open starts in that folder.
 
