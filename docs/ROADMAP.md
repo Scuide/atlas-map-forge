@@ -26,6 +26,8 @@ report, build & install with progress. One-file Windows program built and self-t
 
 ## 0.5 - map editing (in progress)
 
+In progress: stage A (placement, undo/redo, .forge.json).
+
 Edit Forge maps by hand, in three stages, always keeping the symmetry and re-running the checks:
 
 - Done: A - placement: move, add and delete metal spots, geothermal vents and start points in the preview;
@@ -37,8 +39,6 @@ Edit Forge maps by hand, in three stages, always keeping the symmetry and re-run
 - Later: C - painting and objects: paths, concrete, scorch, lava; place or remove trees and rocks; optional
   16-bit PNG heightmap import/export.
 
-Before that: a new template in the style of the Zero-K map Apophis.
-
 ## More ways to play and more templates
 
 - Done: free-for-all for 3 to 8 players (rotational symmetry, one start box per player, FFA Ring template).
@@ -46,10 +46,13 @@ Before that: a new template in the style of the Zero-K map Apophis.
 - Team games 2v2 to 5v5 with several start points per box.
 - Done: sea templates (Open Sea, Archipelago, Island Straits, Coastal Front, Atoll) with a naval check
   profile; Three Lanes.
-- In progress (template agent): smoother underwater transitions on sea maps.
-- Next templates: Open Dunes, Twin Plateaus, Lake District, River Delta, Fjord Coast; later Canyon Network,
-  Mountain Spine, King of the Hill, Fortress Front, Crater Basin, Inland Sea, Island Continents,
-  Peninsula, Team Battlefront, Chicken Mesa, Chicken Three Fronts, City Grid.
+- Done: smoother underwater transitions on sea maps (naval fix, integrated); templates Open Dunes, Twin
+  Plateaus, Lake District, River Delta, Fjord Coast, Highlands, Watershed, Dune Sea and Asteroid (in the
+  style of Apophis); gallery fix and new sea map thumbnails.
+- In progress: Chicken Mesa; next Canyon Network, Mountain Spine; then more terrain variety in existing
+  templates: fewer completely flat areas, seed changes the map noticeably.
+- Next templates: Canyon Network, Mountain Spine, King of the Hill, Fortress Front, Crater Basin, Inland
+  Sea, Island Continents, Peninsula, Team Battlefront, Chicken Mesa, Chicken Three Fronts, City Grid.
 
 ## 0.6 - twists (map gadgets)
 
@@ -69,6 +72,7 @@ Before that: a new template in the style of the Zero-K map Apophis.
 - Map codes (template + settings + seed as short text) to share and paste; compare two seeds side by side.
 - Start-up time of the one-file program, update notice.
 - Upload helper for zero-k.info, name collision check.
+- In progress: terrain variety check tool (flat-area share, seed influence).
 
 ## 1.0 - release
 
