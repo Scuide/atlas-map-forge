@@ -8,7 +8,7 @@ import pytest
 
 from atlasforge import forge
 from atlasforge.app.server import serve
-from atlasforge.edits import apply_edits, editor_checks
+from atlasforge.edits import apply_edits, editor_checks, side_of
 from atlasforge.symmetry import RotSymmetry
 
 QUIET = dict(log=lambda *a, **k: None)
@@ -206,7 +206,7 @@ def test_ffa_centre_is_rejected(ffa):
 def test_symmetry_off_warns_not_symmetric(duel):
     m = duel.mexes[0]
     to = _free_spot(duel)
-    if duel.sym.side(*to) == m["side"]:                     # cross to the other side so the totals change
+    if side_of(duel.sym, *to) == m["side"]:                 # cross to the other side so the totals change
         to = duel.sym.mirror(*to)
     d, problems = apply_edits(duel, [{"op": "move_mex", "from": [m["x"], m["z"]], "to": list(to)}], symmetry=False)
     assert not problems
