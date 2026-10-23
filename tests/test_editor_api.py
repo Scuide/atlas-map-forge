@@ -132,3 +132,16 @@ def test_build_with_edits_writes_moved_mex(api):
         layout = z.read("mapconfig/map_metal_layout.lua").decode()
     assert f"x = {c[0]:.0f}, z = {c[1]:.0f}" in layout
     assert f"x = {m['x']:.0f}, z = {m['z']:.0f}" not in layout
+
+
+def test_edit_set_box_changes_returned_boxes(api):
+    call, _, _ = api
+    p = call("preview", {"template": "chokepoint", "values": DUEL, "seed": 3})
+    box = next(b for b in p["boxes"] if b["team"] == 0)
+    poly = [[x + 20, z] for x, z in box["polygons"][0]]
+    out = call("edit", {"id": p["id"], "edits": [{"op": "set_box", "team": 0, "poly": 0, "points": poly}],
+                        "symmetry": False})
+    assert out["problems"] == []
+    got = next(b for b in out["boxes"] if b["team"] == 0)
+    assert got["polygons"][0] == [[float(x), float(z)] for x, z in poly]
+    assert got["polygons"][1:] == box["polygons"][1:]

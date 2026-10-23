@@ -122,3 +122,25 @@ def test_save_load(tmp_path):
     p = tmp_path / "a.forge.json"
     P.save(p, d)
     assert P.load(p) == d
+
+
+def test_set_box_edits_roundtrip_and_validate():
+    edit = {"op": "set_box", "team": 1, "poly": 0, "points": [[10, 20], [300, 20], [300, 200], [10, 200]]}
+    d = _proj(edits=[edit])
+    assert P.loads(P.dumps(d))["edits"] == [edit]
+    P.validate_edits([edit])
+
+
+@pytest.mark.parametrize("edit,pat", [
+    ({"op": "set_box", "team": "0", "poly": 0, "points": [[1, 2], [3, 4], [5, 6]]}, r"edits\[0\]\.team"),
+    ({"op": "set_box", "team": 0, "poly": 0, "points": [[1, 2], [3, 4]]}, r"edits\[0\]\.points"),
+    ({"op": "set_box", "team": 0, "poly": 0, "points": [[1, 2], [3, "z"], [5, 6]]}, r"edits\[0\]\.points"),
+])
+def test_bad_set_box(edit, pat):
+    with pytest.raises(ValueError, match=pat):
+        P.validate_edits([edit])
+
+
+def test_file_without_box_edits_loads_unchanged():
+    d = _proj(edits=[{"op": "del_geo", "at": [1, 2]}])
+    assert P.loads(P.dumps(d)) == d

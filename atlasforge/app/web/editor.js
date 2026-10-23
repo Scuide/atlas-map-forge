@@ -158,7 +158,57 @@ function edPick(sx, sy) {
   for (const g of m.geos) test("geo", g[0], g[1], Math.max(6, Math.min(16, 48 * S.view.s)) * 1.3, g);
   for (const mx of m.mexes) test("mex", mx.x, mx.z, mexRadius(mx.metal), mx);
   m.teams.forEach((team) => team.forEach((p) => test("start", p[0], p[1], Math.max(9, Math.min(20, 70 * S.view.s)), p)));
-  return best;
+  return best || edBoxPick(sx, sy);
+}
+
+// ------------------------------------------------------------------ start boxes (set_box)
+// A rectangular polygon (4 axis-aligned points) resizes at its corners; any polygon moves from its inside.
+function edRect(poly) {
+  return poly.length === 4 && poly.every((p, i) => {
+    const q = poly[(i + 1) % 4];
+    return Math.abs(p[0] - q[0]) < 1e-6 || Math.abs(p[1] - q[1]) < 1e-6;
+  });
+}
+
+function edInside(poly, x, z) {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, zi] = poly[i], [xj, zj] = poly[j];
+    if ((zi > z) !== (zj > z) && x < (xj - xi) * (z - zi) / (zj - zi) + xi) c = !c;
+  }
+  return c;
+}
+
+function edBoxPick(sx, sy) {
+  const [mx, mz] = toMap(sx, sy);
+  let inside = null;
+  for (const b of S.map.boxes || []) {
+    for (let pi = 0; pi < b.polygons.length; pi++) {
+      const poly = b.polygons[pi], ref = { team: b.team, poly: pi, pts: poly };
+      if (edRect(poly)) {
+        const ci = poly.findIndex((p) => Math.hypot(toScreen(p[0], p[1])[0] - sx, toScreen(p[0], p[1])[1] - sy) <= 9);
+        if (ci >= 0) return { kind: "boxcorner", x: poly[ci][0], z: poly[ci][1], ref: { ...ref, corner: ci } };
+      }
+      if (!inside && edInside(poly, mx, mz)) inside = { kind: "box", x: mx, z: mz, ref };
+    }
+  }
+  return inside;
+}
+
+// points of the box while it is dragged: d.cur is the pointer (box) or the grabbed corner (boxcorner)
+function edBoxPts(d) {
+  const pts = d.ref.pts, W = S.map.W, H = S.map.H;
+  const xs = pts.map((p) => p[0]), zs = pts.map((p) => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
+  if (d.kind === "boxcorner") {
+    const c = pts[d.ref.corner];
+    const a = c[0] === x0 ? [d.cur[0], x1] : [x0, d.cur[0]];
+    const b = c[1] === z0 ? [d.cur[1], z1] : [z0, d.cur[1]];
+    const [ax, bx] = [Math.min(...a), Math.max(...a)], [az, bz] = [Math.min(...b), Math.max(...b)];
+    return [[ax, az], [bx, az], [bx, bz], [ax, bz]].map((p) => [Math.round(p[0]), Math.round(p[1])]);
+  }
+  const dx = Math.min(Math.max(d.cur[0] - d.x, -x0), W - x1), dz = Math.min(Math.max(d.cur[1] - d.z, -z0), H - z1);
+  return pts.map((p) => [Math.round(p[0] + dx), Math.round(p[1] + dz)]);
 }
 
 const edPos = (e) => {
@@ -184,6 +234,7 @@ cv.addEventListener("pointerdown", (e) => {
     e.stopImmediatePropagation();
     if (!hit) return;
     if (hit.kind === "start") { toast("Start points cannot be deleted."); return; }
+    if (hit.kind.startsWith("box")) { toast("Start boxes cannot be deleted, drag them instead."); return; }
     ED.pending = null;
     edCommit({ op: "del_" + hit.kind, at: [hit.x, hit.z] });
   } else {                                             // mex / geo: add
@@ -225,7 +276,9 @@ const edEnd = (e) => {
   const d = ED.drag;
   ED.drag = null;
   const moved = Math.hypot(d.cur[0] - d.x, d.cur[1] - d.z) * S.view.s > 3;   // a click only selects
-  if (moved) {
+  if (moved && d.kind.startsWith("box")) {
+    edCommit({ op: "set_box", team: d.ref.team, poly: d.ref.poly, points: edBoxPts(d) });
+  } else if (moved) {
     ED.pending = { kind: d.kind, pts: edOrbit(d.cur[0], d.cur[1]) };
     edCommit({ op: "move_" + d.kind, from: [d.x, d.z], to: [Math.round(d.cur[0]), Math.round(d.cur[1])] });
   }
@@ -272,6 +325,25 @@ function drawEditor() {
     ctx.fillText(hi.text, tx + 6, ty);
   }
   if (!ED.on) return;
+  if (ED.tool === "move") {                            // corner handles of rectangular start boxes
+    for (const b of S.map.boxes || []) for (const poly of b.polygons) if (edRect(poly)) for (const p of poly) {
+      const [sx, sy] = toScreen(p[0], p[1]);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(sx - 4, sy - 4, 8, 8);
+    }
+  }
+  if (ED.drag && ED.drag.kind.startsWith("box")) {     // live preview of the box being dragged
+    const pts = edBoxPts(ED.drag);
+    ctx.save();
+    ctx.setLineDash([5, 4]);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#fff";
+    ctx.beginPath();
+    pts.forEach((p, i) => { const [sx, sy] = toScreen(p[0], p[1]); i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy); });
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  }
   const ghost = (kind, pts, strong) => {
     ctx.save();
     ctx.setLineDash([5, 4]);
@@ -289,7 +361,7 @@ function drawEditor() {
     });
     ctx.restore();
   };
-  if (ED.drag) ghost(ED.drag.kind, edOrbit(ED.drag.cur[0], ED.drag.cur[1]), true);
+  if (ED.drag && !ED.drag.kind.startsWith("box")) ghost(ED.drag.kind, edOrbit(ED.drag.cur[0], ED.drag.cur[1]), true);
   else if (ED.pending) ghost(ED.pending.kind, ED.pending.pts, false);
   else if (ED.hover && (ED.tool === "mex" || ED.tool === "geo")) ghost(ED.tool, edOrbit(ED.hover[0], ED.hover[1]), false);
   if (ED.sel && ED.sel.ref) {
