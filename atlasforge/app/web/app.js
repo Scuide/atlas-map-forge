@@ -389,8 +389,9 @@ async function runPreview(refit) {
 function renderReport() {
   const m = S.map;
   const b = $("check-badge");
-  b.textContent = m.ok ? "OK" : "PROBLEMS";
-  b.className = "badge " + (m.ok ? "ok" : "bad");
+  const warned = m.ok && m.lines.some((l) => l.startsWith("WARNING:"));
+  b.textContent = !m.ok ? "PROBLEMS" : warned ? "WARNINGS" : "OK";
+  b.className = "badge " + (!m.ok ? "bad" : warned ? "warn" : "ok");
   $("report").innerHTML = m.lines.map((l) => {
     const bad = /\bNO\b|not connected|unreachable for [a-z ]+: [1-9]/.test(l);
     const info = (/^(Spiders|Amphibians|Hovers)/.test(l.trim()) && /\bNO\b/.test(l) && m.movement_profile !== "naval")
