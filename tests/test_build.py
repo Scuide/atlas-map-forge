@@ -81,3 +81,18 @@ def test_config_names():
         ForgeConfig().require_author()
     with pytest.raises(ValueError):
         ForgeConfig(author='bad"name').validate()
+
+
+def test_set_box_edit_is_in_the_archive(tmp_path):
+    from atlasforge.app.luatable import startboxes
+    from atlasforge.edits import apply_edits
+    from atlasforge import forge
+    from atlasforge.forge import build
+    d = forge.make("arena", {"size": 12, "erosion": 0}, seed=2, log=lambda *a: None)
+    poly = [[100.0, 100.0], [700.0, 100.0], [700.0, 700.0], [100.0, 700.0]]
+    d, problems = apply_edits(d, [{"op": "set_box", "team": 0, "poly": 0, "points": poly}], symmetry=False)
+    assert problems == []
+    info = build(d, outdir=str(tmp_path), log=lambda *a: None, preview=False)
+    with zipfile.ZipFile(info["path"]) as z:
+        lua = z.read("mapconfig/map_startboxes.lua").decode()
+    assert startboxes(lua)[0]["polygons"][0] == poly
