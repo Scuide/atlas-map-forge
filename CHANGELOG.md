@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Defaults: Grass, Rocks and Wrecks now default to 0 and Trees to 0.4 (fewer objects, better in-game FPS).
 - App: parameter groups are collapsible (click the group title, state remembered), ordered Map, Resources,
   Terrain, template groups, Advanced; the seed sits directly under Map size.
 - Editor checks: a metal spot under water is no longer an error on any map; underwater metal is allowed
