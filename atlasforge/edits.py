@@ -241,7 +241,9 @@ def editor_checks(d, symmetry=True):
     for what, p in spots:
         h, iz, ix = _ground(d, *p)
         if what != "Start point" or d.movement_profile != "naval":
-            if h < 0 and not (d.blocked is not None and d.blocked[iz, ix]):
+            if h < 0 and what == "Metal spot" and d.movement_profile == "naval":
+                pass                                           # underwater metal is intended on sea maps (reachability: checks.report)
+            elif h < 0 and not (d.blocked is not None and d.blocked[iz, ix]):
                 add("error", f"{what} is under water", p)
             elif slope[iz, ix] > STEEP:
                 add("warn", f"{what} is on very steep ground", p)

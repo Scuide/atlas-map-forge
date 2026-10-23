@@ -1,4 +1,5 @@
 """Live editor checks after manual edits (SCU-35): atlasforge.edits.editor_checks on edited designs."""
+import dataclasses
 import math
 
 import numpy as np
@@ -37,6 +38,7 @@ def test_untouched_standard_design_has_no_errors(skirmish):
 
 
 def test_mex_moved_under_water_is_an_error(ocean):
+    ocean = dataclasses.replace(ocean, movement_profile="land")
     m = ocean.mexes[0]
     to = _deep_water(ocean)
     d, problems = apply_edits(
@@ -93,3 +95,14 @@ def test_start_point_in_water_is_an_error(skirmish):
     d.hm[int(round(sz / SQ)), int(round(sx / SQ))] = -50.0
     errs = [i for i in editor_checks(d) if i["level"] == "error" and i["text"] == "Start point is under water"]
     assert any(math.hypot(i["x"] - sx, i["z"] - sz) < 1e-6 for i in errs), errs
+
+
+def test_underwater_mex_on_a_naval_map_is_not_an_error(ocean):
+    assert ocean.movement_profile == "naval"
+    m = ocean.mexes[0]
+    to = _deep_water(ocean)
+    d, problems = apply_edits(
+        ocean, [{"op": "move_mex", "from": [m["x"], m["z"]], "to": list(to)}], symmetry=False)
+    assert not problems
+    errs = [i for i in editor_checks(d) if i["level"] == "error" and "under water" in i["text"] and i["text"].startswith("Metal")]
+    assert not errs, errs

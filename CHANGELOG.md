@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Editor checks: on sea maps (naval profile) a metal spot under water is no longer an error; underwater metal is
+  intended there and ships' reachability is still checked by the check report.
 - Check report: traffic-light colours fixed. Errors are red, warnings yellow (badge shows WARNINGS), OK green;
   editor error/warning lines no longer get the green dot.
 - Editor: invalid placements (start point, metal spot or geovent in water, on steep ground, ...) now show a
