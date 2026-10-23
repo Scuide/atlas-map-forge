@@ -4,8 +4,15 @@ A map generator for [Zero-K](https://zero-k.info). It builds complete, ready-to-
 heightmap, high-resolution texture, minimap, metal spots, geovents, start boxes, trees, and optional
 map gadgets such as lava cliffs, lava tides and an erupting volcano.
 
-> **Status: early development (0.3).** Six map templates, a Windows app with a large map preview and the
-> command line. See the [roadmap](docs/ROADMAP.md).
+> **Status: pre-release (0.4).** 25 map templates, a Windows app with a large map preview and a placement
+> editor, and the command line. See the [roadmap](docs/ROADMAP.md).
+
+## Download
+
+Get `AtlasMapForge.exe` from the [releases page](https://github.com/Scuide/atlas-map-forge/releases): one
+file for Windows, no installation and no Python needed. The program is not code-signed yet, so Windows
+SmartScreen asks first: click **More info**, then **Run anyway**. On first start, enter your author name
+in Settings.
 
 ## What you get
 
