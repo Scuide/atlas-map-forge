@@ -32,7 +32,7 @@ Edit Forge maps by hand, in three stages, always keeping the symmetry and re-run
 
 - Done: A - placement: move, add and delete metal spots, geothermal vents and start points in the preview;
   automatic symmetry (mirror and rotation, including free-for-all); live checks (water, slope, distances,
-  fairness); undo/redo; versioned project file (`.forge.json`: template, settings, seed, list of edits)
+  fairness) with a badge, tooltip and toast at invalid objects; undo/redo; versioned project file (`.forge.json`: template, settings, seed, list of edits)
   saved and opened in the browser; confirmation before manual edits are discarded when the seed, size or
   settings change.
 - Next: B - terrain brushes: raise, lower, flatten, smooth, draw a ramp from A to B.
