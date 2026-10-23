@@ -45,8 +45,27 @@ class CoastalFrontTemplate(Template):
         port = (0.14 * W, 0.88 * W)
         # A continental shelf needs a wider blend than the small offshore islands.
         d = finish(self, v, h, xx, zz, W, rng, base, port, bottom_scale=1024)
-        # Keep a broad staging corridor intact under erosion and free of blocking decoration.
+        # Seeded, broad microrelief breaks up otherwise level mainland without
+        # changing water depths or the explicit movement corridors.
+        relief = ndimage.gaussian_filter(rng.normal(size=d.hm.shape), 60)
+        relief = 0.5 * (relief + d.sym.mirror_grid(relief))
+        relief -= relief.mean()
+        relief /= max(float(np.max(np.abs(relief))), 1e-9)
+        protected = np.zeros(d.hm.shape, dtype=bool)
         land_route = np.abs(zz - base[1]) < 0.065 * W
+        protected |= land_route
+        for x, z in [*d.starts, *d.geos]:
+            protected |= (xx - x) ** 2 + (zz - z) ** 2 < 180 ** 2
+        for m in d.mexes:
+            protected |= (xx - m["x"]) ** 2 + (zz - m["z"]) ** 2 < 180 ** 2
+        protected |= d.keep_clear
+        protected |= d.blocked if d.blocked is not None else False
+        protected |= d.hazard if d.hazard is not None else False
+        for _, gate in d.gates or ():
+            protected |= gate
+        eligible = (d.hm >= 0) & ~protected
+        d.hm[eligible] += (24.0 * relief[eligible]).astype(d.hm.dtype)
+        # Keep a broad staging corridor intact under erosion and free of blocking decoration.
         d.keep_clear |= land_route
         d.tree_block |= land_route
         tanks = unit_masks(d.hm)["tanks"]

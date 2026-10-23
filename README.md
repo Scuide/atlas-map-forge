@@ -112,6 +112,9 @@ and copies it into your Zero-K folder (found automatically for Steam installs; o
 | `lake_district` | Lake District: Several seeded lake basins interrupt a connected mainland | teams face, relief, terrain distortion, lake basins, lake size, lake depth |
 | `river_delta` | River Delta: A central river fans into several channels around contested delta islands | relief, terrain distortion, river arms, delta spread, channel width, channel depth, crossing corridors, crossing width, crossing type |
 | `fjord_coast` | Fjord Coast: Deep inlets cut into opposing mainlands and shelter local fleet approaches | sea depth, beach slope, coast irregularity, underwater metal share, geothermal vents, coastal inlets, inlet reach, inlet width, mainland depth |
+| `chicken_mesa` | Chicken Mesa: Defend one shared high mesa against chicken waves using several ramps. When the outer approaches fail, fall back to a central position. | map size, biome, mesa height, mesa ramps, ramp width |
+| `canyon_network` | Canyon Network: A seeded network of branching ravines creates parallel routes, exposed junctions and deliberate cross-canyon passes. Each seed reshapes the canyon layout and changes where armies can switch fronts. | map size, biome, teams face, relief, terrain distortion, network pattern, main canyons, cross connections, canyon width |
+| `mountain_spine` | Mountain Spine: A winding mountain ridge divides the battlefield. Tanks use broad low valleys, bots cross shorter passes, and spiders can flank over the steep sides; each seed changes the ridge and pass positions. | map size, biome, teams face, relief, terrain distortion, ridge course, ridge width, pass width |
 
 Sea maps are checked for ships (heavy ships need water deeper than 15 elmos), hovers and amphibians
 instead of tanks and bots; the app shows a "Ships" route.

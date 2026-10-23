@@ -27,6 +27,13 @@ def test_repeatable(template):
     assert np.array_equal(a.hm, b.hm)
     assert a.mexes == b.mexes and a.starts == b.starts and a.geos == b.geos
 
+def test_seed_changes_microrelief(template):
+    from atlasforge import forge
+    import numpy as np
+    a = forge.make(TID, {"erosion": 0}, seed=1, log=lambda *a: None)
+    b = forge.make(TID, {"erosion": 0}, seed=2, log=lambda *a: None)
+    assert not np.array_equal(a.hm, b.hm)
+
 def test_parameter_extremes(template):
     from tools.template_workflow import parameter_cases
     for name, values, advanced in parameter_cases(template):

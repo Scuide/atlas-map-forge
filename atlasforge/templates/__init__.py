@@ -27,12 +27,16 @@ from .twin_plateaus import TwinPlateausTemplate
 from .lake_district import LakeDistrictTemplate
 from .river_delta import RiverDeltaTemplate
 from .fjord_coast import FjordCoastTemplate
+from .chicken_mesa import ChickenMesaTemplate
+from .canyon_network import CanyonNetworkTemplate
+from .mountain_spine import MountainSpineTemplate
 
 _REGISTRY = {t.id: t for t in (Skirmish(), Chokepoint(), RiverCrossing(), Arena(), Volcano(), ChickenRings(),
                                 OpenSea(), Archipelago(), IslandStraits(), ThreeLanesTemplate(),
                                 CoastalFrontTemplate(), AtollTemplate(), FFARing(), Asteroid(), HighlandsTemplate(),
                                 WatershedTemplate(), DuneSeaTemplate(), OpenDunesTemplate(), TwinPlateausTemplate(),
-                                LakeDistrictTemplate(), RiverDeltaTemplate(), FjordCoastTemplate())}
+                                LakeDistrictTemplate(), RiverDeltaTemplate(), FjordCoastTemplate(),
+                                ChickenMesaTemplate(), CanyonNetworkTemplate(), MountainSpineTemplate())}
 
 
 def all_templates():
