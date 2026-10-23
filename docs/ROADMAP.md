@@ -49,10 +49,11 @@ Edit Forge maps by hand, in three stages, always keeping the symmetry and re-run
 - Done: smoother underwater transitions on sea maps (naval fix, integrated); templates Open Dunes, Twin
   Plateaus, Lake District, River Delta, Fjord Coast, Highlands, Watershed, Dune Sea and Asteroid (in the
   style of Apophis); gallery fix and new sea map thumbnails.
-- In progress: Chicken Mesa; next Canyon Network, Mountain Spine; then more terrain variety in existing
-  templates: fewer completely flat areas, seed changes the map noticeably.
-- Next templates: Canyon Network, Mountain Spine, King of the Hill, Fortress Front, Crater Basin, Inland
-  Sea, Island Continents, Peninsula, Team Battlefront, Chicken Mesa, Chicken Three Fronts, City Grid.
+- Done: templates Chicken Mesa (asymmetric co-op), Canyon Network and Mountain Spine; first terrain variety
+  pass (Coastal Front: fewer flat areas, the seed changes the relief more).
+- In progress: more terrain variety in the other existing templates.
+- Next templates: King of the Hill, Fortress Front, Crater Basin, Inland Sea, Island Continents, Peninsula,
+  Team Battlefront, Chicken Three Fronts, City Grid.
 
 ## 0.6 - twists (map gadgets)
 

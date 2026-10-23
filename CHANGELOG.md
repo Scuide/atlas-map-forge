@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Three new templates from the template agent: Chicken Mesa (asymmetric co-op defence around a raised mesa),
+  Canyon Network and Mountain Spine (watermark codes 23-25).
+- Coastal Front: broad seeded relief on the land, fewer flat areas and a stronger seed effect.
 - Editor, stage A (roadmap 0.5): in the app preview, move, add and delete metal spots, geothermal vents and
   start points. Automatic symmetry (mirror and rotation, including free-for-all) applies to every edit.
   Live checks flag water, slope, minimum distances and fairness.
