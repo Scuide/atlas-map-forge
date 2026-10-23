@@ -265,6 +265,7 @@ def _set_box(d, sym, e, on, fail):
 # ----------------------------------------------------------------------------- live checks
 STEEP = 30.0          # degrees: a metal spot or start point on ground steeper than this is flagged
 START_MEX_GAP = 120.0  # elmos: a metal spot closer than this to a start point sits inside the commander
+BOX_MIN_EDGE = 300.0   # elmos: a start box edge shorter than this is flagged as very small
 
 
 def _ground(d, x, z):
@@ -304,15 +305,21 @@ def editor_checks(d, symmetry=True):
             if math.hypot(m["x"] - s[0], m["z"] - s[1]) < START_MEX_GAP:
                 add("warn", "Metal spot is almost on a start point", (m["x"], m["z"]))
                 break
-    if d.startboxes:                                           # template with its own boxes: they are not moved
-        try:
-            from .app.luatable import startboxes
-            boxes = [poly for b in startboxes(d.startboxes) for poly in b["polygons"]]
-        except Exception:
-            boxes = []
-        for s in d.starts:
-            if boxes and not any(_in_poly(s, poly) for poly in boxes):
-                add("warn", "Start point is outside its start box (this map's boxes are not moved)", s)
+    boxes = _start_boxes(d)
+    polys = [(b["team"], poly) for b in boxes for poly in b["polygons"]]
+    for s in d.starts:
+        owner = _box_owner(boxes, s)                           # None: no team has a start point to match
+        own = [poly for team, poly in polys if owner is None or team == owner]
+        if polys and not any(_in_poly(s, poly) for poly in own):
+            add("error", "Start point is outside its start box", s)
+    for i, (team, poly) in enumerate(polys):
+        if any(not (0 <= x <= d.sym.W and 0 <= z <= d.sym.H) for x, z in poly):
+            add("error", "Start box leaves the map", _centre(poly))
+        if any(math.hypot(q[0] - p[0], q[1] - p[1]) < BOX_MIN_EDGE for p, q in _edges(poly)):
+            add("warn", "Start box is very small", _centre(poly))
+        for other_team, other in polys[i + 1:]:
+            if other_team != team and _polys_overlap(poly, other):
+                add("error", "Start boxes overlap", _centre(poly))
     totals = {}
     for m in d.mexes:
         totals[m["side"]] = totals.get(m["side"], 0.0) + m["metal"]
@@ -330,3 +337,45 @@ def _in_poly(p, poly):
         if (z1 > z) != (z2 > z) and x < (x2 - x1) * (z - z1) / (z2 - z1) + x1:
             inside = not inside
     return inside
+
+
+def _start_boxes(d):
+    """Team boxes of the design: its own map_startboxes.lua, or the ones the symmetry layout generates. [] if unreadable."""
+    from .app.luatable import startboxes
+    from .formats import startboxes_lua
+    try:
+        return startboxes(d.startboxes if d.startboxes is not None else startboxes_lua(d.sym, d.starts))
+    except Exception:
+        return []
+
+
+def _box_owner(boxes, p):
+    """Team whose start point is nearest to p (the start point belongs to that team), or None."""
+    best = None
+    for b in boxes:
+        for s in b["startpoints"]:
+            dist = math.hypot(s[0] - p[0], s[1] - p[1])
+            if best is None or dist < best[0]:
+                best = (dist, b["team"])
+    return None if best is None else best[1]
+
+
+def _edges(poly):
+    return list(zip(poly, poly[1:] + poly[:1]))
+
+
+def _centre(poly):
+    return (sum(x for x, _ in poly) / len(poly), sum(z for _, z in poly) / len(poly))
+
+
+def _orient(a, b, c):
+    return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+
+
+def _polys_overlap(p, q):
+    """Two polygons share an area or touch edge to edge (proper crossing) or contain a corner of each other."""
+    for a, b in _edges(p):
+        for c, d in _edges(q):
+            if _orient(a, b, c) * _orient(a, b, d) < 0 and _orient(c, d, a) * _orient(c, d, b) < 0:
+                return True
+    return any(_in_poly(v, q) for v in p) or any(_in_poly(v, p) for v in q)

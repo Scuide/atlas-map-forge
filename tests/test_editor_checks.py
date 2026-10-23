@@ -22,6 +22,11 @@ def ocean():
     return forge.make("open_sea", dict(FAST, size=12), seed=1, **QUIET)
 
 
+@pytest.fixture(scope="module")
+def arena():
+    return forge.make("arena", dict(FAST, size=12), seed=2, **QUIET)
+
+
 def _deep_water(d):
     """First deep-water cell at least 150 elmos from every metal spot, geovent and start (deterministic scan)."""
     pts = [(m["x"], m["z"]) for m in d.mexes] + list(d.geos) + list(d.starts)
@@ -109,3 +114,54 @@ def test_underwater_mex_is_never_an_error(ocean, profile):
     assert not problems
     errs = [i for i in editor_checks(d) if i["level"] == "error" and "under water" in i["text"] and i["text"].startswith("Metal")]
     assert not errs, errs
+
+
+def _with_boxes(d, change):
+    """Copy of d whose start boxes are changed by change(boxes) (startboxes() dicts, edited in place)."""
+    from atlasforge.edits import _start_boxes
+    from atlasforge.formats import startboxes_to_lua
+    boxes = _start_boxes(d)
+    change(boxes)
+    return dataclasses.replace(d, startboxes=startboxes_to_lua(boxes))
+
+
+def _errors(d, text):
+    return [i for i in editor_checks(d) if i["text"] == text]
+
+
+def test_start_point_outside_its_box_is_an_error(skirmish):
+    s0 = skirmish.starts[0]
+    far = [s0[0] + 2000.0, s0[1]]
+    d = _with_boxes(skirmish, lambda b: b[0]["startpoints"].__setitem__(0, far))
+    d = dataclasses.replace(d, starts=[tuple(far)] + list(skirmish.starts[1:]))
+    errs = _errors(d, "Start point is outside its start box")
+    assert any(math.hypot(i["x"] - far[0], i["z"] - far[1]) < 1e-6 for i in errs), errs
+
+
+def test_start_box_overlapping_another_team_is_an_error(arena):
+    from atlasforge.edits import _start_boxes
+    boxes = _start_boxes(arena)
+    assert len(boxes) >= 2
+    other = boxes[1]["polygons"][0]
+    d, _ = apply_edits(arena, [{"op": "set_box", "team": boxes[0]["team"], "poly": 0,
+                                "points": [[x, z] for x, z in other]}], symmetry=False)
+    assert _errors(d, "Start boxes overlap"), editor_checks(d)
+
+
+def test_start_box_leaving_the_map_is_an_error(skirmish):
+    W = skirmish.sym.W
+
+    def push_out(b):
+        b[0]["polygons"][0][1][0] = W + 50.0
+    d = _with_boxes(skirmish, push_out)
+    assert _errors(d, "Start box leaves the map"), editor_checks(d)
+
+
+def test_very_small_start_box_warns(skirmish):
+    def shrink(b):
+        p = b[0]["polygons"][0]
+        cx, cz = p[0]
+        b[0]["polygons"][0] = [[cx, cz], [cx + 100.0, cz], [cx + 100.0, cz + 100.0], [cx, cz + 100.0]]
+    d = _with_boxes(skirmish, shrink)
+    warns = _errors(d, "Start box is very small")
+    assert warns and all(i["level"] == "warn" for i in warns), warns
