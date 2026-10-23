@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+n- Check report: traffic-light colours fixed. Errors are red, warnings yellow (badge shows WARNINGS), OK green;
+  editor error/warning lines no longer get the green dot.
 
 - Editor: invalid placements (start point, metal spot or geovent in water, on steep ground, ...) now show a
   "!" badge at the object, a tooltip with the reason on hover and a short toast right after the edit.

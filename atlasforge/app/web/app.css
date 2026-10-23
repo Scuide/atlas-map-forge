@@ -193,11 +193,13 @@ button:disabled { opacity: .45; cursor: default; filter: none; }
 /* ---------------------------------------------------------------- right panel */
 .badge { padding: 2px 7px; border-radius: 10px; font-size: 10.5px; letter-spacing: .06em; }
 .badge.ok { background: rgba(95, 211, 138, .15); color: var(--ok); }
+.badge.warn { background: rgba(255, 210, 60, .16); color: #ffd23c; }
 .badge.bad { background: rgba(255, 93, 77, .16); color: var(--bad); }
 .report { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
 .report li { display: grid; grid-template-columns: 14px 1fr; gap: 8px; font-size: 12.5px; color: #cfcdc9; }
 .report li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; background: var(--ok); }
 .report li.no::before { background: var(--bad); }
+.report li.warn::before { background: #ffd23c; }
 .report li.info::before { background: var(--line-2); }
 .report li.no { color: #ffb3aa; }
 .facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0; font-size: 12.5px; }
