@@ -236,6 +236,8 @@ function groupTitle(g) { return GROUP_TITLES[g] || g || `${S.tpl.title} settings
 
 function renderParams() {
   const box = $("params");
+  // the seed row lives inside the groups after the first render: take it out before clearing
+  const seedRow = $("seed").closest(".seed-row");
   box.innerHTML = "";
   const vals = S.values[S.tpl.id];
   $("adv-note").classList.toggle("hidden", !isAdvanced());
@@ -247,7 +249,6 @@ function renderParams() {
   }
   const sorted = [...groups].sort((a, b) => groupRank(a[0]) - groupRank(b[0]));
   const collapsedSaved = recall("groups", {});
-  const seedRow = $("seed").closest(".seed-row");
   let seedPending = !S.tpl.params.some((p) => p.key === "size");
   for (const [g, params] of sorted) {
     const title = groupTitle(g);
