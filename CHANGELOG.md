@@ -1,7 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- Editor, stage A (roadmap 0.5): in the app preview, move, add and delete metal spots, geothermal vents and
+  start points. Automatic symmetry (mirror and rotation, including free-for-all) applies to every edit.
+  Live checks flag water, slope, minimum distances and fairness.
+- Editor: undo and redo (Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z).
+- Editor: project files (`.forge.json`, versioned) hold the template, settings, seed and edits. Save downloads
+  the file in the browser; Open loads one again.
+- Editor: changing the seed, size or settings asks for confirmation when manual edits exist ("All manual
+  changes will be discarded - continue?").
+- Editor: a start point outside its start box is reported as a warning. Templates with their own start box
+  Lua string keep their boxes; the start point is not moved.
+
 ## 0.4.0 - unreleased
 
+- Tests: pytest-xdist added to the [test] extras; CI runs the suite in parallel (-n auto).
 - New audit tool `tools/terrain_variety.py`: per template and seed, measures the share of flat terrain, the largest flat area and how much the seed changes the heightmap (CSV plus markdown table).
 - Eight new templates from the template agent: Procedural Highlands, Procedural Watershed, Procedural Dune
   Sea, Open Dunes, Twin Plateaus, Lake District, River Delta, Fjord Coast (watermark codes 15-22).

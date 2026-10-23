@@ -24,16 +24,19 @@ report, build & install with progress. One-file Windows program built and self-t
   popup for every setting, build-finished dialog.
 - Done: more biomes (jungle, swamp, industrial), a painted sky per map, engine grass, time of day.
 
-## 0.5 - map editing (next big feature)
+## 0.5 - map editing (in progress)
 
 In progress: stage A (placement, undo/redo, .forge.json).
 
 Edit Forge maps by hand, in three stages, always keeping the symmetry and re-running the checks:
 
-- A - placement: move, add and delete metal spots, geothermal vents and start points in the preview;
-  undo/redo; project file (`.forge.json`: template, settings, seed, list of edits) to reopen a map later.
-- B - terrain brushes: raise, lower, flatten, smooth, draw a ramp from A to B.
-- C - painting and objects: paths, concrete, scorch, lava; place or remove trees and rocks; optional
+- Done: A - placement: move, add and delete metal spots, geothermal vents and start points in the preview;
+  automatic symmetry (mirror and rotation, including free-for-all); live checks (water, slope, distances,
+  fairness); undo/redo; versioned project file (`.forge.json`: template, settings, seed, list of edits)
+  saved and opened in the browser; confirmation before manual edits are discarded when the seed, size or
+  settings change.
+- Next: B - terrain brushes: raise, lower, flatten, smooth, draw a ramp from A to B.
+- Later: C - painting and objects: paths, concrete, scorch, lava; place or remove trees and rocks; optional
   16-bit PNG heightmap import/export.
 
 ## More ways to play and more templates

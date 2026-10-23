@@ -83,6 +83,23 @@
         <button data-route="hovers">Hovers</button>
         <button data-route="ships" class="hidden" id="route-ships">Ships</button>
       </div>
+      <div class="tgroup" id="edit-tools">
+        <button id="ed-toggle" title="Edit metal spots, geovents and start points (E)">Edit</button>
+        <span class="ed-only hidden" id="ed-extra">
+          <button data-tool="move" class="on" title="Move: drag a spot (V)">Move</button>
+          <button data-tool="mex" title="Add a metal spot: click (1)">Metal +</button>
+          <button data-tool="geo" title="Add a geovent: click (2)">Geo +</button>
+          <button data-tool="del" title="Delete: click a spot (X)">Delete</button>
+          <input type="number" id="ed-metal" min="0.1" max="9" step="0.1" value="2" title="Metal of the selected or the next new spot">
+          <label class="switch small" title="Edit all mirror images / rotations together"><input type="checkbox" id="ed-sym" checked><span></span>Symmetry</label>
+          <button id="ed-undo" title="Undo (Ctrl+Z)">Undo</button>
+          <button id="ed-redo" title="Redo (Ctrl+Y)">Redo</button>
+          <span class="ed-count" id="ed-count"></span>
+        </span>
+        <button id="ed-save" title="Save template, settings, seed and edits as a project file">Save project</button>
+        <button id="ed-open" title="Open a project file">Open project</button>
+        <input type="file" id="ed-file" accept=".json,.forge.json" class="hidden">
+      </div>
       <div class="legend" id="legend"></div>
     </div>
     <div class="zoom">
@@ -188,6 +205,13 @@
   </div>
 </div>
 
+<div class="modal hidden" id="ed-confirm" role="alertdialog" aria-modal="true" aria-labelledby="ed-confirm-title">
+  <div class="card warncard">
+    <h2 id="ed-confirm-title">Discard manual changes?</h2>
+    <p>All manual changes will be discarded - continue?</p>
+    <div class="actions"><button class="ghost" id="ed-cancel">Cancel</button><button class="forge warn" id="ed-ok">Continue</button></div>
+  </div>
+</div>
 <div class="modal hidden" id="done" role="dialog" aria-modal="true" aria-labelledby="done-title">
   <div class="card donecard">
     <div class="done-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
@@ -210,5 +234,6 @@
 <div class="infopop hidden" id="infopop" role="tooltip"></div>
 <div class="toast hidden" id="toast"></div>
 <script src="app.js"></script>
+<script src="editor.js"></script>
 </body>
 </html>
