@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Editor: invalid placements (start point, metal spot or geovent in water, on steep ground, ...) now show a
+  "!" badge at the object, a tooltip with the reason on hover and a short toast right after the edit.
 - Three new templates from the template agent: Chicken Mesa (asymmetric co-op defence around a raised mesa),
   Canyon Network and Mountain Spine (watermark codes 23-25).
 - Coastal Front: broad seeded relief on the land, fewer flat areas and a stronger seed effect.

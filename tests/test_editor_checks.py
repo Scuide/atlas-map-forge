@@ -83,3 +83,13 @@ def test_every_entry_has_level_text_x_z(skirmish, ocean):
     assert entries, "expected at least one check entry to inspect"
     for i in entries:
         assert {"level", "text", "x", "z"} <= set(i)
+
+
+def test_start_point_in_water_is_an_error(skirmish):
+    from atlasforge.edits import copy_design
+    d = copy_design(skirmish)
+    d.hm = d.hm.copy()
+    sx, sz = d.starts[0][0], d.starts[0][1]
+    d.hm[int(round(sz / SQ)), int(round(sx / SQ))] = -50.0
+    errs = [i for i in editor_checks(d) if i["level"] == "error" and i["text"] == "Start point is under water"]
+    assert any(math.hypot(i["x"] - sx, i["z"] - sz) < 1e-6 for i in errs), errs

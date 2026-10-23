@@ -91,8 +91,15 @@ function edSend(delay = 80) {
         r.problems = r.problems.filter((p) => p !== bad[0]);
         edSend(0);
       }
+      const wasFresh = ED.fresh;
       ED.fresh = false;
+      const known = new Set((S.map.issues || []).map((i) => `${i.text}|${i.x}|${i.z}`));
       Object.assign(S.map, r);
+      const added = (r.issues || []).filter((i) => !known.has(`${i.text}|${i.x}|${i.z}`));
+      if (wasFresh && added.length) {                              // a placement just made something invalid
+        const worst = added.find((i) => i.level === "error") || added[0];
+        toast((worst.level === "error" ? "Problem: " : "Warning: ") + worst.text + (added.length > 1 ? ` (+${added.length - 1} more)` : "") + ".");
+      }
       ED.pending = null;
       S.img.reach = {};
       if (S.route) await loadRoute(S.route);
@@ -189,6 +196,17 @@ cv.addEventListener("pointerdown", (e) => {
 }, true);
 
 cv.addEventListener("pointermove", (e) => {
+  if (!S.map) return;
+  const [hx, hy] = edPos(e);
+  const prev = ED.issueHover;
+  ED.issueHover = (S.map.issues || []).find((i) => {
+    const [ix, iy] = toScreen(i.x, i.z);
+    return Math.hypot(ix - hx, iy - hy) < 24;
+  }) || null;
+  if (prev !== ED.issueHover && !ED.drag) draw();
+}, true);
+
+cv.addEventListener("pointermove", (e) => {
   if (!ED.on || !S.map) return;
   const [sx, sy] = edPos(e);
   if (ED.drag) {
@@ -227,6 +245,31 @@ function drawEditor() {
     ctx.lineWidth = 3;
     ctx.strokeStyle = i.level === "error" ? "#ff4d4d" : "#ffd23c";
     ctx.stroke();
+    ctx.fillStyle = ctx.strokeStyle;                               // "!" badge so the warning is visible on any terrain
+    ctx.beginPath();
+    ctx.arc(sx + 14, sy - 14, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#111";
+    ctx.font = "bold 11px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("!", sx + 14, sy - 13);
+  }
+  const hi = ED.issueHover;                                        // tooltip with the reason, next to the object
+  if (hi) {
+    const [sx, sy] = toScreen(hi.x, hi.z);
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    const w = ctx.measureText(hi.text).width + 12;
+    const tx = Math.min(sx + 24, cv.width - w - 4), ty = Math.max(sy - 30, 14);
+    ctx.fillStyle = "rgba(20,20,20,.92)";
+    ctx.fillRect(tx, ty - 11, w, 22);
+    ctx.strokeStyle = hi.level === "error" ? "#ff4d4d" : "#ffd23c";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(tx, ty - 11, w, 22);
+    ctx.fillStyle = "#fff";
+    ctx.fillText(hi.text, tx + 6, ty);
   }
   if (!ED.on) return;
   const ghost = (kind, pts, strong) => {
