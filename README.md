@@ -57,6 +57,14 @@ atlasforge app
 
 Without the `[app]` extra (pywebview), the app opens in your web browser instead of its own window.
 
+### Editor
+
+In the preview you can move, add and delete metal spots, geothermal vents and start points. Symmetry
+(mirror or rotation, including free-for-all) is applied to every edit, and live checks flag water, slope,
+distances and fairness. Ctrl+Z and Ctrl+Y undo and redo. **Save project** writes a `.forge.json` file
+(template, settings, seed and edits) that **Open project** loads again. Terrain brushes are planned for the next
+stage.
+
 ## Install (command line)
 
 Python 3.9 or newer:
