@@ -35,6 +35,9 @@ Edit Forge maps by hand, in three stages, always keeping the symmetry and re-run
   fairness) with a badge, tooltip and toast at invalid objects; undo/redo; versioned project file (`.forge.json`: template, settings, seed, list of edits)
   saved and opened in the browser; confirmation before manual edits are discarded when the seed, size or
   settings change.
+- In progress: A - start boxes on every map: move and resize start boxes in the preview (also for templates with
+  their own boxes), with symmetry, live checks (start point inside its box, boxes must not overlap), undo/redo,
+  saved in `.forge.json` and written to the built map.
 - Next: B - terrain brushes: raise, lower, flatten, smooth, draw a ramp from A to B.
 - Later: C - painting and objects: paths, concrete, scorch, lava; place or remove trees and rocks; optional
   16-bit PNG heightmap import/export.
