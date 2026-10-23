@@ -231,3 +231,50 @@ def rotate_points(points, sym):
             rx, rz = sym.rotate(x, z, k)
             out.append(dict(x=float(rx), z=float(rz), metal=v, side=k))
     return out
+
+
+# --------------------------------------------------------------------------- editor orbits
+
+
+def orbit(sym, x, z):
+    """Unified orbit of a point for Symmetry or RotSymmetry.
+
+    Index 0 is always the original point; coordinates are floats."""
+    if isinstance(sym, RotSymmetry):
+        return [(float(px), float(pz)) for px, pz in sym.orbit(x, z)]
+    mx, mz = sym.mirror(x, z)
+    return [(float(x), float(z)), (float(mx), float(mz))]
+
+
+def match_orbit(sym, ref, other, tol=24.0):
+    """Snap the orbit of a user-edited point onto existing objects.
+
+    ref=(x,z); other=list[(x,z)]. For each point of orbit(ref) in orbit order returns the index of
+    the closest object within tol elmos (euclidean), else None; an object is assigned to at most one
+    orbit point (greedy by distance, deterministic on ties)."""
+    pts = orbit(sym, ref[0], ref[1])
+    cands = []
+    for pi, (px, pz) in enumerate(pts):
+        for oi, (ox, oz) in enumerate(other):
+            d = math.hypot(px - ox, pz - oz)
+            if d <= tol:
+                cands.append((d, pi, oi))
+    cands.sort()
+    out = [None] * len(pts)
+    used = set()
+    for _, pi, oi in cands:
+        if out[pi] is None and oi not in used:
+            out[pi] = oi
+            used.add(oi)
+    return out
+
+
+def orbit_degenerate(sym, x, z, min_dist=8.0):
+    """True when two points of the orbit are closer than min_dist (center / mirror line)."""
+    pts = orbit(sym, x, z)
+    for i in range(len(pts)):
+        xi, zi = pts[i]
+        for j in range(i + 1, len(pts)):
+            if math.hypot(xi - pts[j][0], zi - pts[j][1]) < min_dist:
+                return True
+    return False

@@ -8,7 +8,7 @@ import pytest
 
 from atlasforge import forge
 from atlasforge.app.server import serve
-from atlasforge.edits import apply_edits, editor_checks
+from atlasforge.edits import apply_edits, editor_checks, side_of
 from atlasforge.symmetry import RotSymmetry
 
 QUIET = dict(log=lambda *a, **k: None)
@@ -163,6 +163,73 @@ def test_editor_checks_unequal_metal_and_water(duel):
         x, z = xx * 8.0, zz * 8.0
         d, _ = apply_edits(duel, [{"op": "add_geo", "at": [x, z]}], symmetry=False)
         assert any(i["level"] == "error" for i in editor_checks(d, symmetry=False))
+
+
+def test_orphan_move_is_reported_and_map_unchanged(duel):
+    m = duel.mexes[0]
+    miss = [m["x"] + 30, m["z"]]                            # beyond TOL (24): no mex is addressed
+    d, problems = apply_edits(duel, [{"op": "move_mex", "from": miss, "to": _free_spot(duel)}])
+    assert [p["index"] for p in problems] == [0]
+    assert "nothing there" in problems[0]["reason"]
+    assert _xy(d) == _xy(duel)
+
+
+def test_ffa_add_and_delete_cover_the_whole_orbit(ffa):
+    n = ffa.sym.n
+    to = ffa.sym.polar(2300, 9, 0)
+    d, p = apply_edits(ffa, [{"op": "add_mex", "at": list(to), "metal": 2.0}])
+    assert not p and len(d.mexes) == len(ffa.mexes) + n
+    pts = [(q["x"], q["z"]) for q in d.mexes]
+    assert all(_has(pts, ffa.sym.rotate(to[0], to[1], k)) for k in range(n))
+    d, p = apply_edits(ffa, [{"op": "add_mex", "at": list(to), "metal": 2.0},
+                             {"op": "del_mex", "at": list(to)}])
+    assert not p and _xy(d) == _xy(ffa)
+
+
+def test_add_mex_rejects_centre_and_spots_too_close(duel):
+    cx, cz = duel.sym.W / 2, duel.sym.H / 2
+    m = duel.mexes[0]
+    edits = [
+        {"op": "add_mex", "at": [cx, cz], "metal": 2.0},                    # fixed point: no mirror image
+        {"op": "add_mex", "at": [m["x"] + 10, m["z"]], "metal": 2.0},       # closer than MIN_GAP to a mex
+    ]
+    d, problems = apply_edits(duel, edits)
+    assert [p["index"] for p in problems] == [0, 1]
+    assert _xy(d) == _xy(duel)
+
+
+def test_ffa_centre_is_rejected(ffa):
+    d, problems = apply_edits(ffa, [{"op": "add_mex", "at": [ffa.sym.cx, ffa.sym.cz], "metal": 2.0}])
+    assert len(problems) == 1 and _xy(d) == _xy(ffa)
+
+
+def test_symmetry_off_warns_not_symmetric(duel):
+    m = duel.mexes[0]
+    to = _free_spot(duel)
+    if side_of(duel.sym, *to) == m["side"]:                 # cross to the other side so the totals change
+        to = duel.sym.mirror(*to)
+    d, problems = apply_edits(duel, [{"op": "move_mex", "from": [m["x"], m["z"]], "to": list(to)}], symmetry=False)
+    assert not problems
+    assert len(d.mexes) == len(duel.mexes)
+    assert sum(1 for q in d.mexes if math.hypot(q["x"] - to[0], q["z"] - to[1]) < 1e-6) == 1
+    checks = editor_checks(d, symmetry=False)
+    warns = [i for i in checks if i["level"] == "warn" and "Metal is not equal" in i["text"]]
+    assert warns and "symmetry is off" in warns[0]["text"]
+    assert not any(i["level"] == "error" and "Metal" in i["text"] for i in checks)
+
+
+def test_same_edits_on_fresh_copies_give_same_result(duel):
+    m0, m1 = duel.mexes[0], duel.mexes[1]
+    to = _free_spot(duel)
+    edits = [
+        {"op": "move_mex", "from": [m0["x"], m0["z"]], "to": list(to)},
+        {"op": "add_geo", "at": list(to)},
+        {"op": "set_metal", "at": [m1["x"], m1["z"]], "metal": 2.5},
+        {"op": "del_mex", "at": [m1["x"], m1["z"]]},
+    ]
+    a, pa = apply_edits(duel, edits)
+    b, pb = apply_edits(duel, list(edits))
+    assert pa == pb and a.mexes == b.mexes and a.geos == b.geos and a.starts == b.starts and a.teams == b.teams
 
 
 # ----------------------------------------------------------------------------- server
