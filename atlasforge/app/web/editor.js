@@ -338,40 +338,43 @@ async function edSave() {
     app_version: S.info.version,
   });
   try {
-    const r = await api("project_dump", { data });
-    const blob = new Blob([r.text], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = title.replace(/[^A-Za-z0-9 ._()-]/g, "_") + ".forge.json";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    toast("Project saved to your downloads.", 3000);
+    const r = await api("project_save", { data });
+    toastAction("Project saved: " + r.path, "Open folder", () => api("open", { path: r.path }).catch((e) => toast(e.message)));
   } catch (e) { toast(e.message); }
 }
 
 async function edOpen(file) {
-  try {
-    const r = await api("project_load", { text: await file.text() });
-    const p = r.project;
-    const t = S.info.templates.find((x) => x.id === p.template);
-    if (!t) throw new Error("Unknown template: " + p.template);
-    ED.base = r.extra || {};
-    S.values[p.template] = Object.assign({}, S.values[p.template] || {}, p.values || {});
-    S.seeds[p.template] = p.seed;
-    S.edits = p.edits || [];
-    S.symmetry = p.symmetry !== false;
-    ED.last = null;                                    // loading replaces the map: nothing to confirm
-    selectTemplate(p.template);
-    clearTimeout(pvTimer);
-    $("seed").value = p.seed;
-    S.titleEdited[p.template] = !!p.title;
-    runPreview(true).then(() => { if (p.title) $("title").value = p.title; });
-  } catch (e) { toast(e.message); }
+  edLoad({ text: await file.text() });
+}
+
+async function edLoad(req) {
+  try { applyProject(await api("project_load", req)); } catch (e) { toast(e.message); }
+}
+
+function applyProject(r) {
+  const p = r.project;
+  const t = S.info.templates.find((x) => x.id === p.template);
+  if (!t) throw new Error("Unknown template: " + p.template);
+  ED.base = r.extra || {};
+  S.values[p.template] = Object.assign({}, S.values[p.template] || {}, p.values || {});
+  S.seeds[p.template] = p.seed;
+  S.edits = p.edits || [];
+  S.symmetry = p.symmetry !== false;
+  ED.last = null;                                    // loading replaces the map: nothing to confirm
+  selectTemplate(p.template);
+  clearTimeout(pvTimer);
+  $("seed").value = p.seed;
+  S.titleEdited[p.template] = !!p.title;
+  runPreview(true).then(() => { if (p.title) $("title").value = p.title; });
 }
 
 $("ed-save").onclick = () => S.map && edSave();
-$("ed-open").onclick = () => $("ed-file").click();
+$("ed-open").onclick = async () => {
+  if (!pickAvailable) return $("ed-file").click();
+  try {
+    const p = await window.pywebview.api.pick_project(S.info.settings.projdir || "");
+    if (p) edLoad({ path: p });
+  } catch (e) { toast(e.message); }
+};
 $("ed-file").onchange = () => { const f = $("ed-file").files[0]; $("ed-file").value = ""; if (f) edOpen(f); };
 edUpdateUi();

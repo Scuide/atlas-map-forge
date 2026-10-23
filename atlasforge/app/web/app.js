@@ -55,6 +55,18 @@ function toast(msg, ms = 5000) {
   clearTimeout(toast._t);
   toast._t = setTimeout(() => t.classList.add("hidden"), ms);
 }
+function toastAction(msg, label, action, ms = 8000) {
+  const t = $("toast");
+  t.textContent = msg + " ";
+  const b = document.createElement("button");
+  b.className = "ghost";
+  b.textContent = label;
+  b.onclick = () => { t.classList.add("hidden"); action(); };
+  t.append(b);
+  t.classList.remove("hidden");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.add("hidden"), ms);
+}
 function store(k, v) { try { localStorage.setItem("forge." + k, JSON.stringify(v)); } catch (e) { /* storage off */ } }
 function recall(k, d) { try { const v = localStorage.getItem("forge." + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -924,6 +936,8 @@ function openSettings() {
   $("s-zerok-found").textContent = st.zerok_found.length ? "Found automatically: " + st.zerok_found.join(", ") + " (leave empty to use it)" : "Zero-K was not found automatically.";
   $("s-outdir").value = c.outdir || "";
   $("s-outdir").placeholder = st.default_outdir;
+  $("s-projdir").value = c.projdir || "";
+  $("s-projdir").placeholder = st.default_projdir;
   $("s-advanced").checked = !!c.advanced;
   $("s-check-res").classList.add("hidden");
   $("s-check-pick").classList.toggle("hidden", !pickAvailable);
@@ -943,6 +957,7 @@ $("s-save").onclick = async () => {
     const wasAdv = isAdvanced();
     const st = await api("config", {
       author: $("s-author").value.trim(), zerok: $("s-zerok").value.trim(), outdir: $("s-outdir").value.trim(),
+      projdir: $("s-projdir").value.trim(),
       advanced: $("s-advanced").checked,
     });
     S.info.settings = st;

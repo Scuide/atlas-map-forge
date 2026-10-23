@@ -29,6 +29,12 @@ class _JsApi:
                                              file_types=("Zero-K maps (*.sdz;*.sd7;*.smf)", "All files (*.*)"))
         return res[0] if res else ""
 
+    def pick_project(self, start=""):
+        import webview
+        res = self._window.create_file_dialog(webview.OPEN_DIALOG, directory=start or "",
+                                             file_types=("Forge projects (*.forge.json;*.json)", "All files (*.*)"))
+        return res[0] if res else ""
+
     def pick_folder(self, start=""):
         import webview
         res = self._window.create_file_dialog(webview.FOLDER_DIALOG, directory=start or "")
