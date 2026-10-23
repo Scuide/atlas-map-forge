@@ -342,6 +342,34 @@ def startboxes_lua(sym, starts):
     return "\n".join(out)
 
 
+def _lua_num(v):
+    v = float(v)
+    return str(int(v)) if v.is_integer() else repr(v)
+
+
+def startboxes_to_lua(boxes):
+    """Inverse of luatable.startboxes(): [{team, name, short, polygons, startpoints}] -> map_startboxes.lua text.
+    Coordinates are written exactly (no rounding), so parsing the result gives back the same boxes."""
+    def pt(p):
+        return "{%s, %s}" % (_lua_num(p[0]), _lua_num(p[1]))
+
+    def poly(q):
+        return "{ " + ", ".join(pt(p) for p in q) + " }"
+
+    out = ["return {"]
+    for b in sorted(boxes, key=lambda b: b["team"]):
+        sps = ", ".join(pt(p) for p in b["startpoints"])
+        polys = ", ".join(poly(q) for q in b["polygons"])
+        out.append(f"""\t[{int(b["team"])}] = {{
+\t\tnameLong = "{b["name"]}",
+\t\tnameShort = "{b["short"]}",
+\t\tstartpoints = {{ {sps} }},
+\t\tboxes = {{ {polys} }},
+\t}},""")
+    out.append("}\n")
+    return "\n".join(out)
+
+
 def west_east_boxes_lua(W, H, team0, team1, depth=1700, margin=500):
     """Two teams with several start points each: West strip vs East strip."""
     f = lambda pts: ", ".join("{%d, %d}" % (x, z) for x, z in pts)
