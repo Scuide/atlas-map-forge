@@ -13,6 +13,8 @@
   "!" badge at the object, a tooltip with the reason on hover and a short toast right after the edit.
 - Three new templates from the template agent: Chicken Mesa (asymmetric co-op defence around a raised mesa),
   Canyon Network and Mountain Spine (watermark codes 23-25).
+- Chicken Mesa: the four starting metal spots now sit on the plateau (fixed, easy to defend); a few rich
+  metal spots outside the mesa are risky to hold. Ramps stay open for ground units.
 - Coastal Front: broad seeded relief on the land, fewer flat areas and a stronger seed effect.
 - Editor, stage A (roadmap 0.5): in the app preview, move, add and delete metal spots, geothermal vents and
   start points. Automatic symmetry (mirror and rotation, including free-for-all) applies to every edit.
