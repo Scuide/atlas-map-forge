@@ -130,20 +130,6 @@ Every template also takes `--seed` and checks the result: which unit classes rea
 which chokes, whether every metal spot is reachable, plus template-specific checks (for example "During an
 eruption the teams are cut apart: yes").
 
-## Is this a Forge map?
-
-Every map carries a hidden watermark in its heightmap (invisible, no effect on gameplay). It survives
-re-packing, renaming, a new texture or mapinfo and light edits of the heightmap:
-
-```
-atlasforge verify "Forge_Iron_Wall_v1.sdz"
-Forge_Iron_Wall_v1.sdz: made with Atlas Map Forge (confidence: certain, pattern score 105.1).
-  tool 0.4.0, template chokepoint, seed 3, built 2026-10-21, build id 2299eb6c
-```
-
-In the app: Settings, "Check a map file". Atlas Map Forge is open source, so someone who studies the code
-can remove or fake the mark on purpose; it reliably tells Forge maps apart from other maps.
-
 ## Procedural maps with all options
 
 ```
