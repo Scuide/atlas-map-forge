@@ -1,1 +1,5 @@
 tools/githooks/* text eol=lf
+packaging/*.py text eol=lf
+packaging/*.spec text eol=lf
+.github/workflows/*.yml text eol=lf
+tools/test_linux_bundle.py text eol=lf
