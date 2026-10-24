@@ -1,0 +1,109 @@
+name: linux-app
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing release to attach the tested archive to (empty = artifact only)"
+        required: false
+        default: ""
+  push:
+    branches: [main, codex/linux-browser]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install build dependencies (no native webview)
+        run: python -m pip install . py7zr pyinstaller pip-licenses
+      - name: Pack the browser edition
+        run: pyinstaller -y packaging/atlasforge-linux.spec
+      - name: Assemble download
+        run: |
+          mkdir -p bundle/AtlasMapForge-linux-x86_64
+          cp dist/AtlasMapForge bundle/AtlasMapForge-linux-x86_64/
+          cp packaging/LINUX-README.txt bundle/AtlasMapForge-linux-x86_64/README.txt
+          cp LICENSE bundle/AtlasMapForge-linux-x86_64/
+          python -m piplicenses --with-license-file --no-license-path --format=plain-vertical > bundle/AtlasMapForge-linux-x86_64/THIRD-PARTY-LICENSES.txt
+          cp atlasforge/assets/InterDisplay-LICENSE.txt bundle/AtlasMapForge-linux-x86_64/
+          git rev-parse HEAD > bundle/AtlasMapForge-linux-x86_64/SOURCE.txt
+          printf '\nhttps://github.com/Scuide/atlas-map-forge/tree/%s\n' "$(git rev-parse HEAD)" >> bundle/AtlasMapForge-linux-x86_64/SOURCE.txt
+          chmod +x bundle/AtlasMapForge-linux-x86_64/AtlasMapForge
+          tar -C bundle -czf AtlasMapForge-linux-x86_64.tar.gz AtlasMapForge-linux-x86_64
+          sha256sum AtlasMapForge-linux-x86_64.tar.gz > AtlasMapForge-linux-x86_64.tar.gz.sha256
+      - uses: actions/upload-artifact@v6
+        with:
+          name: AtlasMapForge-linux-x86_64
+          path: |
+            AtlasMapForge-linux-x86_64.tar.gz
+            AtlasMapForge-linux-x86_64.tar.gz.sha256
+          if-no-files-found: error
+
+  test:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v7
+        with:
+          name: AtlasMapForge-linux-x86_64
+      - name: Verify and extract the actual download
+        run: |
+          sha256sum -c AtlasMapForge-linux-x86_64.tar.gz.sha256
+          mkdir extracted
+          tar -C extracted -xzf AtlasMapForge-linux-x86_64.tar.gz
+      - name: Packed preview and complete map build
+        run: timeout 15m extracted/AtlasMapForge-linux-x86_64/AtlasMapForge --selftest --build
+      - name: Install browser test tools
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Browser launch and graphical preview
+        run: python tools/test_linux_bundle.py extracted/AtlasMapForge-linux-x86_64/AtlasMapForge
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: linux-browser-preview-${{ matrix.os }}
+          path: linux-browser-preview.png
+          if-no-files-found: ignore
+
+  release:
+    if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+    needs: [build, test]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v7
+        with:
+          name: AtlasMapForge-linux-x86_64
+      - name: Attach to an existing release with matching application source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+        run: |
+          git check-ref-format "refs/tags/$TAG"
+          git rev-parse --verify "refs/tags/$TAG^{commit}"
+          # Packaging/docs may change; never label different app code as an old release.
+          git diff --exit-code "refs/tags/$TAG" HEAD -- atlasforge pyproject.toml
+          gh release view "$TAG"
+          gh release upload "$TAG" AtlasMapForge-linux-x86_64.tar.gz AtlasMapForge-linux-x86_64.tar.gz.sha256
