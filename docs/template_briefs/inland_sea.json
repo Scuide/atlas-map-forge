@@ -1,0 +1,19 @@
+{
+  "id": "inland_sea",
+  "title": "Inland Sea",
+  "base": "naval_templates",
+  "mode": "naval",
+  "players": "1v1 to 3v3",
+  "concept": "A continuous land rim surrounds a large inland sea. Opposing ground forces must travel around the rim while fleets can cross the central lake directly.",
+  "difference": "The central water is enclosed by a continuous land ring, reversing the emphasis of open-sea maps where water surrounds the land starts.",
+  "routes": [
+    "A connected land ring gives ground forces a long route around the lake and multiple approaches to the opposing side.",
+    "A separate, broad inland lake connects both naval ports for a faster direct crossing.",
+    "The lake remains separated from the outer ocean so the naval shortcut has a deliberate central focus."
+  ],
+  "economy": "Use mirrored home resources on the ring and distribute expansion metal across the accessible land and central lake.",
+  "visual_review": "pending",
+  "in_game_tested": false,
+  "known_weaknesses": [],
+  "core_wishes": ["Registry and watermark assignment by the core integration owner."]
+}
