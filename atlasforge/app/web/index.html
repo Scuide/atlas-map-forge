@@ -90,6 +90,17 @@
           <button data-tool="mex" title="Add a metal spot: click (1)">Metal +</button>
           <button data-tool="geo" title="Add a geovent: click (2)">Geo +</button>
           <button data-tool="del" title="Delete: click a spot (X)">Delete</button>
+          <button data-tool="brush" title="Brush: drag on the map to raise, lower, flatten or smooth the terrain (B)">Brush</button>
+          <span class="brush-opts hidden" id="ed-brush-opts">
+            <select id="ed-brush" title="Brush tool">
+              <option value="raise">Raise</option>
+              <option value="lower">Lower</option>
+              <option value="flatten">Flatten</option>
+              <option value="smooth">Smooth</option>
+            </select>
+            <label class="small" title="Brush radius in elmos">Radius <input type="number" id="ed-radius" min="8" max="2000" step="8" value="200"></label>
+            <label class="small" title="Brush strength: 0 = no effect, 1 = full">Strength <input type="range" id="ed-strength" min="0" max="1" step="0.05" value="0.5"></label>
+          </span>
           <input type="number" id="ed-metal" min="0.1" max="9" step="0.1" value="2" title="Metal of the selected or the next new spot">
           <label class="switch small" title="Edit all mirror images / rotations together"><input type="checkbox" id="ed-sym" checked><span></span>Symmetry</label>
           <button id="ed-undo" title="Undo (Ctrl+Z)">Undo</button>

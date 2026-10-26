@@ -11,6 +11,8 @@ Edit entries (one per user action, positions in elmos, address the object the us
     {"op": "move_geo" | "add_geo" | "del_geo", ...}        (as for mexes, no metal)
     {"op": "move_start", "from": [x, z], "to": [x, z]}    (the number of players comes from the template)
     {"op": "set_box", "team": k, "poly": i, "points": [[x, z], ...]}   (polygon i of team k's start box, 3+ points)
+    {"op": "brush", "tool": "raise"|"lower"|"flatten"|"smooth", "at": [x, z], "radius": r, "strength": s,
+     "amount": a, "target": h}   (terrain brush from brushes.py; amount for raise/lower, target for flatten only)
 
 Objects are found by position (nearest within TOL elmos), not by index, so edits stay meaningful after the
 settings change. With symmetry on, an edit acts on the whole orbit of the clicked object (mirror image, or the
@@ -24,7 +26,9 @@ from .symmetry import RotSymmetry, match_orbit, orbit, orbit_degenerate
 TOL = 24.0            # elmos: how far from an object a click may be to address it
 MIN_GAP = 40.0        # elmos: closest allowed distance between two metal spots / geovents
 
-OPS = ("move_mex", "add_mex", "del_mex", "set_metal", "move_geo", "add_geo", "del_geo", "move_start", "set_box")
+OPS = ("move_mex", "add_mex", "del_mex", "set_metal", "move_geo", "add_geo", "del_geo", "move_start", "set_box",
+       "brush")
+BRUSHES = ("raise", "lower", "flatten", "smooth")
 
 
 def copy_design(d):
@@ -125,6 +129,8 @@ def _apply_one(d, sym, e, on, fail):
         return fail("unknown edit")
     if op == "set_box":
         return _set_box(d, sym, e, on, fail)
+    if op == "brush":
+        return _brush(d, sym, e, on, fail)
     kind = op.split("_")[1] if op != "set_metal" else "mex"
     verb = op.split("_")[0] if op != "set_metal" else "set"
     if kind == "mex":
@@ -212,6 +218,57 @@ def _apply_one(d, sym, e, on, fail):
                 for j, q in enumerate(team):
                     if tuple(q) == tuple(old):
                         team[j] = new
+    return None
+
+
+def brush_params(e):
+    """Validated (tool, at, radius, strength, amount, target) of a brush edit; ValueError when malformed."""
+    tool = e.get("tool")
+    if tool not in BRUSHES:
+        raise ValueError(f"tool: expected one of {', '.join(BRUSHES)}")
+    at = _pt(e.get("at"), "at")
+    radius = e.get("radius")
+    if not isinstance(radius, (int, float)) or isinstance(radius, bool) or not math.isfinite(radius) or radius <= 0:
+        raise ValueError("radius: expected a number > 0")
+    strength = e.get("strength", 1.0)
+    if not isinstance(strength, (int, float)) or isinstance(strength, bool) or not 0 <= strength <= 1:
+        raise ValueError("strength: expected a number from 0 to 1")
+    amount = e.get("amount", 20.0)
+    if not isinstance(amount, (int, float)) or isinstance(amount, bool) or not math.isfinite(amount):
+        raise ValueError("amount: expected a number")
+    target = e.get("target")
+    if target is not None and (tool != "flatten" or not isinstance(target, (int, float)) or isinstance(target, bool)
+                               or not math.isfinite(target)):
+        raise ValueError("target: a number, for flatten only")
+    return tool, at, float(radius), float(strength), float(amount), None if target is None else float(target)
+
+
+def _brush(d, sym, e, on, fail):
+    """Apply a terrain brush (brushes.py) at a point, mirrored or rotated over its orbit when symmetry is on.
+    The height map is replaced by a new array; the edit list itself is the undo history."""
+    from . import brushes
+
+    tool, at, radius, strength, amount, target = brush_params(e)
+    spots = _targets(sym, at, on)
+    if not all(_inside(sym, s) for s in spots):
+        return fail("outside the map")
+    why = _orbit_ok(sym, at, on)
+    if why:
+        return fail(why)
+    if tool == "flatten" and target is None:                # one height for the whole orbit, the clicked ground's
+        iz, ix = brushes._centre(d.hm, at[0], at[1])
+        target = float(d.hm[iz, ix])
+    hm = d.hm
+    for cx, cz in spots:
+        if tool == "raise":
+            hm = brushes.raise_(hm, cx, cz, radius, strength, amount)
+        elif tool == "lower":
+            hm = brushes.lower(hm, cx, cz, radius, strength, amount)
+        elif tool == "flatten":
+            hm = brushes.flatten(hm, cx, cz, radius, strength, target)
+        else:
+            hm = brushes.smooth(hm, cx, cz, radius, strength)
+    d.hm = hm
     return None
 
 

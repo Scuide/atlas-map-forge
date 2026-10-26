@@ -210,9 +210,11 @@ class Forge:
                 lines = lines + [("ERROR: " if i["level"] == "error" else "WARNING: ") + i["text"] for i in issues]
             else:
                 issues, ok, lines = [], e.base_ok, e.base_lines
+            # a brush changes the terrain: every cached terrain layer goes, also when the last brush was undone
+            brushed = any(isinstance(x, dict) and x.get("op") == "brush" for x in edits + e.edits)
             e.design, e.edits, e.symmetry, e.problems, e.issues = d, list(edits), sym_on, problems, issues
             e.ok, e.lines = ok, lines
-            for key in [k for k in e.layers if k[0].startswith("reach_")]:
+            for key in [k for k in e.layers if brushed or k[0].startswith("reach_")]:
                 del e.layers[key]
         out = self._design_payload(data["id"], e, d.seed, time.time() - t0)
         for k in ("values", "title", "description", "biome", "size", "W", "H", "grid", "height", "features",

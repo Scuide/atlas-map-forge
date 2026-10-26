@@ -9,6 +9,9 @@ const ED = {
   drag: null,           // { kind, ref, x, z } while a spot is being dragged
   hover: null,          // map position under the pointer (add tools)
   pending: null,        // ghosts that stay until the server answered
+  stroke: null,         // { id, last } while a brush stroke is drawn; last = map position of the last dab
+  strokeSeq: 0,
+  terrain: false,       // the terrain layers shown are computed with brush edits
   last: null,           // { tpl, values, seed } the current map was generated with
   seq: 0,
   timer: null,
@@ -67,6 +70,7 @@ async function editorGuard() {
 function editorAfterPreview(m, seed) {
   S.edits = m.edits || [];
   S.redo = [];
+  ED.terrain = S.edits.some(edIsBrush);              // the preview is computed with these edits already
   S.symmetry = m.symmetry !== false;
   $("ed-sym").checked = S.symmetry;
   ED.last = { key: JSON.stringify([m.template, m.values, seed]), tpl: m.template, values: JSON.stringify(m.values), seed };
@@ -81,6 +85,8 @@ function edSend(delay = 80) {
   ED.timer = setTimeout(async () => {
     const seq = ++ED.seq;
     try {
+      const terrain = ED.terrain || S.edits.some(edIsBrush);
+      ED.terrain = S.edits.some(edIsBrush);
       const r = await api("edit", { id: S.map.id, edits: S.edits, symmetry: S.symmetry });
       if (seq !== ED.seq) return;
       // an edit the server refuses is dropped again, with the reason
@@ -102,6 +108,7 @@ function edSend(delay = 80) {
       }
       ED.pending = null;
       S.img.reach = {};
+      if (terrain) await edReloadTerrain();
       if (S.route) await loadRoute(S.route);
       renderReport();
       renderFacts();
@@ -131,13 +138,20 @@ function edShowProblems(m) {
   }
 }
 
-const edUndo = () => { if (S.edits.length) { S.redo.push(S.edits.pop()); edUpdateUi(); edSend(); } };
-const edRedo = () => { if (S.redo.length) { S.edits.push(S.redo.pop()); ED.fresh = false; edUpdateUi(); edSend(); } };
+// a brush stroke is many dabs sharing one stroke id: undo and redo take the whole stroke back at once
+function edMove(from, to) {
+  const top = from.pop();
+  to.push(top);
+  while (top.stroke !== undefined && from.length && from[from.length - 1].stroke === top.stroke) to.push(from.pop());
+}
+const edUndo = () => { if (S.edits.length) { edMove(S.edits, S.redo); edUpdateUi(); edSend(); } };
+const edRedo = () => { if (S.redo.length) { edMove(S.redo, S.edits); ED.fresh = false; edUpdateUi(); edSend(); } };
 
 function edUpdateUi() {
   $("ed-toggle").classList.toggle("on", ED.on);
   $("ed-extra").classList.toggle("hidden", !ED.on);
   for (const b of document.querySelectorAll("#ed-extra [data-tool]")) b.classList.toggle("on", b.dataset.tool === ED.tool);
+  $("ed-brush-opts").classList.toggle("hidden", ED.tool !== "brush");
   $("ed-undo").disabled = !S.edits.length;
   $("ed-redo").disabled = !S.redo.length;
   $("ed-count").textContent = S.edits.length ? `${S.edits.length} edit${S.edits.length > 1 ? "s" : ""}` : "";
@@ -230,6 +244,12 @@ cv.addEventListener("pointerdown", (e) => {
     ED.drag = { kind: hit.kind, x: hit.x, z: hit.z, cur: [hit.x, hit.z], ref: hit.ref };
     cv.setPointerCapture(e.pointerId);
     draw();
+  } else if (ED.tool === "brush") {
+    e.stopImmediatePropagation();
+    cv.setPointerCapture(e.pointerId);
+    ED.stroke = { id: ++ED.strokeSeq, last: null };
+    edDab(mx, mz);
+    draw();
   } else if (ED.tool === "del") {
     e.stopImmediatePropagation();
     if (!hit) return;
@@ -260,17 +280,25 @@ cv.addEventListener("pointermove", (e) => {
 cv.addEventListener("pointermove", (e) => {
   if (!ED.on || !S.map) return;
   const [sx, sy] = edPos(e);
-  if (ED.drag) {
+  if (ED.stroke) {
+    e.stopImmediatePropagation();
+    const [mx, mz] = edClamp(toMap(sx, sy));
+    ED.hover = [mx, mz];
+    const l = ED.stroke.last;
+    if (!l || Math.hypot(mx - l[0], mz - l[1]) >= edBrushRadius() * 0.25) edDab(mx, mz);
+    draw();
+  } else if (ED.drag) {
     e.stopImmediatePropagation();
     ED.drag.cur = edClamp(toMap(sx, sy));
     draw();
-  } else if (ED.tool === "mex" || ED.tool === "geo") {
+  } else if (ED.tool === "mex" || ED.tool === "geo" || ED.tool === "brush") {
     ED.hover = edClamp(toMap(sx, sy));
     draw();
   }
 }, true);
 
 const edEnd = (e) => {
+  if (ED.stroke) { e.stopImmediatePropagation(); ED.stroke = null; draw(); return; }
   if (!ED.drag) return;
   e.stopImmediatePropagation();
   const d = ED.drag;
@@ -364,6 +392,17 @@ function drawEditor() {
   if (ED.drag && !ED.drag.kind.startsWith("box")) ghost(ED.drag.kind, edOrbit(ED.drag.cur[0], ED.drag.cur[1]), true);
   else if (ED.pending) ghost(ED.pending.kind, ED.pending.pts, false);
   else if (ED.hover && (ED.tool === "mex" || ED.tool === "geo")) ghost(ED.tool, edOrbit(ED.hover[0], ED.hover[1]), false);
+  if (ED.tool === "brush" && ED.hover) {               // brush ring: the reach of one dab
+    const [sx, sy] = toScreen(ED.hover[0], ED.hover[1]);
+    ctx.save();
+    ctx.setLineDash([4, 3]);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(sx, sy, edBrushRadius() * S.view.s, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
   if (ED.sel && ED.sel.ref) {
     const [sx, sy] = toScreen(ED.sel.ref.x, ED.sel.ref.z);
     ctx.beginPath();
@@ -400,7 +439,37 @@ document.addEventListener("keydown", (e) => {
   else if (ED.on && k === "1") { ED.tool = "mex"; edUpdateUi(); e.stopImmediatePropagation(); }
   else if (ED.on && k === "2") { ED.tool = "geo"; edUpdateUi(); e.stopImmediatePropagation(); }
   else if (ED.on && k === "x") { ED.tool = "del"; edUpdateUi(); }
+  else if (ED.on && k === "b") { ED.tool = "brush"; edUpdateUi(); }
 }, true);
+
+// ------------------------------------------------------------------ brush (terrain, stage B)
+const edIsBrush = (x) => x.op === "brush";
+const edBrushRadius = () => Math.min(2000, Math.max(8, Number($("ed-radius").value) || 200));
+const edBrushStrength = () => Math.min(1, Math.max(0, Number($("ed-strength").value)));
+
+// one dab of the stroke: a brush edit at a map position, tagged with the stroke it belongs to
+function edDab(x, z) {
+  edCommit({
+    op: "brush", tool: $("ed-brush").value, at: [Math.round(x), Math.round(z)],
+    radius: edBrushRadius(), strength: edBrushStrength(), stroke: ED.stroke.id,
+  });
+  ED.stroke.last = [x, z];
+}
+
+// the terrain layers changed: fetch the new picture, heights and cells (the server dropped its cache)
+async function edReloadTerrain() {
+  const id = S.map.id;
+  const [relief, height, cells, hazard] = await Promise.all([
+    api(layerUrl("relief", S.img.reliefSize)),
+    api(`layer/${id}/height`),
+    api(`layer/${id}/cells`),
+    S.map.has_hazard ? api(`layer/${id}/hazard`) : null,
+  ]);
+  if (!S.map || S.map.id !== id) return;
+  S.img.relief = relief;
+  S.img.hazard = hazard;
+  S.grid = { ...S.grid, height: new Int16Array(height), cells: new Uint8Array(cells) };
+}
 
 // ------------------------------------------------------------------ project files (.forge.json)
 async function edSave() {

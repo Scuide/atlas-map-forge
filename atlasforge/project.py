@@ -27,7 +27,9 @@ _OPS = {
     "del_geo": (("at",), False),
     "move_start": (("from", "to"), False),
     "set_box": ((), False),                              # checked separately below (team, poly, points)
+    "brush": ((), False),                                # checked separately below (tool, at, radius, ...)
 }
+BRUSH_TOOLS = ("raise", "lower", "flatten", "smooth")
 
 
 def _is_num(v) -> bool:
@@ -56,6 +58,22 @@ def validate_edits(edits) -> list:
             if not (isinstance(pts, list) and len(pts) >= 3 and all(
                     isinstance(pt, (list, tuple)) and len(pt) == 2 and all(_is_num(c) for c in pt) for pt in pts)):
                 raise ValueError(f"{p}.points: expected at least 3 [x, z] points")
+            continue
+        if op == "brush":                                  # tool, centre, radius; strength/amount/target optional
+            if e.get("tool") not in BRUSH_TOOLS:
+                raise ValueError(f"{p}.tool: expected one of {', '.join(BRUSH_TOOLS)}")
+            if not (isinstance(e.get("at"), (list, tuple)) and len(e["at"]) == 2
+                    and all(_is_num(c) for c in e["at"])):
+                raise ValueError(f"{p}.at: expected [x, z]")
+            if not (_is_num(e.get("radius")) and e["radius"] > 0):
+                raise ValueError(f"{p}.radius: expected a number > 0")
+            if "strength" in e and not (_is_num(e["strength"]) and 0 <= e["strength"] <= 1):
+                raise ValueError(f"{p}.strength: expected a number from 0 to 1")
+            for f in ("amount", "target"):
+                if f in e and e[f] is not None and not _is_num(e[f]):
+                    raise ValueError(f"{p}.{f}: expected a number")
+            if e.get("target") is not None and e.get("tool") != "flatten":
+                raise ValueError(f"{p}.target: only for flatten")
             continue
         points, needs_metal = _OPS[op]
         for f in points:
