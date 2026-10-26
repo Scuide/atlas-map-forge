@@ -1,0 +1,15 @@
+{
+  "id": "crater_basin",
+  "title": "Crater Basin",
+  "base": "highlands",
+  "mode": "competitive",
+  "players": "1v1 to 4v4",
+  "concept": "A contested crater basin sits inside a broad, traversable rim. Four ramps descend to the basin, and a lower outside circuit supports flanking.",
+  "difference": "Unlike a random crater-shaped skirmish map, the ring route, basin approaches and mirrored economy are intentional parts of the layout.",
+  "routes": ["A continuous low outer circuit allows armies to rotate around the crater.", "Four separated radial ramps connect the traversable rim to the central basin."],
+  "economy": "Use the shared symmetric starting and expansion resources; preserve mirrored metal and geothermal spots on the ring and in contested basin approaches.",
+  "visual_review": "pending",
+  "in_game_tested": false,
+  "known_weaknesses": [],
+  "core_wishes": ["Registry and watermark assignment by the core integration owner."]
+}
