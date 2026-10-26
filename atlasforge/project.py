@@ -29,7 +29,7 @@ _OPS = {
     "set_box": ((), False),                              # checked separately below (team, poly, points)
     "brush": ((), False),                                # checked separately below (tool, at, radius, ...)
 }
-BRUSH_TOOLS = ("raise", "lower", "flatten", "smooth")
+BRUSH_TOOLS = ("raise", "lower", "flatten", "smooth", "ramp")
 
 
 def _is_num(v) -> bool:
@@ -74,6 +74,12 @@ def validate_edits(edits) -> list:
                     raise ValueError(f"{p}.{f}: expected a number")
             if e.get("target") is not None and e.get("tool") != "flatten":
                 raise ValueError(f"{p}.target: only for flatten")
+            if e.get("tool") == "ramp":                    # ramp: the end point B
+                if not (isinstance(e.get("to"), (list, tuple)) and len(e["to"]) == 2
+                        and all(_is_num(c) for c in e["to"])):
+                    raise ValueError(f"{p}.to: expected [x, z] for ramp")
+            elif "to" in e:
+                raise ValueError(f"{p}.to: only for ramp")
             continue
         points, needs_metal = _OPS[op]
         for f in points:
