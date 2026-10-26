@@ -40,7 +40,8 @@ Edit Forge maps by hand, in three stages, always keeping the symmetry and re-run
   their own boxes), with symmetry, live checks (start point inside its box, boxes must not overlap), undo/redo,
   saved in `.forge.json` and written to the built map.
 - Done (B, part 1): terrain brush tool (raise, lower, flatten, smooth) with radius and strength, undo per stroke, saved in .forge.json.
-- Next: B - ramp from A to B, flatten with a fixed target height.
+- Done (B, part 2): ramp tool (A to B, width), mirrored/rotated with symmetry, saved in .forge.json.
+- Next: B - flatten with a fixed target height in the UI.
 - Later: C - painting and objects: paths, concrete, scorch, lava; place or remove trees and rocks; optional
   16-bit PNG heightmap import/export.
 

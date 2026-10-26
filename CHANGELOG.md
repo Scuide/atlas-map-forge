@@ -4,6 +4,7 @@
 
 - New template Island Continents: two broad opposing landmasses with independent ground fronts, a deep fleet channel and amphibious landing routes (watermark code 30).
 - Editor: terrain brush (raise, lower, flatten, smooth) with radius and strength; one undo step per stroke; brushes are saved in .forge.json.
+- Editor: ramp tool (two clicks or drag from A to B, adjustable width) with smooth height change between the two points; follows symmetry, one undo step.
 
 - New template Inland Sea: a continuous land rim around a navigable central lake; ground forces take the long shore route while fleets cross the lake (watermark code 29).
 - New template Peninsula: opposing land tongues with defensible necks, exposed coasts and lateral landing routes (watermark code 28).
