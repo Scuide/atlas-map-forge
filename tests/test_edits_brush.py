@@ -3,7 +3,7 @@ mirrored with the symmetry, undone by dropping the entry, and saved in .forge.js
 import numpy as np
 import pytest
 
-from atlasforge import forge, project
+from atlasforge import SQ, forge, project
 from atlasforge.edits import apply_edits
 from atlasforge.symmetry import orbit
 
@@ -105,5 +105,58 @@ def test_old_project_without_brushes_loads_unchanged():
     dict(op="brush", tool="raise", at=[1.0, 1.0], radius=100.0, target=5.0),
 ])
 def test_malformed_brush_edits_are_rejected(bad):
+    with pytest.raises(ValueError):
+        project.validate_edits([bad])
+
+
+def _ramp(a, b, **kw):
+    e = dict(op="brush", tool="ramp", at=list(a), to=list(b), radius=200.0, strength=1.0)
+    e.update(kw)
+    return e
+
+
+def test_ramp_edit_runs_from_height_of_a_to_height_of_b(arena):
+    a = (arena.sym.W * 0.3, arena.sym.H * 0.4)
+    b = (arena.sym.W * 0.6, arena.sym.H * 0.4)
+    d, problems = apply_edits(arena, [_ramp(a, b)], symmetry=False)
+    assert problems == []
+    ia, ib = _cell(d, *a), _cell(d, *b)
+    assert d.hm[ia] == pytest.approx(arena.hm[ia], abs=SQ)       # w == 1 at A and B: the ground there is kept
+    assert d.hm[ib] == pytest.approx(arena.hm[ib], abs=SQ)
+    assert not np.array_equal(d.hm, arena.hm)                     # the strip between them changed
+
+
+def test_symmetric_ramp_is_mirrored(arena):
+    a = (arena.sym.W * 0.3, arena.sym.H * 0.4)
+    b = (arena.sym.W * 0.4, arena.sym.H * 0.2)          # the two strips do not cross: each end keeps its own ground
+    d, problems = apply_edits(arena, [_ramp(a, b)], symmetry=True)
+    assert problems == []
+    (ax, az), (ax2, az2) = orbit(arena.sym, *a)[:2]
+    (bx, bz), (bx2, bz2) = orbit(arena.sym, *b)[:2]
+    for pa, pb in (((ax, az), (bx, bz)), ((ax2, az2), (bx2, bz2))):
+        assert d.hm[_cell(d, *pa)] == pytest.approx(arena.hm[_cell(d, *pa)], abs=SQ)   # cell grid: within one cell
+        assert d.hm[_cell(d, *pb)] == pytest.approx(arena.hm[_cell(d, *pb)], abs=SQ)
+
+
+def test_ramp_with_same_start_and_end_is_a_problem(arena):
+    d, problems = apply_edits(arena, [_ramp((300.0, 300.0), (300.0, 300.0))], symmetry=False)
+    assert len(problems) == 1 and "two different points" in problems[0]["reason"]
+    assert np.array_equal(d.hm, arena.hm)
+
+
+def test_ramp_roundtrip_through_project_file(arena):
+    edits = [_ramp((300.0, 400.0), (700.0, 250.0), radius=160.0, strength=0.6)]
+    data = project.new_project("arena", {"size": 12}, seed=2, symmetry=True, edits=edits)
+    back = project.loads(project.dumps(data))
+    assert back["edits"] == edits
+    assert project.dumps(back) == project.dumps(data)
+
+
+@pytest.mark.parametrize("bad", [
+    dict(op="brush", tool="ramp", at=[1.0, 1.0], radius=100.0),                  # no end point
+    dict(op="brush", tool="ramp", at=[1.0, 1.0], to="there", radius=100.0),
+    dict(op="brush", tool="raise", at=[1.0, 1.0], to=[5.0, 5.0], radius=100.0),  # to: ramp only
+])
+def test_malformed_ramp_edits_are_rejected(bad):
     with pytest.raises(ValueError):
         project.validate_edits([bad])

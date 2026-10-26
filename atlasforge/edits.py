@@ -13,6 +13,8 @@ Edit entries (one per user action, positions in elmos, address the object the us
     {"op": "set_box", "team": k, "poly": i, "points": [[x, z], ...]}   (polygon i of team k's start box, 3+ points)
     {"op": "brush", "tool": "raise"|"lower"|"flatten"|"smooth", "at": [x, z], "radius": r, "strength": s,
      "amount": a, "target": h}   (terrain brush from brushes.py; amount for raise/lower, target for flatten only)
+    {"op": "brush", "tool": "ramp", "at": [x, z], "to": [x, z], "radius": w, "strength": s}
+     (ramp from A = at to B = to, width w: heights go linearly from the ground at A to the ground at B)
 
 Objects are found by position (nearest within TOL elmos), not by index, so edits stay meaningful after the
 settings change. With symmetry on, an edit acts on the whole orbit of the clicked object (mirror image, or the
@@ -28,7 +30,7 @@ MIN_GAP = 40.0        # elmos: closest allowed distance between two metal spots 
 
 OPS = ("move_mex", "add_mex", "del_mex", "set_metal", "move_geo", "add_geo", "del_geo", "move_start", "set_box",
        "brush")
-BRUSHES = ("raise", "lower", "flatten", "smooth")
+BRUSHES = ("raise", "lower", "flatten", "smooth", "ramp")
 
 
 def copy_design(d):
@@ -222,7 +224,8 @@ def _apply_one(d, sym, e, on, fail):
 
 
 def brush_params(e):
-    """Validated (tool, at, radius, strength, amount, target) of a brush edit; ValueError when malformed."""
+    """Validated (tool, at, radius, strength, amount, target, to) of a brush edit; ValueError when malformed.
+    to is the end point B of a ramp (None for the other tools)."""
     tool = e.get("tool")
     if tool not in BRUSHES:
         raise ValueError(f"tool: expected one of {', '.join(BRUSHES)}")
@@ -240,7 +243,13 @@ def brush_params(e):
     if target is not None and (tool != "flatten" or not isinstance(target, (int, float)) or isinstance(target, bool)
                                or not math.isfinite(target)):
         raise ValueError("target: a number, for flatten only")
-    return tool, at, float(radius), float(strength), float(amount), None if target is None else float(target)
+    to = None
+    if tool == "ramp":
+        to = _pt(e.get("to"), "to")
+    elif e.get("to") is not None:
+        raise ValueError("to: for ramp only")
+    return (tool, at, float(radius), float(strength), float(amount),
+            None if target is None else float(target), to)
 
 
 def _brush(d, sym, e, on, fail):
@@ -248,13 +257,27 @@ def _brush(d, sym, e, on, fail):
     The height map is replaced by a new array; the edit list itself is the undo history."""
     from . import brushes
 
-    tool, at, radius, strength, amount, target = brush_params(e)
+    tool, at, radius, strength, amount, target, to = brush_params(e)
     spots = _targets(sym, at, on)
     if not all(_inside(sym, s) for s in spots):
         return fail("outside the map")
     why = _orbit_ok(sym, at, on)
     if why:
         return fail(why)
+    if tool == "ramp":                                      # A_k -> B_k pairs the same rotation or mirror on both ends
+        ends = _targets(sym, to, on)
+        if not all(_inside(sym, s) for s in ends):
+            return fail("outside the map")
+        why = _orbit_ok(sym, to, on)
+        if why:
+            return fail(why)
+        if tuple(at) == tuple(to):
+            return fail("a ramp needs two different points")
+        hm = d.hm
+        for (ax, az), (bx, bz) in zip(spots, ends):
+            hm = brushes.ramp(hm, ax, az, bx, bz, radius, strength)
+        d.hm = hm
+        return None
     if tool == "flatten" and target is None:                # one height for the whole orbit, the clicked ground's
         iz, ix = brushes._centre(d.hm, at[0], at[1])
         target = float(d.hm[iz, ix])
