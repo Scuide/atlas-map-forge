@@ -39,7 +39,8 @@ Edit Forge maps by hand, in three stages, always keeping the symmetry and re-run
 - Done: A - start boxes on every map: move and resize start boxes in the preview (also for templates with
   their own boxes), with symmetry, live checks (start point inside its box, boxes must not overlap), undo/redo,
   saved in `.forge.json` and written to the built map.
-- Next: B - terrain brushes: raise, lower, flatten, smooth, draw a ramp from A to B.
+- Done (B, part 1): terrain brush tool (raise, lower, flatten, smooth) with radius and strength, undo per stroke, saved in .forge.json.
+- Next: B - ramp from A to B, flatten with a fixed target height.
 - Later: C - painting and objects: paths, concrete, scorch, lava; place or remove trees and rocks; optional
   16-bit PNG heightmap import/export.
 

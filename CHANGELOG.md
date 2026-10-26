@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Editor: terrain brush (raise, lower, flatten, smooth) with radius and strength; one undo step per stroke; brushes are saved in .forge.json.
+
 - New template Inland Sea: a continuous land rim around a navigable central lake; ground forces take the long shore route while fleets cross the lake (watermark code 29).
 - New template Peninsula: opposing land tongues with defensible necks, exposed coasts and lateral landing routes (watermark code 28).
 - New template Fortress Front: mirrored forward positions with three sorties per side and exposed outer expansions (watermark code 27).
