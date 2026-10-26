@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- New template Fortress Front: mirrored forward positions with three sorties per side and exposed outer expansions (watermark code 27).
+
 - New template Crater Basin: a contested crater with four traversable rim ramps, a continuous outer rotation route and mirrored economy (watermark code 26).
 
 - Defaults: Grass, Rocks and Wrecks now default to 0 and Trees to 0.4 (fewer objects, better in-game FPS).
