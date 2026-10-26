@@ -56,8 +56,9 @@ Edit Forge maps by hand, in three stages, always keeping the symmetry and re-run
 - Done: templates Chicken Mesa (asymmetric co-op), Canyon Network and Mountain Spine; first terrain variety
   pass (Coastal Front: fewer flat areas, the seed changes the relief more).
   Chicken Mesa: starting metal on the plateau, risky rich metal outside the mesa.
+- Done: template Crater Basin (contested crater with four rim ramps and a continuous outer route).
 - In progress: more terrain variety in the other existing templates.
-- Next templates: King of the Hill, Fortress Front, Crater Basin, Inland Sea, Island Continents, Peninsula,
+- Next templates: King of the Hill, Fortress Front, Inland Sea, Island Continents, Peninsula,
   Team Battlefront, Chicken Three Fronts, City Grid.
 
 ## 0.6 - twists (map gadgets)

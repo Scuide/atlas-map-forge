@@ -33,7 +33,8 @@ TEMPLATE_CODES = {"procedural": 0, "skirmish": 1, "chokepoint": 2, "river": 3, "
                   "coastal_front": 11, "atoll": 12, "ffa_ring": 13, "asteroid": 14, "highlands": 15,
                   "watershed": 16, "dune_sea": 17, "open_dunes": 18, "twin_plateaus": 19, "lake_district": 20,
                   "river_delta": 21, "fjord_coast": 22,
-                  "chicken_mesa": 23, "canyon_network": 24, "mountain_spine": 25}
+                  "chicken_mesa": 23, "canyon_network": 24, "mountain_spine": 25,
+                  "crater_basin": 26}
 EPOCH = datetime.date(2026, 1, 1)
 PAYLOAD_LEN = 4 + 3 + 1 + 4 + 2 + 4 + 4          # magic, version, template, seed, day, build id, crc32
 PATTERN_ELMOS = 0.04                              # amplitude of the robust layer
