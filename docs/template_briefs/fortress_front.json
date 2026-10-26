@@ -1,0 +1,19 @@
+{
+  "id": "fortress_front",
+  "title": "Fortress Front",
+  "base": "highlands",
+  "mode": "competitive",
+  "players": "1v1 to 4v4",
+  "concept": "Two mirrored forward positions face a shared battlefield. Broken low defensive shoulders offer several sorties, while paired expansion fields sit beyond the home perimeter.",
+  "difference": "This is a two-position front with open exits and exposed outer economy, not four isolated bases enclosed by arena rings.",
+  "routes": [
+    "A direct sortie from each position faces the shared center.",
+    "Two side exits let armies move around the forward shoulder and pressure outer expansions.",
+    "The generated ramp carver preserves tank access between positions and resource pairs."
+  ],
+  "economy": "Opening resources remain protected beside each start. Shared mirrored expansion pairs extend beyond each defensive shoulder and pull fighting away from the home perimeter.",
+  "visual_review": true,
+  "in_game_tested": false,
+  "known_weaknesses": [],
+  "core_wishes": ["Registry and watermark assignment by the core integration owner."]
+}
