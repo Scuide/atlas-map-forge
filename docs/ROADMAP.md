@@ -59,6 +59,7 @@ Edit Forge maps by hand, in three stages, always keeping the symmetry and re-run
   Chicken Mesa: starting metal on the plateau, risky rich metal outside the mesa.
 - Done: template Crater Basin (contested crater with four rim ramps and a continuous outer route).
 - Done: template Fortress Front (mirrored forward positions, sorties and exposed outer expansions).
+- Done: template Island Continents (broad opposing landmasses, deep fleet channel, amphibious landings).
 - Done: template Peninsula (opposing land tongues, defensible necks and lateral landings).
 - In progress: more terrain variety in the other existing templates.
 - Done: template Inland Sea (land rim around a navigable central lake).
