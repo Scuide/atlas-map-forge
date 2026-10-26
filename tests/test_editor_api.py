@@ -145,3 +145,16 @@ def test_edit_set_box_changes_returned_boxes(api):
     got = next(b for b in out["boxes"] if b["team"] == 0)
     assert got["polygons"][0] == [[float(x), float(z)] for x, z in poly]
     assert got["polygons"][1:] == box["polygons"][1:]
+
+
+def test_brush_edit_changes_terrain_layers_and_undo_restores_them(api):
+    call, state, _ = api
+    p = call("preview", {"template": "chokepoint", "values": DUEL, "seed": 3})
+    mid = p["id"]
+    before = state.layer(mid, "height")
+    call("edit", {"id": mid, "edits": [{"op": "brush", "tool": "raise", "at": [p["W"] / 2, p["H"] / 2],
+                                        "radius": 300, "strength": 1, "stroke": 1}], "symmetry": False})
+    raised = state.layer(mid, "height")
+    assert raised != before                                # the cached height layer was dropped and rebuilt
+    call("edit", {"id": mid, "edits": [], "symmetry": False})
+    assert state.layer(mid, "height") == before            # undo: back to the generated terrain
