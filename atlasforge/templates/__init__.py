@@ -1,4 +1,4 @@
-"""Map templates. Each template declares its parameters and turns them into a Design.
+﻿"""Map templates. Each template declares its parameters and turns them into a Design.
 
     from atlasforge.templates import all_templates, get
     for t in all_templates():
@@ -31,6 +31,7 @@ from .chicken_mesa import ChickenMesaTemplate
 from .canyon_network import CanyonNetworkTemplate
 from .crater_basin import CraterBasinTemplate
 from .fortress_front import FortressFrontTemplate
+from .peninsula import Peninsula
 from .mountain_spine import MountainSpineTemplate
 
 _REGISTRY = {t.id: t for t in (Skirmish(), Chokepoint(), RiverCrossing(), Arena(), Volcano(), ChickenRings(),
@@ -39,7 +40,7 @@ _REGISTRY = {t.id: t for t in (Skirmish(), Chokepoint(), RiverCrossing(), Arena(
                                 WatershedTemplate(), DuneSeaTemplate(), OpenDunesTemplate(), TwinPlateausTemplate(),
                                 LakeDistrictTemplate(), RiverDeltaTemplate(), FjordCoastTemplate(),
                                 ChickenMesaTemplate(), CanyonNetworkTemplate(), MountainSpineTemplate(),
-                                CraterBasinTemplate(), FortressFrontTemplate())}
+                                CraterBasinTemplate(), FortressFrontTemplate(), Peninsula())}
 
 
 def all_templates():

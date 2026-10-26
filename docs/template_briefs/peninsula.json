@@ -1,0 +1,19 @@
+{
+  "id": "peninsula",
+  "title": "Peninsula",
+  "base": "naval_templates",
+  "mode": "naval",
+  "players": "1v1 to 3v3",
+  "concept": "Opposing land tongues project into open water, creating defensible necks, long exposed shores and lateral landing options.",
+  "difference": "Unlike straits, the central contest is over broad land heads and their necks, while a continuous open-water route remains around both sides.",
+  "routes": [
+    "Ground forces hold or push through each peninsula neck toward the opposing head.",
+    "Ships retain a deep-water crossing through the central gap and can threaten the exposed sides.",
+    "Amphibious forces can land along the long outer coasts and bypass a defended neck."
+  ],
+  "economy": "Mirrored home resources secure the bases; expansion metal is shared across peninsula heads and the surrounding water.",
+  "visual_review": "pending",
+  "in_game_tested": false,
+  "known_weaknesses": [],
+  "core_wishes": ["Registry and watermark assignment by the core integration owner."]
+}
