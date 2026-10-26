@@ -1,0 +1,19 @@
+{
+  "id": "island_continents",
+  "title": "Island Continents",
+  "base": "naval_templates",
+  "mode": "naval",
+  "players": "1v1 to 3v3",
+  "concept": "Two broad opposing continents give each side room for a substantial land front. A deep channel separates them, so fleets carry units to exposed shores and create new landing fronts.",
+  "difference": "Large, internally connected landmasses are the main battle spaces; the sea provides transport and flanking landings rather than a chain of small expansion islands.",
+  "routes": [
+    "Ground forces move across each broad continent and contest inland approaches.",
+    "A continuous deep channel links both naval ports for fleet crossings.",
+    "The long north and south coasts offer alternate amphibious landing fronts."
+  ],
+  "economy": "Keep home metal on both continents and spread expansion metal across inland ground and the contested channel.",
+  "visual_review": "Reviewed the full-run contact sheet for seeds 1-10: two broad mirrored continents, clear central fleet channel, distinct land fronts and balanced resources.",
+  "in_game_tested": false,
+  "known_weaknesses": [],
+  "core_wishes": ["Registry, gallery entry and watermark assignment by the core integration owner."]
+}

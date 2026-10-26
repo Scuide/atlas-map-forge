@@ -33,6 +33,7 @@ from .crater_basin import CraterBasinTemplate
 from .fortress_front import FortressFrontTemplate
 from .inland_sea import InlandSea
 from .peninsula import Peninsula
+from .island_continents import IslandContinentsTemplate
 from .mountain_spine import MountainSpineTemplate
 
 _REGISTRY = {t.id: t for t in (Skirmish(), Chokepoint(), RiverCrossing(), Arena(), Volcano(), ChickenRings(),
@@ -41,7 +42,8 @@ _REGISTRY = {t.id: t for t in (Skirmish(), Chokepoint(), RiverCrossing(), Arena(
                                 WatershedTemplate(), DuneSeaTemplate(), OpenDunesTemplate(), TwinPlateausTemplate(),
                                 LakeDistrictTemplate(), RiverDeltaTemplate(), FjordCoastTemplate(),
                                 ChickenMesaTemplate(), CanyonNetworkTemplate(), MountainSpineTemplate(),
-                                CraterBasinTemplate(), FortressFrontTemplate(), InlandSea(), Peninsula())}
+                                CraterBasinTemplate(), FortressFrontTemplate(), InlandSea(), Peninsula(),
+                                IslandContinentsTemplate())}
 
 
 def all_templates():
