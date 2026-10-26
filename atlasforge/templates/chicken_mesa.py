@@ -68,7 +68,7 @@ class ChickenMesaTemplate(Template):
 
         ramp_count = int(v["ramps"])
         phase = angle + rng.uniform(-0.22, 0.22)
-        ramp_len = (v["mesa_height"] / math.tan(math.radians(15)))
+        ramp_len = (v["mesa_height"] / math.tan(math.radians(10)))
         ramp_half = v["ramp_width"] / 2
         clear = np.zeros(h.shape, dtype=bool)
         gates = []
@@ -76,8 +76,8 @@ class ChickenMesaTemplate(Template):
         for k, a in enumerate(ramp_angles):
             ux, uz = math.cos(a), math.sin(a)
             p0 = (C + ux * (mesa_r + ramp_len), C + uz * (mesa_r + ramp_len))
-            p1 = (C + ux * (mesa_r - 220), C + uz * (mesa_r - 220))
-            road(h, p0, p1, ramp_half, 100, top, down_deg=30, up_deg=30)
+            p1 = (C + ux * (mesa_r - 500), C + uz * (mesa_r - 500))
+            road(h, p0, p1, ramp_half, 100, top, down_deg=24, up_deg=24)
             along = dx * ux + dz * uz
             across = -dx * uz + dz * ux
             mask = ((along > mesa_r - ramp_len - 300) & (along < mesa_r + ramp_len + 300) &
@@ -85,21 +85,30 @@ class ChickenMesaTemplate(Template):
             clear |= mask
             gates.append((f"Mesa ramp {k + 1}", mask))
 
+        # Reserve the mesa lip for the ramp crossings and keep vegetation and
+        # resource placement away from the defended plateau edge.
+        ramp_corridors = np.logical_or.reduce([
+            np.abs(-dx * math.sin(a) + dz * math.cos(a)) < ramp_half + 220
+            for a in ramp_angles
+        ])
+        clear |= (np.abs(r - mesa_r) < 240 * s) & ~ramp_corridors
+
         players = [(C + 520 * s * math.cos(math.radians(a)),
                     C + 520 * s * math.sin(math.radians(a))) for a in (45, 135, 225, 315)]
-        # Expansion metal sits outside the mesa and away from the ramp corridors.
-        mexes = []
-        for k in range(16):
-            a = 2 * math.pi * k / 16 + angle * 0.37
-            radius = mesa_r + 820 * s
+        # Defenders begin with protected metal on the high ground. The small
+        # number of rich exterior spots rewards risky expansion beyond the ramps.
+        mexes = [dict(x=float(x), z=float(z), metal=2.0, side=0, fixed=True)
+                 for x, z in players]
+        for k in range(4):
+            a = angle + math.pi / 4 + k * math.pi / 2
+            for _ in range(8):
+                if all(abs(math.atan2(math.sin(a - ra), math.cos(a - ra))) >= 0.28
+                       for ra in ramp_angles):
+                    break
+                a += 0.18
+            radius = mesa_r + 1350 * s
             x, z = C + radius * math.cos(a), C + radius * math.sin(a)
-            if any(abs(math.atan2(math.sin(a - ra), math.cos(a - ra))) < 0.20 for ra in ramp_angles):
-                continue
-            mexes.append(dict(x=float(x), z=float(z), metal=2.3, side=0))
-        # Four safe outer deposits preserve options even when a ramp crosses the ring.
-        corner = 760 * s
-        mexes.extend(dict(x=float(x), z=float(z), metal=2.8, side=0) for x, z in
-                         ((corner, corner), (W-corner, corner), (corner, W-corner), (W-corner, W-corner)))
+            mexes.append(dict(x=float(x), z=float(z), metal=6.0, side=0))
         geos = [(C - 0.39 * W, C), (C + 0.39 * W, C)]
         for p in players:
             flatten_disc(h, p[0], p[1], 300, 600)
@@ -120,7 +129,10 @@ class ChickenMesaTemplate(Template):
             biome=dict(BIOMES[v["biome"]]), title=self.title, description=desc,
             startboxes=coop_boxes((C-box, C-box, C+box, C+box),
                                   (0, W-enemy_box, enemy_box, W), players),
-            gates=gates, keep_clear=clear, tree_block=clear,
+            # keep_clear reserves the drivable ramps and lip from resources and
+            # decoration. blocked is for impassable hazards; marking these lanes
+            # blocked would make every ground route fail the movement check.
+            gates=gates, keep_clear=clear, blocked=None, tree_block=clear,
             extra_files=files, side_labels=("the players", "chicken land"),
             start_colors=[(60, 255, 60)] * 4,
         )
