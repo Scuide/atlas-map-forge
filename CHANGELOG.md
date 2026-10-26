@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- New template Inland Sea: a continuous land rim around a navigable central lake; ground forces take the long shore route while fleets cross the lake (watermark code 29).
+
 - New template Fortress Front: mirrored forward positions with three sorties per side and exposed outer expansions (watermark code 27).
 
 - New template Crater Basin: a contested crater with four traversable rim ramps, a continuous outer rotation route and mirrored economy (watermark code 26).
