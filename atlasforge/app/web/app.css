@@ -232,6 +232,11 @@ button:disabled { opacity: .45; cursor: default; filter: none; }
 .modal { position: fixed; inset: 0; background: rgba(0, 0, 0, .55); display: flex; align-items: center; justify-content: center; z-index: 10; }
 .card { width: min(560px, calc(100% - 32px)); max-height: calc(100% - 40px); overflow: auto; background: var(--panel); border: 1px solid var(--line-2); border-radius: 12px; padding: 18px 20px; }
 .card h2 { font-size: 13px; color: var(--text); margin-bottom: 16px; }
+.helpcard { width: min(720px, calc(100% - 32px)); }
+.helptab { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 12px; }
+.helptab td { padding: 5px 8px; border-top: 1px solid var(--line-2); vertical-align: top; color: var(--muted); }
+.helptab td:first-child { color: var(--text); white-space: nowrap; }
+.helptab kbd { font: 11px var(--mono); padding: 1px 5px; border: 1px solid var(--line-2); border-radius: 4px; white-space: nowrap; }
 .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .toast {
   position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); padding: 10px 16px; border-radius: 8px; z-index: 11;

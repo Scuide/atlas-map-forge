@@ -1101,8 +1101,39 @@ $("seed").addEventListener("change", () => schedulePreview(0));
 $("auto").checked = recall("auto", true);
 $("auto").onchange = () => store("auto", $("auto").checked);
 
+// ------------------------------------------------------------------ editor tools: one table for tooltips and the help overlay
+const TOOL_HELP = [
+  { tool: "move", name: "Move", keys: "V", desc: "Drag a spot. Click to select, arrows nudge the selection (Shift: 1 elmo), Delete removes it" },
+  { tool: "mex", name: "Metal +", keys: "1", desc: "Click to add a metal spot" },
+  { tool: "geo", name: "Geo +", keys: "2", desc: "Click to add a geovent" },
+  { tool: "del", name: "Delete", keys: "X", desc: "Click a spot to delete it" },
+  { tool: "brush", name: "Brush", keys: "B", desc: "Drag on the map to raise, lower, flatten, smooth or ramp the terrain, or add and remove trees, rocks and wrecks. R ramp, F flatten, [ ] radius, Shift+[ ] strength, Alt+click picks the flatten target height" },
+  { tool: "stamp", name: "Stamp", keys: "K", desc: "Drag a rectangle to copy its heights, then click where the copy goes. Q turns it clockwise (Shift+Q back), M mirrors it, Esc drops the copy" },
+  { tool: "paint", name: "Paint", keys: "P", desc: "Drag on the map to paint paths, concrete, scorch marks or lava crust, or erase them. Also fills a polygon or a height band" },
+];
+const OTHER_KEYS = [
+  ["E", "Editor on or off"], ["Ctrl+Z / Ctrl+Y", "Undo / redo an edit"], ["Esc", "Cancel, back to Move"],
+  ["F", "Fit the map"], ["+ / -", "Zoom"], ["R", "New random seed"], ["T", "Pick a template"],
+  ["M / S / B / G", "Metal, starts, start boxes, grid on or off"], ["0 - 5", "Where can it go? routes"], ["?", "This help"],
+];
+const toolTip = (h) => `${h.name} (${h.keys}): ${h.desc}`;
+for (const h of TOOL_HELP) for (const b of document.querySelectorAll(`[data-tool="${h.tool}"]`)) b.title = toolTip(h);
+
+function openHelp() {
+  const kbd = (k) => k.split(" / ").map((x) => `<kbd>${x}</kbd>`).join(" / ");
+  $("help-tools").innerHTML = TOOL_HELP.map((h) => `<tr><td>${h.name}</td><td>${kbd(h.keys)}</td><td>${h.desc}</td></tr>`).join("");
+  $("help-keys").innerHTML = OTHER_KEYS.map(([k, d]) => `<tr><td>${kbd(k)}</td><td>${d}</td></tr>`).join("");
+  $("help").classList.remove("hidden");
+}
+const closeHelp = () => $("help").classList.add("hidden");
+$("btn-help").onclick = openHelp;
+$("help-close").onclick = closeHelp;
+$("help").addEventListener("click", (e) => { if (e.target === $("help")) closeHelp(); });
+
 document.addEventListener("keydown", (e) => {
   if (e.target.matches("input, textarea") || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (!$("help").classList.contains("hidden")) { if (e.key === "Escape" || e.key === "?") closeHelp(); return; }
+  if (e.key === "?") { e.preventDefault(); openHelp(); return; }
   if (!$("picker").classList.contains("hidden")) { if (e.key === "Escape") closePicker(); return; }
   if (!$("adv-warn").classList.contains("hidden")) { if (e.key === "Escape") $("adv-warn").classList.add("hidden"); return; }
   if (!$("settings").classList.contains("hidden")) { if (e.key === "Escape") $("settings").classList.add("hidden"); return; }
