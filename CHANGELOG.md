@@ -11,6 +11,7 @@
 - Editor: Noise (roughen, seeded and repeatable) and Terrace (snap heights to steps of a chosen height) brush modes; follow symmetry, one undo step per stroke, saved in .forge.json.
 - Editor: edit list in the right panel (one row per action, a brush stroke is one row): click highlights the area in the preview, the eye switches an edit off and on (saved as enabled=false in .forge.json), the cross deletes it; all list changes are undoable and the checks run again.
 
+- Preview overlays: height contours with adjustable spacing and a slope map (green = all ground units, yellow = bots and spiders only, red = impassable); both refresh after edits.
 - New template Inland Sea: a continuous land rim around a navigable central lake; ground forces take the long shore route while fleets cross the lake (watermark code 29).
 - New template Peninsula: opposing land tongues with defensible necks, exposed coasts and lateral landing routes (watermark code 28).
 - New template Fortress Front: mirrored forward positions with three sorties per side and exposed outer expansions (watermark code 27).
