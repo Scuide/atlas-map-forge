@@ -145,7 +145,8 @@ def _relief_colors(hm, biome, paint, size):
                 return None
             return np.clip(ndimage.zoom(a.astype(np.float32), zoom, order=1)[:size, :size], 0, 1)[..., None]
         for k, c in (("concrete", (168, 166, 160)), ("ice", (200, 218, 234)), ("scorch", (58, 44, 38)),
-                     ("lava", (90, 34, 18)), ("molten", (255, 140, 30))):
+                     ("lava", (90, 34, 18)), ("molten", (255, 140, 30)),
+                     ("path", (150, 126, 96))):
             a = layer(k)
             if a is not None:
                 col = col + (np.array(c, np.float32) - col) * a * (0.85 if k == "scorch" else 1.0)

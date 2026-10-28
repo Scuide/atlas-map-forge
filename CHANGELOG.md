@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fix: after an edit the 2D map and the 3D view kept showing the old terrain, because the browser cached the layer images; layer URLs now carry a design revision. Paint "path" is now drawn in the preview.
 - Fix: Brush and Trees could not be selected and paint/stamp edits did not refresh the preview (a renamed function was still called). The editor now sends an edit before refreshing its UI, so a UI error can no longer block it; a test checks every ed*() call has a definition.
 - Editor: help overlay (? key or ? button) lists every tool and shortcut; the tool tooltips come from the same table.
 - Editor: rectangle selection (drag on empty ground) to pick several metal spots, vents and start points, then move or delete them together; symmetric, one undo step.

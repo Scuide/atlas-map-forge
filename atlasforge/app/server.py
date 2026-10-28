@@ -73,6 +73,7 @@ class Entry:
         self.base_ok, self.base_lines = ok, lines
         self.edits, self.symmetry, self.problems, self.issues = [], True, [], []
         self.layers = {}
+        self.rev = 0                                          # bumped by every edit; clients put it in layer URLs
         self.lock = threading.Lock()
 
 
@@ -171,7 +172,7 @@ class Forge:
         return _json_safe(dict(
             sym=dict(kind="rot" if hasattr(d.sym, "ops") else "mirror", layout=d.sym.layout, n=getattr(d.sym, "n", 2)),
             edits=e.edits, symmetry=e.symmetry, problems=e.problems, issues=e.issues,
-            id=did, ok=ok, lines=lines, seconds=round(seconds, 2),
+            id=did, rev=e.rev, ok=ok, lines=lines, seconds=round(seconds, 2),
             template=tid, values=d.values, seed=seed, title=d.title, description=d.description,
             size=list(d.size), W=W, H=H, grid=[int(d.hm.shape[1]), int(d.hm.shape[0])],
             biome=str(d.values.get("biome") or next((k for k, b in BIOMES.items() if all(d.biome.get(x) == y for x, y in b.items())), "")),
@@ -218,6 +219,7 @@ class Forge:
             brushed = any(isinstance(x, dict) and x.get("op") in ("brush", "stamp", "paint") for x in edits + e.edits)
             e.design, e.edits, e.symmetry, e.problems, e.issues = d, list(edits), sym_on, problems, issues
             e.ok, e.lines = ok, lines
+            e.rev += 1
             for key in [k for k in e.layers if brushed or k[0].startswith(("reach_", "slope", "contours_"))]:
                 del e.layers[key]
         out = self._design_payload(data["id"], e, d.seed, time.time() - t0)
