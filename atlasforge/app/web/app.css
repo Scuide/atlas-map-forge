@@ -372,6 +372,11 @@ button:disabled { opacity: .45; cursor: default; filter: none; }
 #edit-tools .switch { margin: 0 6px; font-size: 12px; color: var(--muted); }
 #edit-tools button:disabled { opacity: .35; cursor: default; }
 .ed-count { color: var(--faint); font-size: 11.5px; padding: 0 6px; }
+.ed-balance { font-size: 11.5px; padding: 0 6px; }
+.ed-bal { padding: 0 6px; }
+.ed-bal.ok { color: #6fd36f; }
+.ed-bal.warn { color: #e8b03a; }
+.ed-bal.bad { color: #ef5a5a; }
 #edit-tools .brush-opts { display: flex; align-items: center; gap: 4px; }
 #edit-tools .brush-opts label { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
 #edit-tools .brush-opts input[type=range] { width: 80px; }

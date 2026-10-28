@@ -754,6 +754,27 @@ def editor_checks(d, symmetry=True):
     return out
 
 
+BALANCE_OK = 0.02     # relative deviation from the average team total: up to this is green
+BALANCE_WARN = 0.10   # up to this is amber, beyond it red
+
+
+def metal_balance(d):
+    """Metal per side (team, or player on free-for-all maps) for the editor's live balance line.
+    -> [{"side", "label", "metal", "dev"}] where dev is the relative deviation from the average (0 = equal)."""
+    rot = isinstance(d.sym, RotSymmetry)
+    n = int(getattr(d.sym, "n", 2)) if rot else 2
+    totals = [0.0] * n
+    for m in d.mexes:
+        if 0 <= m["side"] < n:
+            totals[m["side"]] += m["metal"]
+    avg = sum(totals) / n if n else 0.0
+    out = []
+    for k, t in enumerate(totals):
+        label = f"player {k + 1}" if rot else (d.side_labels[k] if k < len(d.side_labels) else f"side {k + 1}")
+        out.append(dict(side=k, label=label, metal=round(t, 2), dev=round((t - avg) / avg, 4) if avg > 0 else 0.0))
+    return out
+
+
 def _in_poly(p, poly):
     x, z, inside = p[0], p[1], False
     for (x1, z1), (x2, z2) in zip(poly, poly[1:] + poly[:1]):
