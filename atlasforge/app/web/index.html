@@ -102,8 +102,12 @@
               <option value="ramp">Ramp (A to B)</option>
               <option value="trees-add">Trees: add</option>
               <option value="trees-remove">Trees: remove</option>
+              <option value="rocks-add">Rocks: add</option>
+              <option value="rocks-remove">Rocks: remove</option>
+              <option value="wrecks-add">Wrecks: add</option>
+              <option value="wrecks-remove">Wrecks: remove</option>
             </select>
-            <label class="small hidden" id="ed-density-wrap" title="Tree density for Trees: add; 1 = one tree per 40 x 40 elmos. Click on the map; the radius is the circle">Density <input type="number" id="ed-density" min="0" max="1" step="0.1" value="0.5"></label>
+            <label class="small hidden" id="ed-density-wrap" title="Density for the add modes; 1 = one tree per 40 x 40 elmos, one rock per 200 x 200, one wreck per 400 x 400. Click on the map; the radius is the circle">Density <input type="number" id="ed-density" min="0" max="1" step="0.1" value="0.5"></label>
             <label class="small" title="Brush radius in elmos; for Ramp the width of the ramp">Radius <input type="number" id="ed-radius" min="8" max="2000" step="8" value="200"></label>
             <label class="small" title="Brush strength: 0 = no effect, 1 = full">Strength <input type="range" id="ed-strength" min="0" max="1" step="0.05" value="0.5"></label>
             <label class="small hidden" id="ed-target-wrap" title="Flatten target height; empty = the height under the first dab. Alt+click in the map picks it">Target height <input type="number" id="ed-target" step="1" placeholder="auto"></label>

@@ -159,7 +159,7 @@ function edUpdateUi() {
   $("ed-brush-opts").classList.toggle("hidden", ED.tool !== "brush");
   $("ed-paint-opts").classList.toggle("hidden", ED.tool !== "paint");
   $("ed-target-wrap").classList.toggle("hidden", $("ed-brush").value !== "flatten");
-  $("ed-density-wrap").classList.toggle("hidden", $("ed-brush").value !== "trees-add");
+  $("ed-density-wrap").classList.toggle("hidden", !$("ed-brush").value.endsWith("-add"));
   if (ED.tool !== "brush" || !edIsRampTool()) ED.ramp = null;      // a pending ramp start belongs to the ramp tool
   $("ed-undo").disabled = !S.edits.length;
   $("ed-redo").disabled = !S.redo.length;
@@ -269,9 +269,9 @@ cv.addEventListener("pointerdown", (e) => {
     cv.setPointerCapture(e.pointerId);
     ED.paint = { pts: [[mx, mz]] };
     draw();
-  } else if (ED.tool === "brush" && edIsTreeTool()) {  // trees: one click plants or clears the circle
+  } else if (ED.tool === "brush" && edIsFeatureTool()) {  // trees, rocks, wrecks: one click plants or clears the circle
     e.stopImmediatePropagation();
-    edTreeCommit([mx, mz]);
+    edFeatureCommit([mx, mz]);
     draw();
   } else if (ED.tool === "brush") {
     e.stopImmediatePropagation();
@@ -555,13 +555,13 @@ const edPaintStrength = () => Math.min(1, Math.max(0.1, Number($("ed-pstrength")
 const edBrushRadius = () => Math.min(2000, Math.max(8, Number($("ed-radius").value) || 200));
 const edBrushStrength = () => Math.min(1, Math.max(0, Number($("ed-strength").value)));
 const edIsRampTool = () => $("ed-brush").value === "ramp";
-const edIsTreeTool = () => $("ed-brush").value.startsWith("trees-");
+const edIsFeatureTool = () => /^(trees|rocks|wrecks)-/.test($("ed-brush").value);
 const edDensity = () => Math.min(1, Math.max(0, Number($("ed-density").value) || 0));
 
-// one features edit per click: trees added or removed in the circle of the radius (mirrored with the symmetry)
-function edTreeCommit(at) {
-  const mode = $("ed-brush").value === "trees-remove" ? "remove" : "add";
-  edCommit({ op: "features", kind: "trees", mode, at: [Math.round(at[0]), Math.round(at[1])],
+// one features edit per click: trees, rocks or wrecks added or removed in the circle of the radius (mirrored)
+function edFeatureCommit(at) {
+  const [kind, mode] = $("ed-brush").value.split("-");
+  edCommit({ op: "features", kind, mode, at: [Math.round(at[0]), Math.round(at[1])],
              radius: edBrushRadius(), density: edDensity() });
 }
 const edTarget = () => {                             // flatten target height, null = the height under each dab
