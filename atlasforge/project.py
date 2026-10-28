@@ -31,7 +31,7 @@ _OPS = {
     "paint": ((), False),                                # checked separately below (material, points, radius)
     "features": ((), False),                             # checked separately below (kind, mode, at, radius, density)
 }
-BRUSH_TOOLS = ("raise", "lower", "flatten", "smooth", "ramp")
+BRUSH_TOOLS = ("raise", "lower", "flatten", "smooth", "ramp", "noise", "terrace")
 FEATURE_KINDS = ("trees", "rocks", "wrecks")
 FEATURE_MODES = ("add", "remove")
 
@@ -78,6 +78,10 @@ def validate_edits(edits) -> list:
                     raise ValueError(f"{p}.{f}: expected a number")
             if e.get("target") is not None and e.get("tool") != "flatten":
                 raise ValueError(f"{p}.target: only for flatten")
+            if e.get("tool") == "terrace" and not (_is_num(e.get("amount", 20.0)) and e.get("amount", 20.0) > 0):
+                raise ValueError(f"{p}.amount: expected the terrace height above 0")
+            if "seed" in e and not (_is_int(e["seed"]) and e["seed"] >= 0 and e.get("tool") == "noise"):
+                raise ValueError(f"{p}.seed: expected an integer from 0, for noise only")
             if e.get("tool") == "ramp":                    # ramp: the end point B
                 if not (isinstance(e.get("to"), (list, tuple)) and len(e["to"]) == 2
                         and all(_is_num(c) for c in e["to"])):

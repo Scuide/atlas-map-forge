@@ -100,3 +100,25 @@ def ramp(hm, x0, z0, x1, z1, width, strength=1.0):
     w = t * t * (3.0 - 2.0 * t) * float(strength)
     out += w * ((ha + uc * (hb - ha)) - out)
     return out.astype(hm.dtype)
+
+
+def noise_(hm, cx, cz, radius, strength, amount=20.0, seed=0):
+    """Roughen the terrain: hm + amount * strength * w(d) * n, n uniform in [-1, 1] from seed. The pattern is
+    laid out relative to the centre cell, so every mirror image of a stroke gets the same relief. Deterministic:
+    the same seed and centre always give the same array. Returns a new array."""
+    nz, nx = hm.shape[:2]
+    iz, ix = _centre(hm, cx, cz)
+    pattern = np.random.default_rng(int(seed) % (2 ** 32)).uniform(-1.0, 1.0, size=(nz, nx))
+    pattern = np.roll(pattern, (iz, ix), axis=(0, 1))       # pattern[iz, ix] now sits at the centre cell
+    out = hm.astype(np.float64, copy=True)
+    out += float(amount) * float(strength) * _weights(hm, cx, cz, radius) * pattern
+    return out.astype(hm.dtype)
+
+
+def terrace(hm, cx, cz, radius, strength, step=20.0):
+    """Quantise heights to multiples of step (the terrace height): hm + strength * w(d) * (round(hm / step) * step - hm).
+    Returns a new array."""
+    out = hm.astype(np.float64, copy=True)
+    snapped = np.round(out / float(step)) * float(step)
+    out += float(strength) * _weights(hm, cx, cz, radius) * (snapped - out)
+    return out.astype(hm.dtype)

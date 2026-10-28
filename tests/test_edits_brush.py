@@ -160,3 +160,76 @@ def test_ramp_roundtrip_through_project_file(arena):
 def test_malformed_ramp_edits_are_rejected(bad):
     with pytest.raises(ValueError):
         project.validate_edits([bad])
+
+
+def _noise(x, z, **kw):
+    e = dict(op="brush", tool="noise", at=[x, z], radius=600.0, strength=1.0, amount=30.0, seed=7)
+    e.update(kw)
+    return e
+
+
+def test_noise_is_deterministic_and_seed_dependent(arena):
+    x, z = arena.sym.W * 0.3, arena.sym.H * 0.5
+    a, _ = apply_edits(arena, [_noise(x, z)], symmetry=False)
+    b, _ = apply_edits(arena, [_noise(x, z)], symmetry=False)
+    c, _ = apply_edits(arena, [_noise(x, z, seed=8)], symmetry=False)
+    assert np.array_equal(a.hm, b.hm)                        # same edit, same relief
+    assert not np.array_equal(a.hm, c.hm)                    # another seed, another pattern
+    assert not np.array_equal(a.hm, arena.hm)
+
+
+def test_noise_stays_within_amount_at_the_centre(arena):
+    x, z = arena.sym.W * 0.3, arena.sym.H * 0.5
+    d, problems = apply_edits(arena, [_noise(x, z, amount=30.0)], symmetry=False)
+    assert problems == []
+    delta = np.abs(d.hm - arena.hm)
+    assert delta.max() <= 30.0 + 1e-6                        # n in [-1, 1], w in [0, 1]
+    assert delta.max() > 1.0                                 # and it does roughen
+
+
+def test_symmetric_noise_uses_the_same_relief_at_every_mirror_image(arena):
+    x, z = arena.sym.W * 0.3, arena.sym.H * 0.4
+    d, problems = apply_edits(arena, [_noise(x, z, amount=30.0)], symmetry=True)
+    assert problems == []
+    deltas = []
+    for px, pz in orbit(arena.sym, x, z)[:2]:
+        iz, ix = _cell(d, px, pz)
+        deltas.append(d.hm[iz, ix] - arena.hm[iz, ix])
+    assert deltas[0] == pytest.approx(deltas[1], abs=1e-3)   # the centre cell gets the same value on both sides
+
+
+def test_terrace_snaps_the_centre_to_steps(arena):
+    x, z = arena.sym.W * 0.3, arena.sym.H * 0.5
+    step = 24.0
+    d, problems = apply_edits(arena, [_brush(x, z, tool="terrace", amount=step)], symmetry=False)
+    assert problems == []
+    iz, ix = _cell(d, x, z)
+    assert d.hm[iz, ix] == pytest.approx(round(arena.hm[iz, ix] / step) * step, abs=0.5)   # w ~ 1 at the centre
+
+
+def test_symmetric_terrace_steps_both_sides_alike(arena):
+    x, z = arena.sym.W * 0.3, arena.sym.H * 0.4
+    d, problems = apply_edits(arena, [_brush(x, z, tool="terrace", amount=16.0)], symmetry=True)
+    assert problems == []
+    (ax, az), (bx, bz) = orbit(arena.sym, x, z)[:2]
+    ia, ib = _cell(d, ax, az), _cell(d, bx, bz)
+    assert d.hm[ia] == pytest.approx(round(arena.hm[ia] / 16.0) * 16.0, abs=0.5)
+    assert d.hm[ib] == pytest.approx(round(arena.hm[ib] / 16.0) * 16.0, abs=0.5)
+
+
+def test_noise_and_terrace_survive_the_project_file(arena):
+    edits = [_noise(arena.sym.W * 0.3, arena.sym.H * 0.5, stroke=3),
+             _brush(arena.sym.W * 0.6, arena.sym.H * 0.5, tool="terrace", amount=12.0)]
+    assert project.validate_edits(edits) == edits
+
+
+@pytest.mark.parametrize("bad", [
+    dict(op="brush", tool="terrace", at=[1.0, 1.0], radius=100.0, amount=0.0),
+    dict(op="brush", tool="terrace", at=[1.0, 1.0], radius=100.0, amount=-4.0),
+    dict(op="brush", tool="noise", at=[1.0, 1.0], radius=100.0, seed=-1),
+    dict(op="brush", tool="noise", at=[1.0, 1.0], radius=100.0, seed=1.5),
+    dict(op="brush", tool="raise", at=[1.0, 1.0], radius=100.0, seed=3),
+])
+def test_malformed_noise_and_terrace_edits_are_rejected(bad):
+    with pytest.raises(ValueError):
+        project.validate_edits([bad])
