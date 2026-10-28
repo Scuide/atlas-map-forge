@@ -140,6 +140,7 @@ button:disabled { opacity: .45; cursor: default; filter: none; }
 /* ---------------------------------------------------------------- stage */
 .stage { position: relative; background: #08090b; overflow: hidden; min-width: 0; }
 .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+.stage canvas.hidden3d { display: none; }
 .stage canvas.drag { cursor: grabbing; }
 .toolbar {
   position: absolute; top: 12px; left: 12px; right: 12px; display: flex; flex-wrap: wrap; gap: 8px; pointer-events: none;
