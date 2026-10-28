@@ -22,6 +22,7 @@
       Support on Ko-fi
     </button>
     <span class="who" id="who"></span>
+    <button class="ghost" id="btn-help" title="Editor tools and keyboard shortcuts (?)">?</button>
     <button class="ghost" id="btn-settings" title="Settings">Settings</button>
   </div>
 </header>
@@ -99,12 +100,12 @@
         <button id="ed-toggle" title="Edit metal spots, geovents and start points (E)">Edit</button>
         <span class="ed-only hidden" id="ed-extra">
           <span class="ed-lbl">Place</span>
-          <button data-tool="move" class="on" title="Move: drag a spot (V)">Move</button>
-          <button data-tool="mex" title="Add a metal spot: click (1)">Metal +</button>
-          <button data-tool="geo" title="Add a geovent: click (2)">Geo +</button>
-          <button data-tool="del" title="Delete: click a spot (X)">Delete</button>
+          <button data-tool="move" class="on">Move</button>
+          <button data-tool="mex">Metal +</button>
+          <button data-tool="geo">Geo +</button>
+          <button data-tool="del">Delete</button>
           <span class="ed-sep"></span><span class="ed-lbl">Terrain</span>
-          <button data-tool="brush" title="Brush (B): drag on the map to raise, lower, flatten, smooth or ramp the terrain. R ramp, F flatten, [ ] radius, Shift+[ ] strength, Alt+click picks the flatten target height, Esc back to Move">Brush</button>
+          <button data-tool="brush">Brush</button>
           <span class="brush-opts hidden" id="ed-brush-opts">
             <select id="ed-brush" title="Brush tool">
               <option value="raise">Raise</option>
@@ -127,7 +128,7 @@
             <label class="small" title="Brush strength: 0 = no effect, 1 = full">Strength <input type="range" id="ed-strength" min="0" max="1" step="0.05" value="0.5"></label>
             <label class="small hidden" id="ed-target-wrap" title="Flatten target height; empty = the height under the first dab. Alt+click in the map picks it">Target height <input type="number" id="ed-target" step="1" placeholder="auto"></label>
           </span>
-          <button data-tool="stamp" title="Stamp (K): drag a rectangle to copy its heights, then click where the copy goes. Q turns it clockwise (Shift+Q back), M mirrors it, Esc drops the copy">Stamp</button>
+          <button data-tool="stamp">Stamp</button>
           <span class="brush-opts hidden" id="ed-stamp-opts">
             <select id="ed-srot" title="Turn the copy clockwise (Q, Shift+Q back)">
               <option value="0">0°</option>
@@ -140,7 +141,7 @@
             <span class="small" id="ed-sinfo">no copy yet</span>
           </span>
           <span class="ed-sep"></span><span class="ed-lbl">Paint</span>
-          <button data-tool="paint" title="Paint: drag on the map to paint paths, concrete, scorch marks or lava crust (P)">Paint</button>
+          <button data-tool="paint">Paint</button>
           <span class="brush-opts hidden" id="ed-paint-opts">
             <select id="ed-pmat" title="Material">
               <option value="path">Path</option>
@@ -292,6 +293,15 @@
     <h2 id="ed-confirm-title">Discard manual changes?</h2>
     <p>All manual changes will be discarded - continue?</p>
     <div class="actions"><button class="ghost" id="ed-cancel">Cancel</button><button class="forge warn" id="ed-ok">Continue</button></div>
+  </div>
+</div>
+<div class="modal hidden" id="help" role="dialog" aria-modal="true" aria-labelledby="help-title">
+  <div class="card helpcard">
+    <h2 id="help-title">Editor tools and shortcuts</h2>
+    <table class="helptab"><tbody id="help-tools"></tbody></table>
+    <h2>Other keys</h2>
+    <table class="helptab"><tbody id="help-keys"></tbody></table>
+    <div class="actions"><button class="ghost" id="help-close">Close</button></div>
   </div>
 </div>
 <div class="modal hidden" id="done" role="dialog" aria-modal="true" aria-labelledby="done-title">

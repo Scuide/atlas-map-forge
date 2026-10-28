@@ -883,7 +883,7 @@ $("ed-metal").onchange = () => {
 };
 
 document.addEventListener("keydown", (e) => {
-  if (e.target.matches("input, textarea") || !S.map) return;
+  if (e.target.matches("input, textarea") || !S.map || !$("help").classList.contains("hidden")) return;   // the help overlay takes the keys
   if ((e.ctrlKey || e.metaKey) && !e.altKey) {
     const k = e.key.toLowerCase();
     if (k === "z" && !e.shiftKey) { e.preventDefault(); edUndo(); }
