@@ -102,6 +102,17 @@
             <label class="small" title="Brush radius in elmos; for Ramp the width of the ramp">Radius <input type="number" id="ed-radius" min="8" max="2000" step="8" value="200"></label>
             <label class="small" title="Brush strength: 0 = no effect, 1 = full">Strength <input type="range" id="ed-strength" min="0" max="1" step="0.05" value="0.5"></label>
           </span>
+          <button data-tool="paint" title="Paint: drag on the map to paint paths, concrete, scorch marks or lava crust (P)">Paint</button>
+          <span class="brush-opts hidden" id="ed-paint-opts">
+            <select id="ed-pmat" title="Material">
+              <option value="path">Path</option>
+              <option value="concrete">Concrete</option>
+              <option value="scorch">Scorch marks</option>
+              <option value="lava">Lava crust (look only)</option>
+            </select>
+            <label class="small" title="Stroke width: radius in elmos">Radius <input type="number" id="ed-pradius" min="8" max="1000" step="8" value="96"></label>
+            <label class="small" title="Paint strength: 1 = fully covered"><input type="range" id="ed-pstrength" min="0.1" max="1" step="0.05" value="1"></label>
+          </span>
           <input type="number" id="ed-metal" min="0.1" max="9" step="0.1" value="2" title="Metal of the selected or the next new spot">
           <label class="switch small" title="Edit all mirror images / rotations together"><input type="checkbox" id="ed-sym" checked><span></span>Symmetry</label>
           <button id="ed-undo" title="Undo (Ctrl+Z)">Undo</button>

@@ -28,6 +28,7 @@ _OPS = {
     "move_start": (("from", "to"), False),
     "set_box": ((), False),                              # checked separately below (team, poly, points)
     "brush": ((), False),                                # checked separately below (tool, at, radius, ...)
+    "paint": ((), False),                                # checked separately below (material, points, radius)
 }
 BRUSH_TOOLS = ("raise", "lower", "flatten", "smooth", "ramp")
 
@@ -80,6 +81,19 @@ def validate_edits(edits) -> list:
                     raise ValueError(f"{p}.to: expected [x, z] for ramp")
             elif "to" in e:
                 raise ValueError(f"{p}.to: only for ramp")
+            continue
+        if op == "paint":                                  # material, stroke points, radius; strength optional
+            from .edits import PAINT_MATERIALS, PAINT_MAX_POINTS
+            if e.get("material") not in PAINT_MATERIALS:
+                raise ValueError(f"{p}.material: expected one of {', '.join(PAINT_MATERIALS)}")
+            pts = e.get("points")
+            if not (isinstance(pts, list) and 1 <= len(pts) <= PAINT_MAX_POINTS and all(
+                    isinstance(pt, (list, tuple)) and len(pt) == 2 and all(_is_num(c) for c in pt) for pt in pts)):
+                raise ValueError(f"{p}.points: expected 1 to {PAINT_MAX_POINTS} [x, z] points")
+            if not (_is_num(e.get("radius")) and e["radius"] > 0):
+                raise ValueError(f"{p}.radius: expected a number > 0")
+            if "strength" in e and not (_is_num(e["strength"]) and 0 < e["strength"] <= 1):
+                raise ValueError(f"{p}.strength: expected a number above 0 up to 1")
             continue
         points, needs_metal = _OPS[op]
         for f in points:

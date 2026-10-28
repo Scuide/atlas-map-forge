@@ -15,6 +15,8 @@ Edit entries (one per user action, positions in elmos, address the object the us
      "amount": a, "target": h}   (terrain brush from brushes.py; amount for raise/lower, target for flatten only)
     {"op": "brush", "tool": "ramp", "at": [x, z], "to": [x, z], "radius": w, "strength": s}
      (ramp from A = at to B = to, width w: heights go linearly from the ground at A to the ground at B)
+    {"op": "paint", "material": "path"|"concrete"|"scorch"|"lava", "points": [[x, z], ...], "radius": r,
+     "strength": s}   (texture stroke along the polyline, soft edge; only the look changes, lava is cosmetic)
 
 Objects are found by position (nearest within TOL elmos), not by index, so edits stay meaningful after the
 settings change. With symmetry on, an edit acts on the whole orbit of the clicked object (mirror image, or the
@@ -29,7 +31,7 @@ TOL = 24.0            # elmos: how far from an object a click may be to address 
 MIN_GAP = 40.0        # elmos: closest allowed distance between two metal spots / geovents
 
 OPS = ("move_mex", "add_mex", "del_mex", "set_metal", "move_geo", "add_geo", "del_geo", "move_start", "set_box",
-       "brush")
+       "brush", "paint")
 BRUSHES = ("raise", "lower", "flatten", "smooth", "ramp")
 
 
@@ -133,6 +135,8 @@ def _apply_one(d, sym, e, on, fail):
         return _set_box(d, sym, e, on, fail)
     if op == "brush":
         return _brush(d, sym, e, on, fail)
+    if op == "paint":
+        return _paint(d, sym, e, on, fail)
     kind = op.split("_")[1] if op != "set_metal" else "mex"
     verb = op.split("_")[0] if op != "set_metal" else "set"
     if kind == "mex":
@@ -292,6 +296,74 @@ def _brush(d, sym, e, on, fail):
         else:
             hm = brushes.smooth(hm, cx, cz, radius, strength)
     d.hm = hm
+    return None
+
+
+PAINT_MATERIALS = ("path", "concrete", "scorch", "lava")
+PAINT_MAX_POINTS = 400
+
+
+def paint_params(e):
+    """Validated (material, points, radius, strength) of a paint edit; ValueError when malformed."""
+    material = e.get("material")
+    if material not in PAINT_MATERIALS:
+        raise ValueError(f"material: expected one of {', '.join(PAINT_MATERIALS)}")
+    pts = e.get("points")
+    if not isinstance(pts, list) or not 1 <= len(pts) <= PAINT_MAX_POINTS:
+        raise ValueError(f"points: 1 to {PAINT_MAX_POINTS} [x, z] points")
+    radius = e.get("radius")
+    if not isinstance(radius, (int, float)) or isinstance(radius, bool) or not math.isfinite(radius) or radius <= 0:
+        raise ValueError("radius: expected a number > 0")
+    strength = e.get("strength", 1.0)
+    if not isinstance(strength, (int, float)) or isinstance(strength, bool) or not 0 < strength <= 1:
+        raise ValueError("strength: expected a number above 0 up to 1")
+    return material, [_pt(p, "points") for p in pts], float(radius), float(strength)
+
+
+def paint_stroke(shape, points, radius, strength):
+    """Soft 0..1 coverage of a stroke (polyline of points in elmos, round brush) on a heightmap grid of the given shape."""
+    from . import SQ
+    from .noise import smoothstep
+    import numpy as np
+
+    x0 = min(p[0] for p in points) - radius
+    x1 = max(p[0] for p in points) + radius
+    z0 = min(p[1] for p in points) - radius
+    z1 = max(p[1] for p in points) + radius
+    j0, j1 = max(0, int(x0 / SQ)), min(shape[1], int(x1 / SQ) + 2)
+    i0, i1 = max(0, int(z0 / SQ)), min(shape[0], int(z1 / SQ) + 2)
+    cov = np.zeros(shape, np.float32)
+    if j1 <= j0 or i1 <= i0:
+        return cov
+    gx = (np.arange(j0, j1, dtype=np.float32) * SQ)[None, :]
+    gz = (np.arange(i0, i1, dtype=np.float32) * SQ)[:, None]
+    dist = np.full((i1 - i0, j1 - j0), np.inf, np.float32)
+    segs = list(zip(points, points[1:])) or [(points[0], points[0])]
+    for (ax, az), (bx, bz) in segs:
+        vx, vz = bx - ax, bz - az
+        ll = vx * vx + vz * vz
+        t = np.clip(((gx - ax) * vx + (gz - az) * vz) / ll, 0, 1) if ll > 0 else 0.0
+        dist = np.minimum(dist, np.hypot(gx - (ax + t * vx), gz - (az + t * vz)))
+    cov[i0:i1, j0:j1] = (1 - smoothstep(0.55 * radius, radius, dist)) * strength
+    return cov
+
+
+def _paint(d, sym, e, on, fail):
+    """Paint a stroke of ground texture (paths, concrete, scorch marks, lava crust) over the design's paint layers.
+    With symmetry on, the stroke is mirrored (rotated) as a whole. Lava is cosmetic: it does not hurt units."""
+    import numpy as np
+
+    material, pts, radius, strength = paint_params(e)
+    if not all(_inside(sym, p) for p in pts):
+        return fail("outside the map")
+    images = list(zip(*[_targets(sym, p, on) for p in pts]))      # image k of every point = stroke k
+    layers = dict(d.paint or {})                                    # new dict + new array: the original stays untouched
+    cur = layers.get(material)
+    out = np.zeros(d.hm.shape, np.float32) if cur is None else np.array(cur, np.float32)
+    for stroke in images:
+        out = np.maximum(out, paint_stroke(d.hm.shape, list(stroke), radius, strength))
+    layers[material] = out
+    d.paint = layers
     return None
 
 
