@@ -379,3 +379,13 @@ button:disabled { opacity: .45; cursor: default; filter: none; }
 #edit-tools .ed-lbl { color: var(--faint); font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; padding: 0 4px 0 6px; }
 #edit-tools .ed-sep { width: 1px; height: 18px; background: var(--line); margin: 0 6px; }
 #report li.warn { color: #ffd23c; }
+
+/* edit list (right panel) */
+.edit-list { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; font-size: 12px; }
+.edit-list li { display: flex; align-items: center; gap: 4px; padding: 2px 4px; border-radius: 4px; cursor: pointer; }
+.edit-list li:hover { background: rgba(255, 255, 255, .05); }
+.edit-list li.hl { background: rgba(77, 210, 255, .16); }
+.edit-list li.off .ed-lab { opacity: .45; text-decoration: line-through; }
+.edit-list .ed-lab { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.edit-list button { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 0 4px; font-size: 12px; }
+.edit-list button:hover { color: var(--text); }

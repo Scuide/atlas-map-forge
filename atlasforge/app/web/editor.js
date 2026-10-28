@@ -18,6 +18,9 @@ const ED = {
   last: null,           // { tpl, values, seed } the current map was generated with
   seq: 0,
   timer: null,
+  hist: [],             // list operations (delete, on/off) for undo: { before, n }; n = edit count after the operation
+  rhist: [],            // the same for redo: { after, n }; n = edit count before the operation
+  hl: null,             // edit group highlighted in the preview (clicked in the edit list)
   base: {},             // fields of a loaded project file we do not know (kept when saving)
 };
 
@@ -60,7 +63,7 @@ async function editorGuard() {
   if (ED.asking) return false;
   ED.asking = true;
   try {
-    if (await edAsk()) { S.edits = []; S.redo = []; edUpdateUi(); return true; }
+    if (await edAsk()) { S.edits = []; S.redo = []; ED.hist = []; ED.rhist = []; edUpdateUi(); return true; }
     // cancelled: put the old settings back, the map stays untouched
     S.values[ED.last.tpl] = JSON.parse(ED.last.values);
     store("values", S.values);
@@ -72,6 +75,7 @@ async function editorGuard() {
 
 function editorAfterPreview(m, seed) {
   S.edits = m.edits || [];
+  ED.hist = []; ED.rhist = []; ED.hl = null;
   S.redo = [];
   ED.terrain = S.edits.some(edAffectsRelief);              // the preview is computed with these edits already
   S.symmetry = m.symmetry !== false;
@@ -125,6 +129,7 @@ function edSend(delay = 80) {
 function edCommit(edit) {
   S.edits.push(edit);
   S.redo = [];
+  ED.rhist = [];
   ED.fresh = true;
   edUpdateUi();
   edSend();
@@ -147,10 +152,126 @@ function edMove(from, to) {
   to.push(top);
   while (top.stroke !== undefined && from.length && from[from.length - 1].stroke === top.stroke) to.push(from.pop());
 }
-const edUndo = () => { if (S.edits.length) { edMove(S.edits, S.redo); edUpdateUi(); edSend(); } };
-const edRedo = () => { if (S.redo.length) { edMove(S.redo, S.edits); ED.fresh = false; edUpdateUi(); edSend(); } };
+const edClone = (a) => JSON.parse(JSON.stringify(a));
+const edUndo = () => {
+  const h = ED.hist[ED.hist.length - 1];
+  if (h && h.n === S.edits.length) {                                // the last step was a list operation
+    ED.hist.pop();
+    ED.rhist.push({ after: edClone(S.edits), n: h.before.length });
+    S.edits = h.before;
+    edUpdateUi(); edSend();
+    return;
+  }
+  if (S.edits.length) { edMove(S.edits, S.redo); edUpdateUi(); edSend(); }
+};
+const edRedo = () => {
+  const h = ED.rhist[ED.rhist.length - 1];
+  if (h && h.n === S.edits.length) {
+    ED.rhist.pop();
+    ED.hist.push({ before: edClone(S.edits), n: h.after.length });
+    S.edits = h.after;
+    ED.fresh = false; edUpdateUi(); edSend();
+    return;
+  }
+  if (S.redo.length) { edMove(S.redo, S.edits); ED.fresh = false; edUpdateUi(); edSend(); }
+};
+
+// ------------------------------------------------------------------ edit list (side panel)
+const ED_ICON = { move_mex: "◆", add_mex: "◆", del_mex: "◆", set_metal: "◆", move_geo: "▲", add_geo: "▲", del_geo: "▲",
+  move_start: "⚑", set_box: "▭", brush: "⛰", paint: "🖌", features: "🌲" };
+
+function edDescribe(e) {
+  const at = (p) => `(${Math.round(p[0])}, ${Math.round(p[1])})`;
+  switch (e.op) {
+    case "move_mex": return `Move metal spot ${at(e.from)} → ${at(e.to)}`;
+    case "add_mex": return `Add metal spot ${at(e.at)}`;
+    case "del_mex": return `Delete metal spot ${at(e.at)}`;
+    case "set_metal": return `Metal ${e.metal} at ${at(e.at)}`;
+    case "move_geo": return `Move geovent ${at(e.from)} → ${at(e.to)}`;
+    case "add_geo": return `Add geovent ${at(e.at)}`;
+    case "del_geo": return `Delete geovent ${at(e.at)}`;
+    case "move_start": return `Move start point ${at(e.from)} → ${at(e.to)}`;
+    case "set_box": return `Start box, team ${e.team + 1}`;
+    case "brush": return `Terrain: ${e.tool}`;
+    case "paint": return `Paint: ${e.material}`;
+    case "features": return `${e.mode === "add" ? "Add" : "Remove"} ${e.kind || "trees"}`;
+  }
+  return e.op;
+}
+
+// the list shows one row per user action: the dabs of a brush stroke are one row
+function edGroups() {
+  const out = [];
+  S.edits.forEach((e, i) => {
+    const last = out[out.length - 1];
+    if (last && e.stroke !== undefined && last.edits[0].stroke === e.stroke) { last.idx.push(i); last.edits.push(e); }
+    else out.push({ idx: [i], edits: [e] });
+  });
+  return out;
+}
+
+function edListOp(fn) {                                            // a list change: one undo step, clears redo
+  const before = edClone(S.edits);
+  fn();
+  ED.hist.push({ before, n: S.edits.length });
+  ED.rhist = [];
+  S.redo = [];
+  ED.fresh = false;
+  edUpdateUi(); edSend(0);
+}
+
+function edRenderList() {
+  const box = $("edit-list-block");
+  if (!box) return;
+  box.classList.toggle("hidden", !ED.on || !S.edits.length);
+  const ul = $("edit-list");
+  ul.textContent = "";
+  const groups = edGroups();
+  if (ED.hl && !groups.some((g) => g.edits[0] === ED.hl.edits[0])) ED.hl = null;
+  groups.forEach((g, n) => {
+    const e = g.edits[0], on = e.enabled !== false;
+    const li = document.createElement("li");
+    li.className = (on ? "" : "off ") + (ED.hl && ED.hl.edits[0] === e ? "hl" : "");
+    const eye = document.createElement("button");
+    eye.className = "ed-eye";
+    eye.textContent = on ? "👁" : "—";
+    eye.title = on ? "Switch this edit off" : "Switch this edit on";
+    eye.onclick = (ev) => { ev.stopPropagation(); edListOp(() => { for (const x of g.edits) x.enabled = on ? false : true; }); };
+    const label = document.createElement("span");
+    label.className = "ed-lab";
+    const dabs = g.edits.length > 1 ? ` (${g.edits.length} dabs)` : "";
+    label.textContent = `${n + 1}. ${ED_ICON[e.op] || "•"} ${edDescribe(e)}${dabs}`;
+    li.onclick = () => { ED.hl = ED.hl && ED.hl.edits[0] === e ? null : g; edRenderList(); draw(); };
+    const del = document.createElement("button");
+    del.className = "ed-del";
+    del.textContent = "✕";
+    del.title = "Delete this edit";
+    del.onclick = (ev) => { ev.stopPropagation(); edListOp(() => { S.edits = S.edits.filter((x) => !g.edits.includes(x)); }); };
+    li.append(eye, label, del);
+    ul.appendChild(li);
+  });
+}
+
+function edDrawHighlight() {
+  if (!ED.hl) return;
+  ctx.save();
+  ctx.strokeStyle = "#4dd2ff"; ctx.fillStyle = "rgba(77,210,255,.18)"; ctx.lineWidth = 3;
+  const ring = (p, r) => {
+    const [sx, sy] = toScreen(p[0], p[1]);
+    const rr = r ? Math.abs(toScreen(p[0] + r, p[1])[0] - sx) : 16;
+    ctx.beginPath(); ctx.arc(sx, sy, Math.max(rr, 10), 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  };
+  for (const e of ED.hl.edits) {
+    if (e.op === "set_box") { ctx.beginPath(); (e.points || []).forEach((p, i) => { const [sx, sy] = toScreen(p[0], p[1]); i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy); }); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    else if (e.op === "paint") for (const p of e.points || []) ring(p, e.radius);
+    else if (e.op === "brush" || e.op === "features") { ring(e.at, e.radius); if (e.to) ring(e.to, e.radius); }
+    else { if (e.from) ring(e.from); ring(e.to || e.at); }
+  }
+  ctx.restore();
+}
 
 function edUpdateUi() {
+  edRenderList();
   $("ed-toggle").classList.toggle("on", ED.on);
   $("ed-extra").classList.toggle("hidden", !ED.on);
   const treeMode = ED.tool === "brush" && edIsTreeTool();
@@ -376,6 +497,7 @@ cv.addEventListener("pointerleave", () => { ED.hover = null; if (ED.on) draw(); 
 // ------------------------------------------------------------------ drawing
 function drawEditor() {
   if (!S.map) return;
+  edDrawHighlight();
   for (const i of S.map.issues || []) {                            // live checks: red = error, yellow = warning
     const [sx, sy] = toScreen(i.x, i.z);
     ctx.beginPath();
@@ -660,6 +782,7 @@ function applyProject(r) {
   S.values[p.template] = Object.assign({}, S.values[p.template] || {}, p.values || {});
   S.seeds[p.template] = p.seed;
   S.edits = p.edits || [];
+  ED.hist = []; ED.rhist = []; ED.hl = null;
   S.symmetry = p.symmetry !== false;
   ED.last = null;                                    // loading replaces the map: nothing to confirm
   selectTemplate(p.template);

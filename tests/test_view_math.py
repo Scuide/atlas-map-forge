@@ -18,3 +18,11 @@ def test_view_math_js():
 def test_view_js_is_loaded_before_app():
     html = (ROOT / "atlasforge" / "app" / "web" / "index.html").read_text(encoding="utf-8")
     assert html.index("view.js") < html.index("app.js")
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
+def test_edit_list_js():
+    """Edit list: strokes are one row, on/off and delete are undo and redo steps."""
+    r = subprocess.run(["node", str(ROOT / "tests" / "edit_list.test.js")], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    assert "ok" in r.stdout

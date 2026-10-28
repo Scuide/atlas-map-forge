@@ -25,6 +25,8 @@ Edit entries (one per user action, positions in elmos, address the object the us
      "density": d}   (features in a disc: remove takes out the features of that kind in it, add places them on
      dry, flat ground; rocks add their models to the archive when the map has none)
 
+Any edit may carry "enabled": false; it stays in the list (and the project file) but is not applied.
+
 Objects are found by position (nearest within TOL elmos), not by index, so edits stay meaningful after the
 settings change. With symmetry on, an edit acts on the whole orbit of the clicked object (mirror image, or the
 N rotations of a free-for-all map). Edits that cannot be applied are returned as problems, never raised.
@@ -145,6 +147,8 @@ def apply_edits(design, edits, symmetry=True):
         problems.append(dict(index=i, edit=e, reason=why))
 
     for i, e in enumerate(edits or []):
+        if isinstance(e, dict) and e.get("enabled", True) is False:
+            continue                                       # switched off in the edit list
         try:
             _apply_one(d, sym, e, symmetry, lambda why, i=i, e=e: fail(i, e, why))
         except ValueError as ex:

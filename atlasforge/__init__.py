@@ -3,7 +3,7 @@
 Builds complete, ready-to-play .sdz map archives: heightmap, texture (SMT tiles), minimap,
 metal spots, start boxes, features and optional map gadgets (lava cliffs, lava tides, volcano).
 """
-__version__ = "0.4.32"
+__version__ = "0.4.33"
 
 SQ = 8              # elmos per heightmap square
 TEX_PER_SQ = 8      # texels per heightmap square

@@ -55,6 +55,8 @@ def validate_edits(edits) -> list:
         op = e.get("op")
         if op not in _OPS:
             raise ValueError(f"{p}.op: unknown op {op!r}")
+        if "enabled" in e and not isinstance(e["enabled"], bool):
+            raise ValueError(f"{p}.enabled: expected true or false")
         if op == "set_box":                                # team, poly and a polygon of 3+ points
             if not (_is_int(e.get("team")) and _is_int(e.get("poly"))):
                 raise ValueError(f"{p}.team: expected integers team and poly")
