@@ -100,6 +100,8 @@
               <option value="flatten">Flatten</option>
               <option value="smooth">Smooth</option>
               <option value="ramp">Ramp (A to B)</option>
+              <option value="noise">Noise (roughen)</option>
+              <option value="terrace">Terrace (steps)</option>
               <option value="trees-add">Trees: add</option>
               <option value="trees-remove">Trees: remove</option>
               <option value="rocks-add">Rocks: add</option>
@@ -107,6 +109,7 @@
               <option value="wrecks-add">Wrecks: add</option>
               <option value="wrecks-remove">Wrecks: remove</option>
             </select>
+            <label class="small hidden" id="ed-step-wrap" title="Terrace height in elmos: heights snap to multiples of it">Step <input type="number" id="ed-step" min="1" step="1" value="20"></label>
             <label class="small hidden" id="ed-density-wrap" title="Density for the add modes; 1 = one tree per 40 x 40 elmos, one rock per 200 x 200, one wreck per 400 x 400. Click on the map; the radius is the circle">Density <input type="number" id="ed-density" min="0" max="1" step="0.1" value="0.5"></label>
             <label class="small" title="Brush radius in elmos; for Ramp the width of the ramp">Radius <input type="number" id="ed-radius" min="8" max="2000" step="8" value="200"></label>
             <label class="small" title="Brush strength: 0 = no effect, 1 = full">Strength <input type="range" id="ed-strength" min="0" max="1" step="0.05" value="0.5"></label>

@@ -160,6 +160,7 @@ function edUpdateUi() {
   $("ed-paint-opts").classList.toggle("hidden", ED.tool !== "paint");
   $("ed-target-wrap").classList.toggle("hidden", $("ed-brush").value !== "flatten");
   $("ed-density-wrap").classList.toggle("hidden", !$("ed-brush").value.endsWith("-add"));
+  $("ed-step-wrap").classList.toggle("hidden", $("ed-brush").value !== "terrace");
   if (ED.tool !== "brush" || !edIsRampTool()) ED.ramp = null;      // a pending ramp start belongs to the ramp tool
   $("ed-undo").disabled = !S.edits.length;
   $("ed-redo").disabled = !S.redo.length;
@@ -555,6 +556,7 @@ const edPaintStrength = () => Math.min(1, Math.max(0.1, Number($("ed-pstrength")
 const edBrushRadius = () => Math.min(2000, Math.max(8, Number($("ed-radius").value) || 200));
 const edBrushStrength = () => Math.min(1, Math.max(0, Number($("ed-strength").value)));
 const edIsRampTool = () => $("ed-brush").value === "ramp";
+const edStep = () => Math.max(1, Math.round(Number($("ed-step").value) || 20));
 const edIsFeatureTool = () => /^(trees|rocks|wrecks)-/.test($("ed-brush").value);
 const edDensity = () => Math.min(1, Math.max(0, Number($("ed-density").value) || 0));
 
@@ -604,10 +606,12 @@ function edRampCommit(a, b) {
 // one dab of the stroke: a brush edit at a map position, tagged with the stroke it belongs to
 function edDab(x, z) {
   const tool = $("ed-brush").value, target = tool === "flatten" ? edTarget() : null;
+  // noise: the stroke id seeds the pattern, so every dab of one stroke shares it and a reload replays it exactly
+  const extra = tool === "noise" ? { seed: ED.stroke.id } : tool === "terrace" ? { amount: edStep() } : {};
   edCommit({
     op: "brush", tool, at: [Math.round(x), Math.round(z)],
     radius: edBrushRadius(), strength: edBrushStrength(), stroke: ED.stroke.id,
-    ...(target === null ? {} : { target }),
+    ...(target === null ? {} : { target }), ...extra,
   });
   ED.stroke.last = [x, z];
 }

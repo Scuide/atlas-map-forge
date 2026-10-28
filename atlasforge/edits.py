@@ -15,6 +15,10 @@ Edit entries (one per user action, positions in elmos, address the object the us
      "amount": a, "target": h}   (terrain brush from brushes.py; amount for raise/lower, target for flatten only)
     {"op": "brush", "tool": "ramp", "at": [x, z], "to": [x, z], "radius": w, "strength": s}
      (ramp from A = at to B = to, width w: heights go linearly from the ground at A to the ground at B)
+    {"op": "brush", "tool": "noise", "at": [x, z], "radius": r, "strength": s, "amount": a, "seed": k}
+     (roughen: random heights of +-amount from seed k, same pattern at every mirror image)
+    {"op": "brush", "tool": "terrace", "at": [x, z], "radius": r, "strength": s, "amount": h}
+     (snap heights to steps of h elmos, amount is the terrace height and must be above 0)
     {"op": "paint", "material": "path"|"concrete"|"scorch"|"lava", "points": [[x, z], ...], "radius": r,
      "strength": s}   (texture stroke along the polyline, soft edge; only the look changes, lava is cosmetic)
     {"op": "features", "kind": "trees"|"rocks"|"wrecks", "mode": "add"|"remove", "at": [x, z], "radius": r,
@@ -40,7 +44,7 @@ MIN_GAP = 40.0        # elmos: closest allowed distance between two metal spots 
 
 OPS = ("move_mex", "add_mex", "del_mex", "set_metal", "move_geo", "add_geo", "del_geo", "move_start", "set_box",
        "brush", "paint", "features")
-BRUSHES = ("raise", "lower", "flatten", "smooth", "ramp")
+BRUSHES = ("raise", "lower", "flatten", "smooth", "ramp", "noise", "terrace")
 FEATURE_KINDS = ("trees", "rocks", "wrecks")
 FEATURE_MODES = ("add", "remove")
 TREE_GAP = 40.0       # elmos: closest allowed distance between two added trees
@@ -251,8 +255,8 @@ def _apply_one(d, sym, e, on, fail):
 
 
 def brush_params(e):
-    """Validated (tool, at, radius, strength, amount, target, to) of a brush edit; ValueError when malformed.
-    to is the end point B of a ramp (None for the other tools)."""
+    """Validated (tool, at, radius, strength, amount, target, to, seed) of a brush edit; ValueError when malformed.
+    to is the end point B of a ramp, seed the pattern of noise (0 when absent); None for the other tools."""
     tool = e.get("tool")
     if tool not in BRUSHES:
         raise ValueError(f"tool: expected one of {', '.join(BRUSHES)}")
@@ -267,6 +271,13 @@ def brush_params(e):
     if not isinstance(amount, (int, float)) or isinstance(amount, bool) or not math.isfinite(amount):
         raise ValueError("amount: expected a number")
     target = e.get("target")
+    if tool == "terrace" and amount <= 0:
+        raise ValueError("amount: the terrace height, above 0")
+    seed = e.get("seed", 0)
+    if not isinstance(seed, int) or isinstance(seed, bool) or seed < 0:
+        raise ValueError("seed: expected an integer from 0")
+    if "seed" in e and tool != "noise":
+        raise ValueError("seed: for noise only")
     if target is not None and (tool != "flatten" or not isinstance(target, (int, float)) or isinstance(target, bool)
                                or not math.isfinite(target)):
         raise ValueError("target: a number, for flatten only")
@@ -276,7 +287,7 @@ def brush_params(e):
     elif e.get("to") is not None:
         raise ValueError("to: for ramp only")
     return (tool, at, float(radius), float(strength), float(amount),
-            None if target is None else float(target), to)
+            None if target is None else float(target), to, seed)
 
 
 def _brush(d, sym, e, on, fail):
@@ -284,7 +295,7 @@ def _brush(d, sym, e, on, fail):
     The height map is replaced by a new array; the edit list itself is the undo history."""
     from . import brushes
 
-    tool, at, radius, strength, amount, target, to = brush_params(e)
+    tool, at, radius, strength, amount, target, to, seed = brush_params(e)
     spots = _targets(sym, at, on)
     if not all(_inside(sym, s) for s in spots):
         return fail("outside the map")
@@ -316,6 +327,10 @@ def _brush(d, sym, e, on, fail):
             hm = brushes.lower(hm, cx, cz, radius, strength, amount)
         elif tool == "flatten":
             hm = brushes.flatten(hm, cx, cz, radius, strength, target)
+        elif tool == "noise":
+            hm = brushes.noise_(hm, cx, cz, radius, strength, amount, seed)
+        elif tool == "terrace":
+            hm = brushes.terrace(hm, cx, cz, radius, strength, amount)
         else:
             hm = brushes.smooth(hm, cx, cz, radius, strength)
     d.hm = hm
