@@ -12,6 +12,8 @@ from .terrain import move_slope
 
 CLASSES = ("tanks", "bots", "spiders", "amphibians", "hovers")
 SHIP_DEPTH = 15.0
+TANK_SLOPE = 18        # movedef maxSlope of tanks and hovers (see move_slope)
+BOT_SLOPE = 36         # movedef maxSlope of bots and amphibians
 PROFILES = ("land", "naval")
 
 
@@ -19,13 +21,34 @@ def unit_masks(hm):
     """Bool grids: where each movement class can stand and drive."""
     sl = move_slope(hm)
     return {
-        "tanks": (sl < 18) & (hm > -22),
-        "bots": (sl < 36) & (hm > -16),
+        "tanks": (sl < TANK_SLOPE) & (hm > -22),
+        "bots": (sl < BOT_SLOPE) & (hm > -16),
         "spiders": hm > -22,
-        "amphibians": sl < 36,
-        "hovers": (sl < 18) | (hm < 0),
+        "amphibians": sl < BOT_SLOPE,
+        "hovers": (sl < TANK_SLOPE) | (hm < 0),
         "ships": hm < -SHIP_DEPTH,
     }
+
+
+def slope_classes(hm):
+    """Slope overlay: 0 = every ground unit may pass (green), 1 = only bots and spiders (yellow),
+    2 = nothing passes (red). Same slope limits as unit_masks; water is not considered."""
+    sl = move_slope(hm)
+    return np.where(sl < TANK_SLOPE, 0, np.where(sl < BOT_SLOPE, 1, 2)).astype(np.uint8)
+
+
+def contour_mask(hm, step):
+    """Cells on a height contour every `step` elmos: a cell whose right or lower neighbour lies in another
+    height band (floor(hm / step)) is marked, on both sides of the boundary."""
+    band = np.floor(hm / step).astype(np.int32)
+    edge = np.zeros(hm.shape, bool)
+    dx = band[:, 1:] != band[:, :-1]
+    edge[:, 1:] |= dx
+    edge[:, :-1] |= dx
+    dz = band[1:, :] != band[:-1, :]
+    edge[1:, :] |= dz
+    edge[:-1, :] |= dz
+    return edge
 
 
 def cell(p):

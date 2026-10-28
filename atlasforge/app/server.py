@@ -5,7 +5,7 @@ the session token that is written into the page, so other web pages cannot use t
 
   GET  /api/state                       version, settings, Zero-K folders, templates
   POST /api/preview  {template, values, seed}  -> design id, check report, overlay data
-  GET  /api/layer/<id>/<name>?size=N    relief (JPEG), hazard, gates, reach_<class> (PNG), cells, height (raw)
+  GET  /api/layer/<id>/<name>?size=N    relief (JPEG), hazard, gates, reach_<class>, slope, contours_<step> (PNG), cells, height (raw)
   GET  /api/versions?title=...          map versions that already exist
   POST /api/edit     {id, edits, symmetry}  -> moved/added/deleted spots, check report, problems
   POST /api/build    {id, title, version, install}  -> job id
@@ -216,7 +216,7 @@ class Forge:
             brushed = any(isinstance(x, dict) and x.get("op") in ("brush", "paint") for x in edits + e.edits)
             e.design, e.edits, e.symmetry, e.problems, e.issues = d, list(edits), sym_on, problems, issues
             e.ok, e.lines = ok, lines
-            for key in [k for k in e.layers if brushed or k[0].startswith("reach_")]:
+            for key in [k for k in e.layers if brushed or k[0].startswith(("reach_", "slope", "contours_"))]:
                 del e.layers[key]
         out = self._design_payload(data["id"], e, d.seed, time.time() - t0)
         feats = out.get("features")
@@ -292,7 +292,7 @@ class Forge:
 
     def _make_layer(self, e, name, size):
         from .. import forge
-        from ..checks import unit_masks
+        from ..checks import contour_mask, slope_classes, unit_masks
         d = e.design
         n = d.hm.shape
         if name == "relief":
@@ -332,6 +332,21 @@ class Forge:
                 edge = gm & ~ndimage.binary_erosion(gm, iterations=2)
                 rgba[gm] = (255, 214, 64, 22)
                 rgba[edge] = (255, 214, 64, 150)
+            return "image/png", _png(rgba)
+        if name == "slope":
+            cls = slope_classes(d.hm)
+            rgba[cls == 0] = (60, 220, 90, 90)
+            rgba[cls == 1] = (255, 210, 50, 140)
+            rgba[cls == 2] = (230, 40, 40, 170)
+            return "image/png", _png(rgba)
+        if name.startswith("contours_"):
+            try:
+                step = int(name[9:])
+            except ValueError:
+                raise KeyError(name)
+            if not 8 <= step <= 512:
+                raise KeyError(name)
+            rgba[contour_mask(d.hm, step)] = (255, 255, 255, 120)
             return "image/png", _png(rgba)
         if name.startswith("reach_"):
             cls = name[6:]

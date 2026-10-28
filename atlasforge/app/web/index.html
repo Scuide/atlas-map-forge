@@ -83,6 +83,14 @@
         <button data-route="hovers">Hovers</button>
         <button data-route="ships" class="hidden" id="route-ships">Ships</button>
       </div>
+      <div class="tgroup" id="overlays">
+        <span class="tlabel">Overlays</span>
+        <button data-layer="contours" title="Height contour lines every N elmos">Contours</button>
+        <select id="contour-step" title="Distance between contour lines, in elmos">
+          <option value="16">16</option><option value="32">32</option><option value="64">64</option><option value="128">128</option><option value="256">256</option>
+        </select>
+        <button data-layer="slope" title="Slope: green all ground units, yellow only bots and spiders, red nothing">Slope</button>
+      </div>
       <div class="tgroup" id="edit-tools">
         <button id="ed-toggle" title="Edit metal spots, geovents and start points (E)">Edit</button>
         <span class="ed-only hidden" id="ed-extra">
