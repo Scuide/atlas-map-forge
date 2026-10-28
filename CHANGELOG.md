@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fix: Brush and Trees could not be selected and paint/stamp edits did not refresh the preview (a renamed function was still called). The editor now sends an edit before refreshing its UI, so a UI error can no longer block it; a test checks every ed*() call has a definition.
 - Editor: help overlay (? key or ? button) lists every tool and shortcut; the tool tooltips come from the same table.
 - Editor: rectangle selection (drag on empty ground) to pick several metal spots, vents and start points, then move or delete them together; symmetric, one undo step.
 - Editor: stamp tool: drag a rectangle to copy terrain, click to paste; turn, mirror and blend the stamp; follows symmetry, one undo step, saved in .forge.json.

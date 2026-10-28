@@ -136,13 +136,18 @@ function edSend(delay = 80) {
   }, delay);
 }
 
+// a failing UI refresh must never stop the edit from reaching the server
+function edSafeUi() {
+  try { edUpdateUi(); } catch (err) { console.error(err); if (typeof toast === "function") toast("Editor UI error: " + err.message); }
+}
+
 function edCommit(edit) {
   S.edits.push(edit);
   S.redo = [];
   ED.rhist = [];
   ED.fresh = true;
-  edUpdateUi();
   edSend();
+  edSafeUi();
 }
 
 function edShowProblems(m) {
@@ -171,10 +176,10 @@ const edUndo = () => {
     ED.hist.pop();
     ED.rhist.push({ after: edClone(S.edits), n: h.before.length });
     S.edits = h.before;
-    edUpdateUi(); edSend();
+    edSend(); edSafeUi();
     return;
   }
-  if (S.edits.length) { edMove(S.edits, S.redo); edUpdateUi(); edSend(); }
+  if (S.edits.length) { edMove(S.edits, S.redo); edSend(); edSafeUi(); }
 };
 const edRedo = () => {
   const h = ED.rhist[ED.rhist.length - 1];
@@ -182,10 +187,10 @@ const edRedo = () => {
     ED.rhist.pop();
     ED.hist.push({ before: edClone(S.edits), n: h.after.length });
     S.edits = h.after;
-    ED.fresh = false; edUpdateUi(); edSend();
+    ED.fresh = false; edSend(); edSafeUi();
     return;
   }
-  if (S.redo.length) { edMove(S.redo, S.edits); ED.fresh = false; edUpdateUi(); edSend(); }
+  if (S.redo.length) { edMove(S.redo, S.edits); ED.fresh = false; edSend(); edSafeUi(); }
 };
 
 // ------------------------------------------------------------------ edit list (side panel)
@@ -294,7 +299,7 @@ function edUpdateUi() {
   edRenderList();
   $("ed-toggle").classList.toggle("on", ED.on);
   $("ed-extra").classList.toggle("hidden", !ED.on);
-  const treeMode = ED.tool === "brush" && edIsTreeTool();
+  const treeMode = ED.tool === "brush" && edIsFeatureTool();
   for (const b of document.querySelectorAll("#ed-extra [data-tool]")) b.classList.toggle("on", b.dataset.tool === ED.tool && !(treeMode && b.dataset.tool === "brush"));
   $("ed-trees").classList.toggle("on", treeMode);
   $("ed-brush-opts").classList.toggle("hidden", ED.tool !== "brush");
@@ -452,8 +457,8 @@ function edCommitMany(list) {
   S.redo = [];
   ED.rhist = [];
   ED.fresh = true;
-  edUpdateUi();
   edSend();
+  edSafeUi();
 }
 
 const edInRect = (a, b, s) => s.x >= Math.min(a[0], b[0]) && s.x <= Math.max(a[0], b[0]) && s.z >= Math.min(a[1], b[1]) && s.z <= Math.max(a[1], b[1]);
