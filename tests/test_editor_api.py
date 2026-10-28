@@ -172,3 +172,21 @@ def test_paint_edit_changes_relief_layer_and_undo_restores_it(api):
     assert state.layer(mid, "relief") != before            # the cached relief picture was dropped and rebuilt
     call("edit", {"id": mid, "edits": [], "symmetry": True})
     assert state.layer(mid, "relief") == before            # undo: back to the generated look
+
+
+def test_paint_fill_and_erase_through_the_api(api):
+    call, state, _ = api
+    p = call("preview", {"template": "chokepoint", "values": DUEL, "seed": 3})
+    mid = p["id"]
+    before = state.layer(mid, "relief")
+    W, H = p["W"], p["H"]
+    poly = {"op": "paint", "material": "lava", "fill": "poly", "strength": 1,
+            "points": [[W * 0.2, H * 0.2], [W * 0.4, H * 0.2], [W * 0.3, H * 0.4]]}
+    r = call("edit", {"id": mid, "edits": [poly], "symmetry": True})
+    assert r["problems"] == []
+    filled = state.layer(mid, "relief")
+    assert filled != before
+    erase = dict(poly, material="erase")
+    r = call("edit", {"id": mid, "edits": [poly, erase], "symmetry": True})
+    assert r["problems"] == []
+    assert state.layer(mid, "relief") != filled            # the fill is gone again

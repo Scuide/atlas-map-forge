@@ -135,8 +135,19 @@
               <option value="concrete">Concrete</option>
               <option value="scorch">Scorch marks</option>
               <option value="lava">Lava crust (look only)</option>
+              <option value="erase">Eraser</option>
             </select>
-            <label class="small" title="Stroke width: radius in elmos">Radius <input type="number" id="ed-pradius" min="8" max="1000" step="8" value="96"></label>
+            <select id="ed-pmode" title="Stroke: drag. Polygon: click the corners, double click or click the first corner to fill, Esc cancels. Height band: click the ground to fill the connected patch between the two heights">
+              <option value="stroke">Stroke</option>
+              <option value="poly">Fill polygon</option>
+              <option value="band">Fill height band</option>
+            </select>
+            <label class="small" id="ed-pradius-wrap" title="Stroke width: radius in elmos">Radius <input type="number" id="ed-pradius" min="8" max="1000" step="8" value="96"></label>
+            <span class="hidden" id="ed-band-wrap">
+              <label class="small" title="Lowest height that gets painted. Alt+click in the map picks it">From <input type="number" id="ed-blow" step="1" value="0"></label>
+              <label class="small" title="Highest height that gets painted. Shift+Alt+click in the map picks it">to <input type="number" id="ed-bhigh" step="1" value="100"></label>
+              <label class="small" title="Off: fill every patch between the heights on the whole map"><input type="checkbox" id="ed-bpatch" checked> clicked patch only</label>
+            </span>
             <label class="small" title="Paint strength: 1 = fully covered"><input type="range" id="ed-pstrength" min="0.1" max="1" step="0.05" value="1"></label>
           </span>
           <span class="ed-sep"></span><span class="ed-lbl">Features</span>
