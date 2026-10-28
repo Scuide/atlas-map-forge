@@ -21,6 +21,10 @@ Edit entries (one per user action, positions in elmos, address the object the us
      (snap heights to steps of h elmos, amount is the terrace height and must be above 0)
     {"op": "paint", "material": "path"|"concrete"|"scorch"|"lava", "points": [[x, z], ...], "radius": r,
      "strength": s}   (texture stroke along the polyline, soft edge; only the look changes, lava is cosmetic)
+    {"op": "paint", "material": m, "fill": "poly", "points": [[x, z], ...], "strength": s}   (polygon of 3+ points)
+    {"op": "paint", "material": m, "fill": "band", "low": a, "high": b, "at": [x, z], "strength": s}
+     (all ground from height a to b; with at only the connected patch under the click and its mirror images)
+     material "erase" takes the paint of every layer away under the stroke or fill
     {"op": "features", "kind": "trees"|"rocks"|"wrecks", "mode": "add"|"remove", "at": [x, z], "radius": r,
      "density": d}   (features in a disc: remove takes out the features of that kind in it, add places them on
      dry, flat ground; rocks add their models to the archive when the map has none)
@@ -341,25 +345,49 @@ def _brush(d, sym, e, on, fail):
     return None
 
 
-PAINT_MATERIALS = ("path", "concrete", "scorch", "lava")
+PAINT_MATERIALS = ("path", "concrete", "scorch", "lava", "erase")     # erase takes paint away instead of adding it
+PAINT_FILLS = ("poly", "band")
 PAINT_MAX_POINTS = 400
 
 
+def _num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
 def paint_params(e):
-    """Validated (material, points, radius, strength) of a paint edit; ValueError when malformed."""
+    """Validated dict(material, fill, points, radius, strength, low, high, at) of a paint edit; ValueError when
+    malformed. fill None = stroke along points (radius needed); "poly" = the polygon of 3+ points filled;
+    "band" = the ground from height low to high, only the connected patch under at (and its images) when at is set."""
     material = e.get("material")
     if material not in PAINT_MATERIALS:
         raise ValueError(f"material: expected one of {', '.join(PAINT_MATERIALS)}")
-    pts = e.get("points")
-    if not isinstance(pts, list) or not 1 <= len(pts) <= PAINT_MAX_POINTS:
-        raise ValueError(f"points: 1 to {PAINT_MAX_POINTS} [x, z] points")
-    radius = e.get("radius")
-    if not isinstance(radius, (int, float)) or isinstance(radius, bool) or not math.isfinite(radius) or radius <= 0:
-        raise ValueError("radius: expected a number > 0")
+    fill = e.get("fill")
+    if fill is not None and fill not in PAINT_FILLS:
+        raise ValueError(f"fill: expected one of {', '.join(PAINT_FILLS)}")
     strength = e.get("strength", 1.0)
     if not isinstance(strength, (int, float)) or isinstance(strength, bool) or not 0 < strength <= 1:
         raise ValueError("strength: expected a number above 0 up to 1")
-    return material, [_pt(p, "points") for p in pts], float(radius), float(strength)
+    out = dict(material=material, fill=fill, points=None, radius=None, strength=float(strength),
+               low=None, high=None, at=None)
+    if fill == "band":
+        low, high = e.get("low"), e.get("high")
+        if not (_num(low) and _num(high) and low <= high):
+            raise ValueError("low, high: expected two heights, low not above high")
+        out.update(low=float(low), high=float(high))
+        if e.get("at") is not None:
+            out["at"] = _pt(e.get("at"), "at")
+        return out
+    pts = e.get("points")
+    lo = 3 if fill == "poly" else 1
+    if not isinstance(pts, list) or not lo <= len(pts) <= PAINT_MAX_POINTS:
+        raise ValueError(f"points: {lo} to {PAINT_MAX_POINTS} [x, z] points")
+    out["points"] = [_pt(p, "points") for p in pts]
+    if fill is None:
+        radius = e.get("radius")
+        if not _num(radius) or radius <= 0:
+            raise ValueError("radius: expected a number > 0")
+        out["radius"] = float(radius)
+    return out
 
 
 def paint_stroke(shape, points, radius, strength):
@@ -390,21 +418,83 @@ def paint_stroke(shape, points, radius, strength):
     return cov
 
 
-def _paint(d, sym, e, on, fail):
-    """Paint a stroke of ground texture (paths, concrete, scorch marks, lava crust) over the design's paint layers.
-    With symmetry on, the stroke is mirrored (rotated) as a whole. Lava is cosmetic: it does not hurt units."""
-    import numpy as np
+def paint_polygon(shape, points, strength):
+    """0/strength coverage of the grid points inside a polygon (points in elmos, even-odd rule)."""
+    cov = np.zeros(shape, np.float32)
+    xs, zs = [p[0] for p in points], [p[1] for p in points]
+    j0, j1 = max(0, int(min(xs) / SQ)), min(shape[1], int(max(xs) / SQ) + 2)
+    i0, i1 = max(0, int(min(zs) / SQ)), min(shape[0], int(max(zs) / SQ) + 2)
+    if j1 <= j0 or i1 <= i0:
+        return cov
+    gx = (np.arange(j0, j1, dtype=np.float64) * SQ)[None, :]
+    gz = (np.arange(i0, i1, dtype=np.float64) * SQ)[:, None]
+    inside = np.zeros((i1 - i0, j1 - j0), bool)
+    for (ax, az), (bx, bz) in zip(points, points[1:] + points[:1]):
+        if az == bz:
+            continue
+        crosses = (az > gz) != (bz > gz)                           # edge spans the row
+        xc = ax + (gz - az) * (bx - ax) / (bz - az)
+        inside ^= crosses & (gx < xc)
+    cov[i0:i1, j0:j1] = inside * strength
+    return cov
 
-    material, pts, radius, strength = paint_params(e)
-    if not all(_inside(sym, p) for p in pts):
-        return fail("outside the map")
-    images = list(zip(*[_targets(sym, p, on) for p in pts]))      # image k of every point = stroke k
-    layers = dict(d.paint or {})                                    # new dict + new array: the original stays untouched
-    cur = layers.get(material)
-    out = np.zeros(d.hm.shape, np.float32) if cur is None else np.array(cur, np.float32)
-    for stroke in images:
-        out = np.maximum(out, paint_stroke(d.hm.shape, list(stroke), radius, strength))
-    layers[material] = out
+
+def paint_band(hm, low, high, strength, seeds=None):
+    """strength on the ground from height low to high; with seeds (grid cells) only the connected patches that
+    contain one of them. -> (coverage, hit) where hit says whether any seed lay in the band."""
+    from scipy import ndimage
+
+    band = (hm >= low) & (hm <= high)
+    if seeds is None:
+        return band * np.float32(strength), bool(band.any())
+    lab, _n = ndimage.label(band)
+    ids = {int(lab[i, j]) for i, j in seeds if lab[i, j]}
+    if not ids:
+        return np.zeros(hm.shape, np.float32), False
+    return np.isin(lab, sorted(ids)) * np.float32(strength), True
+
+
+def _cell_of(shape, p):
+    return (min(shape[0] - 1, max(0, int(round(p[1] / SQ)))), min(shape[1] - 1, max(0, int(round(p[0] / SQ)))))
+
+
+def _paint(d, sym, e, on, fail):
+    """Paint ground texture (paths, concrete, scorch marks, lava crust) over the design's paint layers: a stroke,
+    a filled polygon or a height band. With symmetry on, strokes and polygons are mirrored (rotated) as a whole and
+    a band fill takes the patch under every image of the click. Lava is cosmetic: it does not hurt units.
+    The material erase takes paint of every layer away where the stroke or fill covers the ground."""
+    P = paint_params(e)
+    shape = d.hm.shape
+    if P["fill"] == "band":
+        seeds = None
+        if P["at"] is not None:
+            if not _inside(sym, P["at"]):
+                return fail("outside the map")
+            seeds = [_cell_of(shape, s) for s in _targets(sym, P["at"], on) if _inside(sym, s)]
+        cov, hit = paint_band(d.hm, P["low"], P["high"], P["strength"], seeds)
+        if not hit:
+            return fail("the ground there is not between the two heights")
+    else:
+        pts = P["points"]
+        if not all(_inside(sym, p) for p in pts):
+            return fail("outside the map")
+        images = list(zip(*[_targets(sym, p, on) for p in pts]))  # image k of every point = stroke (polygon) k
+        cov = np.zeros(shape, np.float32)
+        for img in images:
+            part = (paint_polygon(shape, list(img), P["strength"]) if P["fill"] == "poly"
+                    else paint_stroke(shape, list(img), P["radius"], P["strength"]))
+            cov = np.maximum(cov, part)
+    layers = dict(d.paint or {})                                    # new dict + new arrays: the original stays untouched
+    if P["material"] == "erase":
+        if not layers:
+            return None
+        keep = 1 - cov
+        for k, a in layers.items():
+            if a is not None:
+                layers[k] = np.asarray(a, np.float32) * keep
+    else:
+        cur = layers.get(P["material"])
+        layers[P["material"]] = cov if cur is None else np.maximum(np.asarray(cur, np.float32), cov)
     d.paint = layers
     return None
 

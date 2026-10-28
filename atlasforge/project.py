@@ -91,18 +91,12 @@ def validate_edits(edits) -> list:
             elif "to" in e:
                 raise ValueError(f"{p}.to: only for ramp")
             continue
-        if op == "paint":                                  # material, stroke points, radius; strength optional
-            from .edits import PAINT_MATERIALS, PAINT_MAX_POINTS
-            if e.get("material") not in PAINT_MATERIALS:
-                raise ValueError(f"{p}.material: expected one of {', '.join(PAINT_MATERIALS)}")
-            pts = e.get("points")
-            if not (isinstance(pts, list) and 1 <= len(pts) <= PAINT_MAX_POINTS and all(
-                    isinstance(pt, (list, tuple)) and len(pt) == 2 and all(_is_num(c) for c in pt) for pt in pts)):
-                raise ValueError(f"{p}.points: expected 1 to {PAINT_MAX_POINTS} [x, z] points")
-            if not (_is_num(e.get("radius")) and e["radius"] > 0):
-                raise ValueError(f"{p}.radius: expected a number > 0")
-            if "strength" in e and not (_is_num(e["strength"]) and 0 < e["strength"] <= 1):
-                raise ValueError(f"{p}.strength: expected a number above 0 up to 1")
+        if op == "paint":                                  # stroke, polygon fill or height band (edits.paint_params)
+            from .edits import paint_params
+            try:
+                paint_params(e)
+            except ValueError as ex:
+                raise ValueError(f"{p}.{ex}") from None
             continue
         if op == "features":                               # kind, mode, centre, radius; density optional
             if e.get("kind", "trees") not in FEATURE_KINDS:
