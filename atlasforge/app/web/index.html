@@ -90,7 +90,7 @@
           <button data-tool="mex" title="Add a metal spot: click (1)">Metal +</button>
           <button data-tool="geo" title="Add a geovent: click (2)">Geo +</button>
           <button data-tool="del" title="Delete: click a spot (X)">Delete</button>
-          <button data-tool="brush" title="Brush: drag on the map to raise, lower, flatten or smooth the terrain (B)">Brush</button>
+          <button data-tool="brush" title="Brush (B): drag on the map to raise, lower, flatten, smooth or ramp the terrain. R ramp, F flatten, [ ] radius, Shift+[ ] strength, Alt+click picks the flatten target height, Esc back to Move">Brush</button>
           <span class="brush-opts hidden" id="ed-brush-opts">
             <select id="ed-brush" title="Brush tool">
               <option value="raise">Raise</option>
@@ -101,6 +101,7 @@
             </select>
             <label class="small" title="Brush radius in elmos; for Ramp the width of the ramp">Radius <input type="number" id="ed-radius" min="8" max="2000" step="8" value="200"></label>
             <label class="small" title="Brush strength: 0 = no effect, 1 = full">Strength <input type="range" id="ed-strength" min="0" max="1" step="0.05" value="0.5"></label>
+            <label class="small hidden" id="ed-target-wrap" title="Flatten target height; empty = the height under the first dab. Alt+click in the map picks it">Target height <input type="number" id="ed-target" step="1" placeholder="auto"></label>
           </span>
           <button data-tool="paint" title="Paint: drag on the map to paint paths, concrete, scorch marks or lava crust (P)">Paint</button>
           <span class="brush-opts hidden" id="ed-paint-opts">

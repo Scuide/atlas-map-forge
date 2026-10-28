@@ -156,6 +156,7 @@ function edUpdateUi() {
   for (const b of document.querySelectorAll("#ed-extra [data-tool]")) b.classList.toggle("on", b.dataset.tool === ED.tool);
   $("ed-brush-opts").classList.toggle("hidden", ED.tool !== "brush");
   $("ed-paint-opts").classList.toggle("hidden", ED.tool !== "paint");
+  $("ed-target-wrap").classList.toggle("hidden", $("ed-brush").value !== "flatten");
   if (ED.tool !== "brush" || !edIsRampTool()) ED.ramp = null;      // a pending ramp start belongs to the ramp tool
   $("ed-undo").disabled = !S.edits.length;
   $("ed-redo").disabled = !S.redo.length;
@@ -248,6 +249,11 @@ cv.addEventListener("pointerdown", (e) => {
     if (ED.sel) $("ed-metal").value = hit.ref.metal;
     ED.drag = { kind: hit.kind, x: hit.x, z: hit.z, cur: [hit.x, hit.z], ref: hit.ref };
     cv.setPointerCapture(e.pointerId);
+    draw();
+  } else if (ED.tool === "brush" && e.altKey) {       // pipette: take the height under the pointer as flatten target
+    e.stopImmediatePropagation();
+    const h = edHeightAt(mx, mz);
+    if (h !== null) { $("ed-target").value = h; toast("Target height " + h); }
     draw();
   } else if (ED.tool === "brush" && edIsRampTool()) {
     e.stopImmediatePropagation();
@@ -468,15 +474,18 @@ function drawEditor() {
       ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
       ctx.restore();
     }
-  } else if (ED.tool === "brush" && ED.hover) {        // brush ring: the reach of one dab
-    const [sx, sy] = toScreen(ED.hover[0], ED.hover[1]);
+  } else if (ED.tool === "brush" && ED.hover) {        // brush ring: the reach of one dab, thin rings at the mirror images
     ctx.save();
     ctx.setLineDash([4, 3]);
-    ctx.lineWidth = 2;
     ctx.strokeStyle = "#fff";
-    ctx.beginPath();
-    ctx.arc(sx, sy, edBrushRadius() * S.view.s, 0, Math.PI * 2);
-    ctx.stroke();
+    edOrbit(ED.hover[0], ED.hover[1]).forEach(([ox, oz], k) => {
+      const [sx, sy] = toScreen(ox, oz);
+      ctx.globalAlpha = k ? 0.4 : 1;
+      ctx.lineWidth = k ? 1 : 2;
+      ctx.beginPath();
+      ctx.arc(sx, sy, edBrushRadius() * S.view.s, 0, Math.PI * 2);
+      ctx.stroke();
+    });
     ctx.restore();
   }
   if (ED.sel && ED.sel.ref) {
@@ -519,7 +528,13 @@ document.addEventListener("keydown", (e) => {
   else if (ED.on && k === "x") { ED.tool = "del"; edUpdateUi(); }
   else if (ED.on && k === "b") { ED.tool = "brush"; edUpdateUi(); }
   else if (ED.on && k === "p") { ED.tool = "paint"; edUpdateUi(); }
-  else if (k === "escape" && ED.ramp) { ED.ramp = null; draw(); }
+  else if (ED.on && k === "r") { edBrushTool("ramp"); }
+  else if (ED.on && k === "f") { edBrushTool("flatten"); }
+  else if (ED.on && (e.code === "BracketLeft" || e.code === "BracketRight")) {   // e.key is { } with Shift, so go by code
+    e.preventDefault();
+    edNudge(e.code === "BracketRight" ? 1 : -1, e.shiftKey);
+  }
+  else if (ED.on && k === "escape") { ED.ramp = null; ED.tool = "move"; edUpdateUi(); draw(); }
 }, true);
 
 // ------------------------------------------------------------------ brush (terrain, stage B)
@@ -532,6 +547,33 @@ const edPaintStrength = () => Math.min(1, Math.max(0.1, Number($("ed-pstrength")
 const edBrushRadius = () => Math.min(2000, Math.max(8, Number($("ed-radius").value) || 200));
 const edBrushStrength = () => Math.min(1, Math.max(0, Number($("ed-strength").value)));
 const edIsRampTool = () => $("ed-brush").value === "ramp";
+const edTarget = () => {                             // flatten target height, null = the height under each dab
+  const v = $("ed-target").value;
+  return v === "" || !Number.isFinite(Number(v)) ? null : Math.round(Number(v));
+};
+
+// the Brush tool with one of its modes: the keys R, F and B pick the mode in the dropdown
+function edBrushTool(mode) {
+  ED.tool = "brush";
+  $("ed-brush").value = mode;
+  edUpdateUi();
+}
+
+// [ ] change the radius by 8 elmos, Shift+[ ] the strength by 0.05
+function edNudge(dir, strength) {
+  if (strength) $("ed-strength").value = Math.min(1, Math.max(0, Math.round((edBrushStrength() + dir * 0.05) * 20) / 20));
+  else $("ed-radius").value = Math.min(2000, Math.max(8, edBrushRadius() + dir * 8));
+  edUpdateUi();
+  draw();
+}
+
+// the terrain height at a map position (the grid is one cell per 8 elmos), for the flatten pipette
+function edHeightAt(x, z) {
+  const g = S.grid;
+  if (!g) return null;
+  const ix = Math.min(g.nx - 1, Math.max(0, Math.round(x / 8))), iz = Math.min(g.nz - 1, Math.max(0, Math.round(z / 8)));
+  return g.height[iz * g.nx + ix];
+}
 
 // ramp from A to B: one edit, so one undo step
 function edRampCommit(a, b) {
@@ -544,9 +586,11 @@ function edRampCommit(a, b) {
 
 // one dab of the stroke: a brush edit at a map position, tagged with the stroke it belongs to
 function edDab(x, z) {
+  const tool = $("ed-brush").value, target = tool === "flatten" ? edTarget() : null;
   edCommit({
-    op: "brush", tool: $("ed-brush").value, at: [Math.round(x), Math.round(z)],
+    op: "brush", tool, at: [Math.round(x), Math.round(z)],
     radius: edBrushRadius(), strength: edBrushStrength(), stroke: ED.stroke.id,
+    ...(target === null ? {} : { target }),
   });
   ED.stroke.last = [x, z];
 }
