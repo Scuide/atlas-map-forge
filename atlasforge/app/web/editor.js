@@ -22,7 +22,12 @@ const ED = {
   rhist: [],            // the same for redo: { after, n }; n = edit count before the operation
   hl: null,             // edit group highlighted in the preview (clicked in the edit list)
   base: {},             // fields of a loaded project file we do not know (kept when saving)
+  group: null,          // selected spots and start points [{ kind, x, z }]; one entry per mirror set, the mirror images follow
+  marquee: null,        // { a, cur, hit } while a selection rectangle is dragged (Shift + drag), map positions
+  mdrag: null,          // { x, z, cur } while the selection is dragged
+  groupSeq: 0,          // edits made together (one selection move or delete) share a group id: one undo step
 };
+const ED_NUDGE = 8;     // arrow keys move the selection by this many elmos, Shift + arrow by 1
 
 // ------------------------------------------------------------------ symmetry (mirrors atlasforge/symmetry.py)
 function edOrbit(x, z) {
@@ -82,6 +87,7 @@ function editorAfterPreview(m, seed) {
   $("ed-sym").checked = S.symmetry;
   ED.last = { key: JSON.stringify([m.template, m.values, seed]), tpl: m.template, values: JSON.stringify(m.values), seed };
   ED.sel = null;
+  ED.group = null;
   edShowProblems(m);
   edUpdateUi();
 }
@@ -148,10 +154,12 @@ function edShowProblems(m) {
 }
 
 // a brush stroke is many dabs sharing one stroke id: undo and redo take the whole stroke back at once
+// the same for a selection move or delete: the edits share a group id
+const edSameStep = (a, b) => (a.stroke !== undefined && a.stroke === b.stroke) || (a.group !== undefined && a.group === b.group);
 function edMove(from, to) {
   const top = from.pop();
   to.push(top);
-  while (top.stroke !== undefined && from.length && from[from.length - 1].stroke === top.stroke) to.push(from.pop());
+  while (from.length && edSameStep(top, from[from.length - 1])) to.push(from.pop());
 }
 const edClone = (a) => JSON.parse(JSON.stringify(a));
 const edUndo = () => {
@@ -205,7 +213,7 @@ function edGroups() {
   const out = [];
   S.edits.forEach((e, i) => {
     const last = out[out.length - 1];
-    if (last && e.stroke !== undefined && last.edits[0].stroke === e.stroke) { last.idx.push(i); last.edits.push(e); }
+    if (last && edSameStep(last.edits[0], e)) { last.idx.push(i); last.edits.push(e); }
     else out.push({ idx: [i], edits: [e] });
   });
   return out;
@@ -240,7 +248,7 @@ function edRenderList() {
     eye.onclick = (ev) => { ev.stopPropagation(); edListOp(() => { for (const x of g.edits) x.enabled = on ? false : true; }); };
     const label = document.createElement("span");
     label.className = "ed-lab";
-    const dabs = g.edits.length > 1 ? ` (${g.edits.length} dabs)` : "";
+    const dabs = g.edits.length > 1 ? ` (${g.edits.length} ${e.group !== undefined ? "items" : "dabs"})` : "";
     label.textContent = `${n + 1}. ${ED_ICON[e.op] || "•"} ${edDescribe(e)}${dabs}`;
     li.onclick = () => { ED.hl = ED.hl && ED.hl.edits[0] === e ? null : g; edRenderList(); draw(); };
     const del = document.createElement("button");
@@ -373,6 +381,67 @@ function edBoxPts(d) {
   return pts.map((p) => [Math.round(p[0] + dx), Math.round(p[1] + dz)]);
 }
 
+// ------------------------------------------------------------------ selection: a rectangle picks spots, start points and geovents
+// ED.group keeps one entry per mirror set; its mirror images follow it (edOrbit), so a move or delete acts once
+const edSameSpot = (a, b) => Math.abs(a[0] - b[0]) < 0.5 && Math.abs(a[1] - b[1]) < 0.5;
+const edIsSpot = (hit) => !!hit && (hit.kind === "mex" || hit.kind === "geo" || hit.kind === "start");
+const edSelected = (hit) => edIsSpot(hit) && !!ED.group && ED.group.some((s) => edOrbit(s.x, s.z).some((p) => edSameSpot(p, [hit.x, hit.z])));
+
+function edSpots() {
+  const m = S.map, out = [];
+  for (const g of m.geos) out.push({ kind: "geo", x: g[0], z: g[1] });
+  for (const mx of m.mexes) out.push({ kind: "mex", x: mx.x, z: mx.z });
+  m.teams.forEach((team) => team.forEach((p) => out.push({ kind: "start", x: p[0], z: p[1] })));
+  return out;
+}
+
+function edAddToGroup(spots) {
+  for (const s of spots) {
+    if (!ED.group.some((g) => edOrbit(g.x, g.z).some((p) => edSameSpot(p, [s.x, s.z])))) ED.group.push(s);
+  }
+}
+
+// the offset the selection is drawn at while it is dragged (whole map units, as it is committed)
+function edGroupOffset() {
+  if (!ED.mdrag) return [0, 0];
+  return [Math.round(ED.mdrag.cur[0] - ED.mdrag.x), Math.round(ED.mdrag.cur[1] - ED.mdrag.z)];
+}
+
+// one undo step: a move edit per entry (the server mirrors it). Entries moving onto an unmoved spot go first.
+function edGroupMove(dx, dz) {
+  const W = S.map.W, H = S.map.H, gid = ++ED.groupSeq;
+  const sorted = [...ED.group].sort((a, b) => dx ? (dx > 0 ? b.x - a.x : a.x - b.x) : (dz > 0 ? b.z - a.z : a.z - b.z));
+  const edits = [];
+  for (const s of sorted) {
+    const to = [Math.min(Math.max(Math.round(s.x + dx), 0), W), Math.min(Math.max(Math.round(s.z + dz), 0), H)];
+    if (to[0] === s.x && to[1] === s.z) continue;
+    edits.push({ op: "move_" + s.kind, from: [s.x, s.z], to, group: gid });
+    s.x = to[0]; s.z = to[1];
+  }
+  edCommitMany(edits);
+}
+
+// one undo step. Start points stay (they cannot be deleted) and stay selected.
+function edGroupDelete() {
+  const gid = ++ED.groupSeq;
+  const edits = ED.group.filter((s) => s.kind !== "start").map((s) => ({ op: "del_" + s.kind, at: [s.x, s.z], group: gid }));
+  if (!edits.length) { toast("Start points cannot be deleted."); return; }
+  edCommitMany(edits);
+  ED.group = ED.group.filter((s) => s.kind === "start");
+}
+
+function edCommitMany(list) {
+  if (!list.length) return;
+  S.edits.push(...list);
+  S.redo = [];
+  ED.rhist = [];
+  ED.fresh = true;
+  edUpdateUi();
+  edSend();
+}
+
+const edInRect = (a, b, s) => s.x >= Math.min(a[0], b[0]) && s.x <= Math.max(a[0], b[0]) && s.z >= Math.min(a[1], b[1]) && s.z <= Math.max(a[1], b[1]);
+
 const edPos = (e) => {
   const r = cv.getBoundingClientRect();
   return [e.clientX - r.left, e.clientY - r.top];
@@ -385,6 +454,21 @@ cv.addEventListener("pointerdown", (e) => {
   const hit = edPick(sx, sy);
   const [mx, mz] = edClamp(toMap(sx, sy));
   if (ED.tool === "move") {
+    if (e.shiftKey) {                                  // Shift + drag: a selection rectangle
+      e.stopImmediatePropagation();
+      ED.marquee = { a: [mx, mz], cur: [mx, mz], hit: edIsSpot(hit) ? hit : null };
+      cv.setPointerCapture(e.pointerId);
+      draw();
+      return;
+    }
+    if (edSelected(hit)) {                             // a selected spot: the whole selection moves
+      e.stopImmediatePropagation();
+      ED.mdrag = { x: mx, z: mz, cur: [mx, mz] };
+      cv.setPointerCapture(e.pointerId);
+      draw();
+      return;
+    }
+    ED.group = null;
     if (!hit) return;                                  // empty ground: normal panning
     e.stopImmediatePropagation();
     ED.sel = hit.kind === "mex" ? hit : null;
@@ -465,6 +549,14 @@ cv.addEventListener("pointermove", (e) => {
     e.stopImmediatePropagation();
     ED.rampDrag.cur = edClamp(toMap(sx, sy));
     draw();
+  } else if (ED.marquee) {
+    e.stopImmediatePropagation();
+    ED.marquee.cur = edClamp(toMap(sx, sy));
+    draw();
+  } else if (ED.mdrag) {
+    e.stopImmediatePropagation();
+    ED.mdrag.cur = edClamp(toMap(sx, sy));
+    draw();
   } else if (ED.drag) {
     e.stopImmediatePropagation();
     ED.drag.cur = edClamp(toMap(sx, sy));
@@ -491,6 +583,28 @@ const edEnd = (e) => {
     ED.rampDrag = null;
     if (Math.hypot(r.cur[0] - r.a[0], r.cur[1] - r.a[1]) * S.view.s > 3) edRampCommit(r.a, r.cur);   // dragged: A to B
     else ED.ramp = { a: r.a };                          // a click: A is set, B comes with the next click
+    draw();
+    return;
+  }
+  if (ED.marquee) {
+    e.stopImmediatePropagation();
+    const m = ED.marquee;
+    ED.marquee = null;
+    if (Math.hypot(m.cur[0] - m.a[0], m.cur[1] - m.a[1]) * S.view.s <= 3) {   // a click with Shift: that spot, or none
+      ED.group = m.hit ? [{ kind: m.hit.kind, x: m.hit.x, z: m.hit.z }] : null;
+    } else {
+      ED.group = [];
+      edAddToGroup(edSpots().filter((s) => edInRect(m.a, m.cur, s)));
+      if (!ED.group.length) ED.group = null;
+    }
+    draw();
+    return;
+  }
+  if (ED.mdrag) {
+    e.stopImmediatePropagation();
+    const [dx, dz] = edGroupOffset();
+    ED.mdrag = null;
+    if (dx || dz) edGroupMove(dx, dz);
     draw();
     return;
   }
@@ -643,10 +757,36 @@ function drawEditor() {
     ctx.strokeStyle = "#ffd23c";
     ctx.stroke();
   }
+  if (ED.group) {                                      // selection: a ring on every spot, mirror images included
+    const [gdx, gdz] = edGroupOffset();
+    ctx.save();
+    ctx.setLineDash([3, 3]);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#7fd4ff";
+    for (const s of ED.group) for (const [x, z] of edOrbit(s.x + gdx, s.z + gdz)) {
+      const [sx, sy] = toScreen(x, z);
+      ctx.beginPath();
+      ctx.arc(sx, sy, 12, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  if (ED.marquee) {                                    // the selection rectangle
+    const [ax, ay] = toScreen(ED.marquee.a[0], ED.marquee.a[1]);
+    const [bx, by] = toScreen(ED.marquee.cur[0], ED.marquee.cur[1]);
+    ctx.save();
+    ctx.setLineDash([4, 3]);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "#7fd4ff";
+    ctx.fillStyle = "rgba(127,212,255,.12)";
+    ctx.fillRect(ax, ay, bx - ax, by - ay);
+    ctx.strokeRect(ax, ay, bx - ax, by - ay);
+    ctx.restore();
+  }
 }
 
 // ------------------------------------------------------------------ toolbar and keys
-$("ed-toggle").onclick = () => { ED.on = !ED.on; ED.drag = ED.hover = null; edUpdateUi(); draw(); };
+$("ed-toggle").onclick = () => { ED.on = !ED.on; ED.drag = ED.hover = ED.group = ED.marquee = ED.mdrag = null; edUpdateUi(); draw(); };
 for (const b of document.querySelectorAll("#ed-extra [data-tool]")) b.onclick = () => { ED.tool = b.dataset.tool; edUpdateUi(); };
 $("ed-trees").onclick = () => edBrushTool($("ed-brush").value.startsWith("trees-") ? $("ed-brush").value : "trees-add");
 $("ed-undo").onclick = edUndo;
@@ -682,7 +822,15 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     edNudge(e.code === "BracketRight" ? 1 : -1, e.shiftKey);
   }
-  else if (ED.on && k === "escape") { ED.ramp = null; ED.tool = "move"; edUpdateUi(); draw(); }
+  else if (ED.on && k === "delete" && ED.group) { e.preventDefault(); edGroupDelete(); draw(); }
+  else if (ED.on && ED.tool === "move" && ED.group && k.startsWith("arrow")) {   // arrows move the selection, Shift by 1 elmo
+    e.preventDefault();
+    const n = e.shiftKey ? 1 : ED_NUDGE;
+    const d = { arrowleft: [-n, 0], arrowright: [n, 0], arrowup: [0, -n], arrowdown: [0, n] }[k] || [0, 0];
+    edGroupMove(d[0], d[1]);
+    draw();
+  }
+  else if (ED.on && k === "escape") { ED.ramp = null; ED.group = null; ED.tool = "move"; edUpdateUi(); draw(); }
 }, true);
 
 // ------------------------------------------------------------------ brush (terrain, stage B)
