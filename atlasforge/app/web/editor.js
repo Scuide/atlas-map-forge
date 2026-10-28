@@ -14,6 +14,7 @@ const ED = {
   ramp: null,           // { a: [x, z] } a ramp start point A, waiting for the second click (B)
   rampDrag: null,       // { a, cur } while a ramp is dragged from A to B
   paint: null,          // { pts } while a paint stroke is drawn (one edit, one undo step)
+  poly: null,           // { pts } corners of a fill polygon placed so far (closed by double click or the first corner)
   terrain: false,       // the terrain layers shown are computed with brush edits
   last: null,           // { tpl, values, seed } the current map was generated with
   seq: 0,
@@ -194,7 +195,12 @@ function edDescribe(e) {
     case "move_start": return `Move start point ${at(e.from)} → ${at(e.to)}`;
     case "set_box": return `Start box, team ${e.team + 1}`;
     case "brush": return `Terrain: ${e.tool}`;
-    case "paint": return `Paint: ${e.material}`;
+    case "paint": {
+      const what = e.material === "erase" ? "Erase paint" : `Paint: ${e.material}`;
+      if (e.fill === "poly") return `${what}, polygon`;
+      if (e.fill === "band") return `${what}, heights ${e.low} to ${e.high}`;
+      return what;
+    }
     case "features": return `${e.mode === "add" ? "Add" : "Remove"} ${e.kind || "trees"}`;
   }
   return e.op;
@@ -263,7 +269,8 @@ function edDrawHighlight() {
     ctx.beginPath(); ctx.arc(sx, sy, Math.max(rr, 10), 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   };
   for (const e of ED.hl.edits) {
-    if (e.op === "set_box") { ctx.beginPath(); (e.points || []).forEach((p, i) => { const [sx, sy] = toScreen(p[0], p[1]); i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy); }); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    if (e.op === "set_box" || (e.op === "paint" && e.fill === "poly")) { ctx.beginPath(); (e.points || []).forEach((p, i) => { const [sx, sy] = toScreen(p[0], p[1]); i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy); }); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    else if (e.op === "paint" && e.fill === "band") { if (e.at) ring(e.at); }
     else if (e.op === "paint") for (const p of e.points || []) ring(p, e.radius);
     else if (e.op === "brush" || e.op === "features") { ring(e.at, e.radius); if (e.to) ring(e.to, e.radius); }
     else { if (e.from) ring(e.from); ring(e.to || e.at); }
@@ -280,6 +287,9 @@ function edUpdateUi() {
   $("ed-trees").classList.toggle("on", treeMode);
   $("ed-brush-opts").classList.toggle("hidden", ED.tool !== "brush");
   $("ed-paint-opts").classList.toggle("hidden", ED.tool !== "paint");
+  $("ed-pradius-wrap").classList.toggle("hidden", edPaintMode() !== "stroke");
+  $("ed-band-wrap").classList.toggle("hidden", edPaintMode() !== "band");
+  if (ED.tool !== "paint" || edPaintMode() !== "poly") ED.poly = null;      // open polygon corners belong to the poly fill
   $("ed-target-wrap").classList.toggle("hidden", $("ed-brush").value !== "flatten");
   $("ed-density-wrap").classList.toggle("hidden", !$("ed-brush").value.endsWith("-add"));
   $("ed-step-wrap").classList.toggle("hidden", $("ed-brush").value !== "terrace");
@@ -386,6 +396,30 @@ cv.addEventListener("pointerdown", (e) => {
     cv.setPointerCapture(e.pointerId);
     if (ED.ramp) edRampCommit(ED.ramp.a, [mx, mz]);                // second click: B
     else ED.rampDrag = { a: [mx, mz], cur: [mx, mz] };  // first click or drag: A (and B when dragged)
+    draw();
+  } else if (ED.tool === "paint" && edPaintMode() === "band" && e.altKey) {   // pipette: Alt = from, Shift+Alt = to
+    e.stopImmediatePropagation();
+    const h = edHeightAt(mx, mz);
+    if (h !== null) { $(e.shiftKey ? "ed-bhigh" : "ed-blow").value = h; toast((e.shiftKey ? "Up to height " : "From height ") + h); }
+    draw();
+  } else if (ED.tool === "paint" && edPaintMode() === "band") {
+    e.stopImmediatePropagation();
+    let low = Number($("ed-blow").value), high = Number($("ed-bhigh").value);
+    if (!Number.isFinite(low) || !Number.isFinite(high)) { toast("Enter the two heights of the band."); return; }
+    if (low > high) [low, high] = [high, low];
+    const ed = { op: "paint", material: $("ed-pmat").value, fill: "band", low, high, strength: edPaintStrength() };
+    if ($("ed-bpatch").checked) ed.at = [Math.round(mx), Math.round(mz)];
+    edCommit(ed);
+    draw();
+  } else if (ED.tool === "paint" && edPaintMode() === "poly") {
+    e.stopImmediatePropagation();
+    const p = [mx, mz];
+    if (!ED.poly) ED.poly = { pts: [p] };
+    else {
+      const [fx, fy] = toScreen(ED.poly.pts[0][0], ED.poly.pts[0][1]);
+      if (ED.poly.pts.length >= 3 && Math.hypot(fx - sx, fy - sy) < 10) edPolyCommit();   // first corner again: close
+      else if (ED.poly.pts.length < 400) ED.poly.pts.push(p);
+    }
     draw();
   } else if (ED.tool === "paint") {
     e.stopImmediatePropagation();
@@ -572,7 +606,23 @@ function drawEditor() {
   if (ED.drag && !ED.drag.kind.startsWith("box")) ghost(ED.drag.kind, edOrbit(ED.drag.cur[0], ED.drag.cur[1]), true);
   else if (ED.pending) ghost(ED.pending.kind, ED.pending.pts, false);
   else if (ED.hover && (ED.tool === "mex" || ED.tool === "geo")) ghost(ED.tool, edOrbit(ED.hover[0], ED.hover[1]), false);
-  if (ED.paint || (ED.tool === "paint" && ED.hover)) {   // paint: the stroke so far, or the ring of the brush
+  if (ED.tool === "paint" && edPaintMode() !== "stroke") {   // fills: the open polygon (and its images) up to the pointer
+    if (ED.poly) {
+      const pts = ED.hover ? ED.poly.pts.concat([ED.hover]) : ED.poly.pts;
+      const imgs = pts.map((p) => edOrbit(p[0], p[1]));
+      ctx.save();
+      ctx.fillStyle = EDPAINT_COLORS[$("ed-pmat").value] || "rgba(255,255,255,0.4)";
+      ctx.strokeStyle = "#fff"; ctx.setLineDash([4, 3]);
+      for (let k = 0; k < imgs[0].length; k++) {
+        ctx.globalAlpha = k ? 0.4 : 1;
+        ctx.lineWidth = k ? 1 : 2;
+        ctx.beginPath();
+        imgs.forEach((o, i) => { const [x, y] = toScreen(o[k][0], o[k][1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
+      ctx.restore();
+    }
+  } else if (ED.paint || (ED.tool === "paint" && ED.hover)) {   // paint: the stroke so far, or the ring of the brush
     const pts = ED.paint ? ED.paint.pts : [ED.hover];
     ctx.save();
     ctx.lineCap = ctx.lineJoin = "round";
@@ -638,6 +688,7 @@ $("ed-redo").onclick = edRedo;
 $("ed-sym").onchange = () => { S.symmetry = $("ed-sym").checked; edSend(0); };
 $("ed-brush").onchange = edUpdateUi;
 $("ed-pmat").onchange = edUpdateUi;
+$("ed-pmode").onchange = () => { edUpdateUi(); draw(); };
 $("ed-metal").onchange = () => {
   const v = Math.min(9, Math.max(0.1, parseFloat($("ed-metal").value) || 2));
   if (ED.sel && ED.sel.ref) edCommit({ op: "set_metal", at: [ED.sel.x, ED.sel.z], metal: v });
@@ -666,6 +717,7 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     edNudge(e.code === "BracketRight" ? 1 : -1, e.shiftKey);
   }
+  else if (ED.on && k === "escape" && ED.poly) { ED.poly = null; draw(); }     // first Esc drops the open polygon
   else if (ED.on && k === "escape") { ED.ramp = null; ED.tool = "move"; edUpdateUi(); draw(); }
 }, true);
 
@@ -673,7 +725,24 @@ document.addEventListener("keydown", (e) => {
 const edIsBrush = (x) => x.op === "brush";
 const edAffectsRelief = (x) => x.op === "brush" || x.op === "paint";     // the server's cached relief picture is replaced
 const EDPAINT_COLORS = { path: "rgba(200,180,140,0.55)", concrete: "rgba(190,190,190,0.55)",
-  scorch: "rgba(40,30,25,0.6)", lava: "rgba(255,110,20,0.6)" };
+  scorch: "rgba(40,30,25,0.6)", lava: "rgba(255,110,20,0.6)", erase: "rgba(255,255,255,0.25)" };
+function edPaintMode() { return $("ed-pmode").value; }       // stroke | poly | band (a declaration: edUpdateUi needs it early)
+function edPolyCommit() {                                      // one edit for the whole polygon; repeated corners dropped
+  const pts = [];
+  for (const p of (ED.poly ? ED.poly.pts : []).map((q) => [Math.round(q[0]), Math.round(q[1])])) {
+    const l = pts[pts.length - 1];
+    if (!l || Math.hypot(p[0] - l[0], p[1] - l[1]) > 2) pts.push(p);
+  }
+  ED.poly = null;
+  if (pts.length < 3) { toast("A fill polygon needs at least 3 corners."); draw(); return; }
+  edCommit({ op: "paint", material: $("ed-pmat").value, fill: "poly", points: pts, strength: edPaintStrength() });
+  draw();
+}
+cv.addEventListener("dblclick", (e) => {                       // double click closes the fill polygon
+  if (!ED.on || !ED.poly) return;
+  e.stopImmediatePropagation();
+  edPolyCommit();
+}, true);
 const edPaintRadius = () => Math.min(1000, Math.max(8, Number($("ed-pradius").value) || 96));
 const edPaintStrength = () => Math.min(1, Math.max(0.1, Number($("ed-pstrength").value) || 1));
 const edBrushRadius = () => Math.min(2000, Math.max(8, Number($("ed-radius").value) || 200));
