@@ -15,6 +15,8 @@ const ED = {
   rampDrag: null,       // { a, cur } while a ramp is dragged from A to B
   paint: null,          // { pts } while a paint stroke is drawn (one edit, one undo step)
   poly: null,           // { pts } corners of a fill polygon placed so far (closed by double click or the first corner)
+  stamp: null,          // { src: [x0, z0, x1, z1] } the copied rectangle; every click pastes it
+  stampDrag: null,      // { a, cur } while the rectangle to copy is dragged
   terrain: false,       // the terrain layers shown are computed with brush edits
   last: null,           // { tpl, values, seed } the current map was generated with
   seq: 0,
@@ -195,6 +197,7 @@ function edDescribe(e) {
     case "move_start": return `Move start point ${at(e.from)} → ${at(e.to)}`;
     case "set_box": return `Start box, team ${e.team + 1}`;
     case "brush": return `Terrain: ${e.tool}`;
+    case "stamp": return `Stamp → ${at(e.to)}${e.rotate ? `, turned ${e.rotate}°` : ""}${e.flip ? ", mirrored" : ""}`;
     case "paint": {
       const what = e.material === "erase" ? "Erase paint" : `Paint: ${e.material}`;
       if (e.fill === "poly") return `${what}, polygon`;
@@ -271,6 +274,7 @@ function edDrawHighlight() {
   for (const e of ED.hl.edits) {
     if (e.op === "set_box" || (e.op === "paint" && e.fill === "poly")) { ctx.beginPath(); (e.points || []).forEach((p, i) => { const [sx, sy] = toScreen(p[0], p[1]); i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy); }); ctx.closePath(); ctx.fill(); ctx.stroke(); }
     else if (e.op === "paint" && e.fill === "band") { if (e.at) ring(e.at); }
+    else if (e.op === "stamp") { for (const r of [edStampSrcPts(e.src), edStampDstPts(e.src, e.to, e.rotate, e.flip)]) { ctx.beginPath(); r.forEach((p, i) => { const [sx, sy] = toScreen(p[0], p[1]); i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy); }); ctx.closePath(); ctx.fill(); ctx.stroke(); } }
     else if (e.op === "paint") for (const p of e.points || []) ring(p, e.radius);
     else if (e.op === "brush" || e.op === "features") { ring(e.at, e.radius); if (e.to) ring(e.to, e.radius); }
     else { if (e.from) ring(e.from); ring(e.to || e.at); }
@@ -287,6 +291,8 @@ function edUpdateUi() {
   $("ed-trees").classList.toggle("on", treeMode);
   $("ed-brush-opts").classList.toggle("hidden", ED.tool !== "brush");
   $("ed-paint-opts").classList.toggle("hidden", ED.tool !== "paint");
+  $("ed-stamp-opts").classList.toggle("hidden", ED.tool !== "stamp");
+  $("ed-sinfo").textContent = ED.stamp ? `copy ${Math.round(ED.stamp.src[2] - ED.stamp.src[0])} × ${Math.round(ED.stamp.src[3] - ED.stamp.src[1])}: click to paste` : "drag a rectangle to copy";
   $("ed-pradius-wrap").classList.toggle("hidden", edPaintMode() !== "stroke");
   $("ed-band-wrap").classList.toggle("hidden", edPaintMode() !== "band");
   if (ED.tool !== "paint" || edPaintMode() !== "poly") ED.poly = null;      // open polygon corners belong to the poly fill
@@ -397,6 +403,11 @@ cv.addEventListener("pointerdown", (e) => {
     if (ED.ramp) edRampCommit(ED.ramp.a, [mx, mz]);                // second click: B
     else ED.rampDrag = { a: [mx, mz], cur: [mx, mz] };  // first click or drag: A (and B when dragged)
     draw();
+  } else if (ED.tool === "stamp") {                    // drag: the rectangle to copy; click: paste the copy there
+    e.stopImmediatePropagation();
+    cv.setPointerCapture(e.pointerId);
+    ED.stampDrag = { a: [mx, mz], cur: [mx, mz] };
+    draw();
   } else if (ED.tool === "paint" && edPaintMode() === "band" && e.altKey) {   // pipette: Alt = from, Shift+Alt = to
     e.stopImmediatePropagation();
     const h = edHeightAt(mx, mz);
@@ -483,11 +494,15 @@ cv.addEventListener("pointermove", (e) => {
     e.stopImmediatePropagation();
     ED.rampDrag.cur = edClamp(toMap(sx, sy));
     draw();
+  } else if (ED.stampDrag) {
+    e.stopImmediatePropagation();
+    ED.stampDrag.cur = ED.hover = edClamp(toMap(sx, sy));
+    draw();
   } else if (ED.drag) {
     e.stopImmediatePropagation();
     ED.drag.cur = edClamp(toMap(sx, sy));
     draw();
-  } else if (ED.tool === "mex" || ED.tool === "geo" || ED.tool === "brush" || ED.tool === "paint") {
+  } else if (ED.tool === "mex" || ED.tool === "geo" || ED.tool === "brush" || ED.tool === "paint" || ED.tool === "stamp") {
     ED.hover = edClamp(toMap(sx, sy));
     draw();
   }
@@ -503,6 +518,20 @@ const edEnd = (e) => {
     return;
   }
   if (ED.stroke) { e.stopImmediatePropagation(); ED.stroke = null; draw(); return; }
+  if (ED.stampDrag) {
+    e.stopImmediatePropagation();
+    const r = ED.stampDrag;
+    ED.stampDrag = null;
+    const src = [Math.min(r.a[0], r.cur[0]), Math.min(r.a[1], r.cur[1]), Math.max(r.a[0], r.cur[0]), Math.max(r.a[1], r.cur[1])].map(Math.round);
+    if (Math.hypot(r.cur[0] - r.a[0], r.cur[1] - r.a[1]) * S.view.s > 3) {           // dragged: a new copy
+      if (src[2] - src[0] < 16 || src[3] - src[1] < 16) toast("The rectangle to copy must be at least 16 elmos on each side.");
+      else { ED.stamp = { src }; toast("Copied. Click where the copy goes (Q turns it, M mirrors it)."); }
+      edUpdateUi();
+    } else if (ED.stamp) edStampCommit(r.a);                                          // a click: paste
+    else toast("Drag a rectangle first to copy its heights.");
+    draw();
+    return;
+  }
   if (ED.rampDrag) {
     e.stopImmediatePropagation();
     const r = ED.rampDrag;
@@ -638,6 +667,8 @@ function drawEditor() {
       ctx.beginPath(); ctx.arc(x, y, edPaintRadius() * S.view.s, 0, Math.PI * 2); ctx.stroke();
     }
     ctx.restore();
+  } else if (ED.tool === "stamp") {
+    edDrawStamp();
   } else if (ED.tool === "brush" && edIsRampTool()) {         // ramp: the strip from A to the pointer, width = radius
     const a = ED.rampDrag ? ED.rampDrag.a : ED.ramp && ED.ramp.a;
     const b = ED.rampDrag ? ED.rampDrag.cur : ED.hover;
@@ -689,6 +720,7 @@ $("ed-sym").onchange = () => { S.symmetry = $("ed-sym").checked; edSend(0); };
 $("ed-brush").onchange = edUpdateUi;
 $("ed-pmat").onchange = edUpdateUi;
 $("ed-pmode").onchange = () => { edUpdateUi(); draw(); };
+$("ed-srot").onchange = $("ed-sflip").onchange = () => draw();
 $("ed-metal").onchange = () => {
   const v = Math.min(9, Math.max(0.1, parseFloat($("ed-metal").value) || 2));
   if (ED.sel && ED.sel.ref) edCommit({ op: "set_metal", at: [ED.sel.x, ED.sel.z], metal: v });
@@ -717,13 +749,17 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     edNudge(e.code === "BracketRight" ? 1 : -1, e.shiftKey);
   }
+  else if (ED.on && k === "k") { ED.tool = "stamp"; edUpdateUi(); }
+  else if (ED.on && ED.tool === "stamp" && k === "q") { e.stopImmediatePropagation(); edStampTurn(e.shiftKey ? -90 : 90); }
+  else if (ED.on && ED.tool === "stamp" && k === "m") { e.stopImmediatePropagation(); $("ed-sflip").checked = !$("ed-sflip").checked; draw(); }
   else if (ED.on && k === "escape" && ED.poly) { ED.poly = null; draw(); }     // first Esc drops the open polygon
+  else if (ED.on && k === "escape" && ED.tool === "stamp" && ED.stamp) { ED.stamp = null; edUpdateUi(); draw(); }
   else if (ED.on && k === "escape") { ED.ramp = null; ED.tool = "move"; edUpdateUi(); draw(); }
 }, true);
 
 // ------------------------------------------------------------------ brush (terrain, stage B)
 const edIsBrush = (x) => x.op === "brush";
-const edAffectsRelief = (x) => x.op === "brush" || x.op === "paint";     // the server's cached relief picture is replaced
+const edAffectsRelief = (x) => x.op === "brush" || x.op === "stamp" || x.op === "paint";     // the server's cached relief picture is replaced
 const EDPAINT_COLORS = { path: "rgba(200,180,140,0.55)", concrete: "rgba(190,190,190,0.55)",
   scorch: "rgba(40,30,25,0.6)", lava: "rgba(255,110,20,0.6)", erase: "rgba(255,255,255,0.25)" };
 function edPaintMode() { return $("ed-pmode").value; }       // stroke | poly | band (a declaration: edUpdateUi needs it early)
@@ -793,6 +829,60 @@ function edRampCommit(a, b) {
   const at = [Math.round(a[0]), Math.round(a[1])], to = [Math.round(b[0]), Math.round(b[1])];
   if (at[0] === to[0] && at[1] === to[1]) { toast("A ramp needs two different points."); draw(); return; }
   edCommit({ op: "brush", tool: "ramp", at, to, radius: edBrushRadius(), strength: edBrushStrength() });
+}
+
+// stamp: corners of the copied rectangle, and of its copy at `to` turned `rot` degrees clockwise (mirrored left-right
+// first when flip), in the order of the source corners top-left, top-right, bottom-right, bottom-left
+const edStampSrcPts = (s) => [[s[0], s[1]], [s[2], s[1]], [s[2], s[3]], [s[0], s[3]]];
+function edStampDstPts(s, to, rot, flip) {
+  const hw = (s[2] - s[0]) / 2, hh = (s[3] - s[1]) / 2;
+  return [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([x, z]) => {
+    if (flip) x = -x;
+    for (let k = 0; k < (rot || 0) / 90; k++) [x, z] = [-z, x];          // a quarter turn clockwise (z points down)
+    return [to[0] + x, to[1] + z];
+  });
+}
+const edStampRot = () => Number($("ed-srot").value) || 0;
+const edStampBlend = () => Math.min(1000, Math.max(0, Number($("ed-sblend").value) || 0));
+function edStampCommit(p) {                                    // one paste = one edit, so one undo step
+  edCommit({ op: "stamp", src: ED.stamp.src, to: [Math.round(p[0]), Math.round(p[1])], rotate: edStampRot(),
+             flip: $("ed-sflip").checked, blend: edStampBlend() });
+}
+function edDrawStamp() {
+  const poly = (pts, k) => {
+    ctx.globalAlpha = k ? 0.4 : 1;
+    ctx.lineWidth = k ? 1 : 2;
+    ctx.beginPath();
+    pts.forEach((p, i) => { const [x, y] = toScreen(p[0], p[1]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  };
+  ctx.save();
+  ctx.setLineDash([4, 3]);
+  ctx.strokeStyle = "#fff";
+  ctx.fillStyle = "rgba(255,255,255,0.12)";
+  if (ED.stampDrag) {                                           // the rectangle being copied
+    const a = ED.stampDrag.a, b = ED.stampDrag.cur;
+    poly(edStampSrcPts([Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])]), 0);
+  } else if (ED.stamp) {
+    poly(edStampSrcPts(ED.stamp.src), 0);
+    if (ED.hover) {                                             // the copy under the pointer and at every mirror image
+      const pts = edStampDstPts(ED.stamp.src, ED.hover, edStampRot(), $("ed-sflip").checked);
+      const imgs = pts.map((p) => edOrbit(p[0], p[1]));
+      ctx.fillStyle = "rgba(120,200,255,0.2)";
+      for (let k = 0; k < imgs[0].length; k++) {
+        const q = imgs.map((o) => o[k]);
+        poly(q, k);
+        const [cx, cy] = toScreen(q[0][0], q[0][1]);            // a dot on the copied top-left corner shows the turn
+        ctx.beginPath(); ctx.arc(cx, cy, k ? 3 : 5, 0, Math.PI * 2); ctx.fillStyle = "#fff"; ctx.fill();
+        ctx.fillStyle = "rgba(120,200,255,0.2)";
+      }
+    }
+  }
+  ctx.restore();
+}
+function edStampTurn(d) {
+  $("ed-srot").value = String((edStampRot() + d + 360) % 360);
+  draw();
 }
 
 // one dab of the stroke: a brush edit at a map position, tagged with the stroke it belongs to
