@@ -44,10 +44,12 @@ def test_preview_layers_and_versions(app):
     nx, nz = p["grid"]
     assert len(call(f"layer/{p['id']}/height")) == nx * nz * 2
     assert len(call(f"layer/{p['id']}/cells")) == nx * nz
-    for name in ("relief", "gates", "hazard", "reach_tanks", "reach_hovers"):
+    for name in ("relief", "gates", "hazard", "reach_tanks", "reach_hovers", "slope", "contours_32"):
         assert len(call(f"layer/{p['id']}/{name}")) > 1000
     with pytest.raises(urllib.error.HTTPError):
         call(f"layer/{p['id']}/reach_boats")
+    with pytest.raises(urllib.error.HTTPError):
+        call(f"layer/{p['id']}/contours_4")
     call("config", {"author": "Tester", "outdir": str(tmp / "out")})
     (tmp / "out").mkdir()
     (tmp / "out" / "Forge_Iron_Wall_v1.sdz").write_bytes(b"x")

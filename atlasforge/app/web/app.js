@@ -14,9 +14,10 @@ const S = {
   map: null,           // last preview response
   seq: 0,
   busy: false,
-  img: { relief: null, reliefSize: 0, hazard: null, gates: null, reach: {} },
+  img: { relief: null, reliefSize: 0, hazard: null, gates: null, reach: {}, overlay: {} },
   grid: null,          // { nx, nz, height: Int16Array, cells: Uint8Array }
-  layers: { mexes: true, geos: true, starts: true, boxes: true, gates: true, hazard: true, grid: false, features: true },
+  layers: { mexes: true, geos: true, starts: true, boxes: true, gates: true, hazard: true, grid: false, features: true, contours: false, slope: false },
+  contourStep: 64,
   route: "",
   view: { cx: 0, cy: 0, s: 0.1, fit: 0.1 },
   titleEdited: {},
@@ -91,6 +92,8 @@ async function init() {
   S.titles = recall("titles", {});
   S.titleEdited = recall("titleEdited", {});
   for (const [k, v] of Object.entries(recall("layers", {}))) if (k in S.layers) S.layers[k] = v;
+  S.contourStep = recall("contourStep", 64);
+  $("contour-step").value = S.contourStep;
   syncToolbar();
   renderGallery();
   renderWho();
@@ -407,7 +410,7 @@ async function runPreview(refit) {
     if (seq !== S.seq) return;
     S.map = m;
     editorAfterPreview(m, seed);
-    S.img = { relief, reliefSize: 1024, hazard, gates, reach: {} };
+    S.img = { relief, reliefSize: 1024, hazard, gates, reach: {}, overlay: {} };
     S.grid = { nx: m.grid[0], nz: m.grid[1], height: new Int16Array(height), cells: new Uint8Array(cells) };
     $("empty").classList.add("hidden");
     $("readout").innerHTML = "Scroll to zoom, drag to move, double-click to reset";
@@ -567,6 +570,7 @@ function paint() {
   ctx.drawImage(S.img.relief, ox, oy, w, h);
 
   if (S.route && S.img.reach[S.route]) ctx.drawImage(S.img.reach[S.route], ox, oy, w, h);
+  for (const name of overlayNames()) if (S.img.overlay[name]) ctx.drawImage(S.img.overlay[name], ox, oy, w, h);
   if (S.layers.hazard && S.img.hazard) ctx.drawImage(S.img.hazard, ox, oy, w, h);
   if (S.layers.gates && S.img.gates) ctx.drawImage(S.img.gates, ox, oy, w, h);
   if (S.layers.grid) drawGrid(ox, oy, w, h);
@@ -833,6 +837,7 @@ function readout(e) {
 function syncToolbar() {
   for (const b of document.querySelectorAll("#layers button")) b.classList.toggle("on", !!S.layers[b.dataset.layer]);
   for (const b of document.querySelectorAll("#routes button")) b.classList.toggle("on", b.dataset.route === S.route);
+  for (const b of document.querySelectorAll("#overlays button")) b.classList.toggle("on", !!S.layers[b.dataset.layer]);
   updateLegend();
 }
 function toggleLayer(k) {
@@ -840,6 +845,28 @@ function toggleLayer(k) {
   store("layers", S.layers);
   syncToolbar();
   draw();
+  if (S.layers[k] && (k === "slope" || k === "contours")) loadOverlays().then(draw).catch((e) => toast(e.message));
+}
+function overlayNames() {
+  const names = [];
+  if (S.layers.slope) names.push("slope");
+  if (S.layers.contours) names.push("contours_" + S.contourStep);
+  return names;
+}
+async function loadOverlays() {
+  if (!S.map) return;
+  const id = S.map.id;
+  for (const name of overlayNames()) {
+    if (S.img.overlay[name]) continue;
+    const img = await api(layerUrl(name));
+    if (S.map && S.map.id === id) S.img.overlay[name] = img;
+  }
+}
+function setContourStep(v) {
+  S.contourStep = Number(v);
+  store("contourStep", S.contourStep);
+  syncToolbar();
+  if (S.layers.contours) loadOverlays().then(draw).catch((e) => toast(e.message));
 }
 async function setRoute(cls) {
   S.route = S.route === cls ? "" : cls;
@@ -851,11 +878,17 @@ async function setRoute(cls) {
 }
 function updateLegend() {
   const l = $("legend");
-  if (!S.route || !S.map) { l.innerHTML = ""; return; }
-  const line = S.map.lines.find((x) => x.trim().toLowerCase().startsWith(S.route)) || "";
-  l.innerHTML = `<span class="key"></span>out of reach &middot; ${esc(line.replace(/\s{2,}/g, " "))}`;
+  const parts = [];
+  if (S.route && S.map) {
+    const line = S.map.lines.find((x) => x.trim().toLowerCase().startsWith(S.route)) || "";
+    parts.push(`<span class="key"></span>out of reach &middot; ${esc(line.replace(/\s{2,}/g, " "))}`);
+  }
+  if (S.layers.slope) parts.push("Slope: green all ground units, yellow only bots and spiders, red nothing");
+  if (S.layers.contours) parts.push(`Contours every ${S.contourStep} elmos`);
+  l.innerHTML = parts.join(" &middot; ");
 }
-document.querySelectorAll("#layers button").forEach((b) => (b.onclick = () => toggleLayer(b.dataset.layer)));
+document.querySelectorAll("#layers button, #overlays button").forEach((b) => (b.onclick = () => toggleLayer(b.dataset.layer)));
+$("contour-step").onchange = (e) => setContourStep(e.target.value);
 document.querySelectorAll("#routes button").forEach((b) => (b.onclick = () => setRoute(b.dataset.route)));
 $("z-in").onclick = () => zoomAt(1.5);
 $("z-out").onclick = () => zoomAt(1 / 1.5);

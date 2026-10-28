@@ -115,6 +115,7 @@ function edSend(delay = 80) {
       }
       ED.pending = null;
       S.img.reach = {};
+      S.img.overlay = {};
       if (terrain) await edReloadTerrain();
       if (S.route) await loadRoute(S.route);
       renderReport();
