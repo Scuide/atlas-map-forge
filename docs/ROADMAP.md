@@ -42,8 +42,10 @@ Edit Forge maps by hand, in three stages, always keeping the symmetry and re-run
 - Done (B, part 1): terrain brush tool (raise, lower, flatten, smooth) with radius and strength, undo per stroke, saved in .forge.json.
 - Done (B, part 2): ramp tool (A to B, width), mirrored/rotated with symmetry, saved in .forge.json.
 - Next: B - flatten with a fixed target height in the UI.
-- Later: C - painting and objects: paths, concrete, scorch, lava; place or remove trees and rocks; optional
-  16-bit PNG heightmap import/export.
+- Done (C, part 1): texture painting (paths, concrete, scorch marks, lava crust) with radius and strength, soft edges,
+  mirrored/rotated with symmetry, one undo step per stroke, shown in the preview and in the built texture, saved in
+  .forge.json. Lava is a look only: it does not hurt units.
+- Later: C - place or remove trees and rocks; optional 16-bit PNG heightmap import/export.
 
 ## More ways to play and more templates
 

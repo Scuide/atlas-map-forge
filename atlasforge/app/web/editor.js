@@ -13,6 +13,7 @@ const ED = {
   strokeSeq: 0,
   ramp: null,           // { a: [x, z] } a ramp start point A, waiting for the second click (B)
   rampDrag: null,       // { a, cur } while a ramp is dragged from A to B
+  paint: null,          // { pts } while a paint stroke is drawn (one edit, one undo step)
   terrain: false,       // the terrain layers shown are computed with brush edits
   last: null,           // { tpl, values, seed } the current map was generated with
   seq: 0,
@@ -72,7 +73,7 @@ async function editorGuard() {
 function editorAfterPreview(m, seed) {
   S.edits = m.edits || [];
   S.redo = [];
-  ED.terrain = S.edits.some(edIsBrush);              // the preview is computed with these edits already
+  ED.terrain = S.edits.some(edAffectsRelief);              // the preview is computed with these edits already
   S.symmetry = m.symmetry !== false;
   $("ed-sym").checked = S.symmetry;
   ED.last = { key: JSON.stringify([m.template, m.values, seed]), tpl: m.template, values: JSON.stringify(m.values), seed };
@@ -87,8 +88,8 @@ function edSend(delay = 80) {
   ED.timer = setTimeout(async () => {
     const seq = ++ED.seq;
     try {
-      const terrain = ED.terrain || S.edits.some(edIsBrush);
-      ED.terrain = S.edits.some(edIsBrush);
+      const terrain = ED.terrain || S.edits.some(edAffectsRelief);
+      ED.terrain = S.edits.some(edAffectsRelief);
       const r = await api("edit", { id: S.map.id, edits: S.edits, symmetry: S.symmetry });
       if (seq !== ED.seq) return;
       // an edit the server refuses is dropped again, with the reason
@@ -154,6 +155,7 @@ function edUpdateUi() {
   $("ed-extra").classList.toggle("hidden", !ED.on);
   for (const b of document.querySelectorAll("#ed-extra [data-tool]")) b.classList.toggle("on", b.dataset.tool === ED.tool);
   $("ed-brush-opts").classList.toggle("hidden", ED.tool !== "brush");
+  $("ed-paint-opts").classList.toggle("hidden", ED.tool !== "paint");
   if (ED.tool !== "brush" || !edIsRampTool()) ED.ramp = null;      // a pending ramp start belongs to the ramp tool
   $("ed-undo").disabled = !S.edits.length;
   $("ed-redo").disabled = !S.redo.length;
@@ -253,6 +255,11 @@ cv.addEventListener("pointerdown", (e) => {
     if (ED.ramp) edRampCommit(ED.ramp.a, [mx, mz]);                // second click: B
     else ED.rampDrag = { a: [mx, mz], cur: [mx, mz] };  // first click or drag: A (and B when dragged)
     draw();
+  } else if (ED.tool === "paint") {
+    e.stopImmediatePropagation();
+    cv.setPointerCapture(e.pointerId);
+    ED.paint = { pts: [[mx, mz]] };
+    draw();
   } else if (ED.tool === "brush") {
     e.stopImmediatePropagation();
     cv.setPointerCapture(e.pointerId);
@@ -289,7 +296,13 @@ cv.addEventListener("pointermove", (e) => {
 cv.addEventListener("pointermove", (e) => {
   if (!ED.on || !S.map) return;
   const [sx, sy] = edPos(e);
-  if (ED.stroke) {
+  if (ED.paint) {
+    e.stopImmediatePropagation();
+    const p = edClamp(toMap(sx, sy)), l = ED.paint.pts[ED.paint.pts.length - 1];
+    ED.hover = p;
+    if (Math.hypot(p[0] - l[0], p[1] - l[1]) >= edPaintRadius() * 0.2 && ED.paint.pts.length < 400) ED.paint.pts.push(p);
+    draw();
+  } else if (ED.stroke) {
     e.stopImmediatePropagation();
     const [mx, mz] = edClamp(toMap(sx, sy));
     ED.hover = [mx, mz];
@@ -304,13 +317,21 @@ cv.addEventListener("pointermove", (e) => {
     e.stopImmediatePropagation();
     ED.drag.cur = edClamp(toMap(sx, sy));
     draw();
-  } else if (ED.tool === "mex" || ED.tool === "geo" || ED.tool === "brush") {
+  } else if (ED.tool === "mex" || ED.tool === "geo" || ED.tool === "brush" || ED.tool === "paint") {
     ED.hover = edClamp(toMap(sx, sy));
     draw();
   }
 }, true);
 
 const edEnd = (e) => {
+  if (ED.paint) {
+    e.stopImmediatePropagation();
+    const pts = ED.paint.pts.map((p) => [Math.round(p[0]), Math.round(p[1])]);
+    ED.paint = null;
+    edCommit({ op: "paint", material: $("ed-pmat").value, points: pts, radius: edPaintRadius(), strength: edPaintStrength() });
+    draw();
+    return;
+  }
   if (ED.stroke) { e.stopImmediatePropagation(); ED.stroke = null; draw(); return; }
   if (ED.rampDrag) {
     e.stopImmediatePropagation();
@@ -414,7 +435,23 @@ function drawEditor() {
   if (ED.drag && !ED.drag.kind.startsWith("box")) ghost(ED.drag.kind, edOrbit(ED.drag.cur[0], ED.drag.cur[1]), true);
   else if (ED.pending) ghost(ED.pending.kind, ED.pending.pts, false);
   else if (ED.hover && (ED.tool === "mex" || ED.tool === "geo")) ghost(ED.tool, edOrbit(ED.hover[0], ED.hover[1]), false);
-  if (ED.tool === "brush" && edIsRampTool()) {         // ramp: the strip from A to the pointer, width = radius
+  if (ED.paint || (ED.tool === "paint" && ED.hover)) {   // paint: the stroke so far, or the ring of the brush
+    const pts = ED.paint ? ED.paint.pts : [ED.hover];
+    ctx.save();
+    ctx.lineCap = ctx.lineJoin = "round";
+    ctx.strokeStyle = EDPAINT_COLORS[$("ed-pmat").value] || "rgba(255,255,255,0.4)";
+    ctx.lineWidth = Math.max(2, 2 * edPaintRadius() * S.view.s);
+    ctx.beginPath();
+    pts.forEach((p, i) => { const [x, y] = toScreen(p[0], p[1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+    if (pts.length === 1) { const [x, y] = toScreen(pts[0][0], pts[0][1]); ctx.lineTo(x + 0.01, y); }
+    ctx.stroke();
+    if (!ED.paint && ED.hover) {
+      const [x, y] = toScreen(ED.hover[0], ED.hover[1]);
+      ctx.setLineDash([4, 3]); ctx.lineWidth = 2; ctx.strokeStyle = "#fff";
+      ctx.beginPath(); ctx.arc(x, y, edPaintRadius() * S.view.s, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.restore();
+  } else if (ED.tool === "brush" && edIsRampTool()) {         // ramp: the strip from A to the pointer, width = radius
     const a = ED.rampDrag ? ED.rampDrag.a : ED.ramp && ED.ramp.a;
     const b = ED.rampDrag ? ED.rampDrag.cur : ED.hover;
     if (a && b) {
@@ -459,6 +496,7 @@ $("ed-undo").onclick = edUndo;
 $("ed-redo").onclick = edRedo;
 $("ed-sym").onchange = () => { S.symmetry = $("ed-sym").checked; edSend(0); };
 $("ed-brush").onchange = edUpdateUi;
+$("ed-pmat").onchange = edUpdateUi;
 $("ed-metal").onchange = () => {
   const v = Math.min(9, Math.max(0.1, parseFloat($("ed-metal").value) || 2));
   if (ED.sel && ED.sel.ref) edCommit({ op: "set_metal", at: [ED.sel.x, ED.sel.z], metal: v });
@@ -480,11 +518,17 @@ document.addEventListener("keydown", (e) => {
   else if (ED.on && k === "2") { ED.tool = "geo"; edUpdateUi(); e.stopImmediatePropagation(); }
   else if (ED.on && k === "x") { ED.tool = "del"; edUpdateUi(); }
   else if (ED.on && k === "b") { ED.tool = "brush"; edUpdateUi(); }
+  else if (ED.on && k === "p") { ED.tool = "paint"; edUpdateUi(); }
   else if (k === "escape" && ED.ramp) { ED.ramp = null; draw(); }
 }, true);
 
 // ------------------------------------------------------------------ brush (terrain, stage B)
 const edIsBrush = (x) => x.op === "brush";
+const edAffectsRelief = (x) => x.op === "brush" || x.op === "paint";     // the server's cached relief picture is replaced
+const EDPAINT_COLORS = { path: "rgba(200,180,140,0.55)", concrete: "rgba(190,190,190,0.55)",
+  scorch: "rgba(40,30,25,0.6)", lava: "rgba(255,110,20,0.6)" };
+const edPaintRadius = () => Math.min(1000, Math.max(8, Number($("ed-pradius").value) || 96));
+const edPaintStrength = () => Math.min(1, Math.max(0.1, Number($("ed-pstrength").value) || 1));
 const edBrushRadius = () => Math.min(2000, Math.max(8, Number($("ed-radius").value) || 200));
 const edBrushStrength = () => Math.min(1, Math.max(0, Number($("ed-strength").value)));
 const edIsRampTool = () => $("ed-brush").value === "ramp";

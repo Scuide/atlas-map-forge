@@ -158,3 +158,17 @@ def test_brush_edit_changes_terrain_layers_and_undo_restores_them(api):
     assert raised != before                                # the cached height layer was dropped and rebuilt
     call("edit", {"id": mid, "edits": [], "symmetry": False})
     assert state.layer(mid, "height") == before            # undo: back to the generated terrain
+
+
+def test_paint_edit_changes_relief_layer_and_undo_restores_it(api):
+    call, state, _ = api
+    p = call("preview", {"template": "chokepoint", "values": DUEL, "seed": 3})
+    mid = p["id"]
+    before = state.layer(mid, "relief")
+    stroke = {"op": "paint", "material": "concrete", "points": [[p["W"] * 0.3, p["H"] * 0.3], [p["W"] * 0.4, p["H"] * 0.3]],
+              "radius": 200, "strength": 1}
+    r = call("edit", {"id": mid, "edits": [stroke], "symmetry": True})
+    assert r["problems"] == []
+    assert state.layer(mid, "relief") != before            # the cached relief picture was dropped and rebuilt
+    call("edit", {"id": mid, "edits": [], "symmetry": True})
+    assert state.layer(mid, "relief") == before            # undo: back to the generated look
