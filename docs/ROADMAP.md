@@ -43,6 +43,7 @@ Edit Forge maps by hand, in three stages, always keeping the symmetry and re-run
 - Done (B, part 2): ramp tool (A to B, width), mirrored/rotated with symmetry, saved in .forge.json.
 - Done (C, part 1-2): feature brush for trees, rocks and wrecks (add / remove in a circle, density), symmetric, saved in .forge.json. Next: remaining C items.
 - Done (B, part 4): Noise (roughen) and Terrace (steps) brush modes, symmetric, one undo step per stroke.
+- Done (B, part 6): 3D terrain preview (rotate, zoom, water plane, markers), plain WebGL without libraries.
 - Done (B, part 5): contour and slope overlays in the preview (toggles, contour spacing, slope classes from movedef limits).
 - Done: edit list panel: all edits in order, click to highlight, switch off / on, delete; undoable, saved in .forge.json.
 - Done: preview zoom (1x to 8x towards the cursor), pan (middle mouse or Space + drag), double-click resets; grouped editor toolbar.

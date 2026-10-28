@@ -548,6 +548,7 @@ function draw() {
 }
 
 function paint() {
+  if (View3D && View3D.on) { View3D.render(S); return; }
   const dpr = window.devicePixelRatio || 1;
   const r = cv.getBoundingClientRect();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -890,6 +891,16 @@ function updateLegend() {
 document.querySelectorAll("#layers button, #overlays button").forEach((b) => (b.onclick = () => toggleLayer(b.dataset.layer)));
 $("contour-step").onchange = (e) => setContourStep(e.target.value);
 document.querySelectorAll("#routes button").forEach((b) => (b.onclick = () => setRoute(b.dataset.route)));
+$("btn-3d").onclick = () => {
+  if (!View3D || (!View3D.ok && !View3D.init($("map3d")))) {
+    toast("The 3D view needs WebGL, which is not available here. The flat map still works.");
+    $("btn-3d").disabled = true;
+    return;
+  }
+  const on = View3D.set(!View3D.on);
+  $("btn-3d").classList.toggle("on", on);
+  draw();
+};
 $("z-in").onclick = () => zoomAt(1.5);
 $("z-out").onclick = () => zoomAt(1 / 1.5);
 $("z-fit").onclick = fit;

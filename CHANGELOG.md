@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Preview: 3D button switches to a rotatable terrain view (plain WebGL, works offline): drag rotates, wheel zooms, right-drag or Shift+drag moves, double-click resets. Shows the relief texture, a translucent water plane and metal spots, geovents and start points; follows edits. Without WebGL the button explains why and the flat map stays.
 - Preview: zoom from 1x to 8x towards the cursor, pan with the middle mouse button or Space + drag, double-click resets the view. The editor toolbar is grouped (Place, Terrain, Paint, Features) with a Trees button.
 - New template Island Continents: two broad opposing landmasses with independent ground fronts, a deep fleet channel and amphibious landing routes (watermark code 30).
 - Editor: terrain brush (raise, lower, flatten, smooth) with radius and strength; one undo step per stroke; brushes are saved in .forge.json.

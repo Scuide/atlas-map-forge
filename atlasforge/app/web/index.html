@@ -62,6 +62,7 @@
   <!-- centre: the map -->
   <section class="stage" id="stage">
     <canvas id="map"></canvas>
+    <canvas id="map3d" class="hidden3d"></canvas>
     <div class="toolbar" id="toolbar">
       <div class="tgroup" id="layers">
         <button data-layer="mexes" class="on" title="Metal spots (M)">Metal</button>
@@ -82,6 +83,9 @@
         <button data-route="amphibians">Amphibians</button>
         <button data-route="hovers">Hovers</button>
         <button data-route="ships" class="hidden" id="route-ships">Ships</button>
+      </div>
+      <div class="tgroup" id="viewmode">
+        <button id="btn-3d" title="Switch between the flat map and a 3D terrain view. Drag to rotate, wheel to zoom, right-drag to move">3D</button>
       </div>
       <div class="tgroup" id="overlays">
         <span class="tlabel">Overlays</span>
@@ -288,6 +292,7 @@
 <div class="infopop hidden" id="infopop" role="tooltip"></div>
 <div class="toast hidden" id="toast"></div>
 <script src="view.js"></script>
+<script src="view3d.js"></script>
 <script src="app.js"></script>
 <script src="editor.js"></script>
 </body>
