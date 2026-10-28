@@ -36,6 +36,8 @@ async function api(path, body) {
     opt.headers["Content-Type"] = "application/json";
     opt.body = JSON.stringify(body);
   }
+  // layers are cached by the browser: the design revision in the URL makes an edited layer a new resource
+  if (body === undefined && path.startsWith("layer/") && S.map) path += (path.includes("?") ? "&" : "?") + "v=" + (S.map.rev || 0);
   const r = await fetch("/api/" + path, opt);
   const ct = r.headers.get("Content-Type") || "";
   if (!r.ok) {

@@ -19,6 +19,7 @@ def api(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
     monkeypatch.setenv("APPDATA", str(tmp_path / "cfg"))
     srv, url, state = serve(0)
+    state.test_url = url
 
     def call(path, body=None):
         req = urllib.request.Request(url + "api/" + path, data=json.dumps(body).encode() if body is not None else None,
@@ -172,6 +173,28 @@ def test_paint_edit_changes_relief_layer_and_undo_restores_it(api):
     assert state.layer(mid, "relief") != before            # the cached relief picture was dropped and rebuilt
     call("edit", {"id": mid, "edits": [], "symmetry": True})
     assert state.layer(mid, "relief") == before            # undo: back to the generated look
+
+
+def test_edit_bumps_rev_and_layer_url_gets_new_bytes_over_http(api):
+    """The browser caches /api/layer for an hour; the client puts rev in the URL so an edited layer is a new resource."""
+    call, state, _ = api
+    p = call("preview", {"template": "chokepoint", "values": DUEL, "seed": 3})
+    mid, rev0 = p["id"], p["rev"]
+    base = state.test_url + f"api/layer/{mid}/relief?size=512&v=%d"
+
+    def get(rev):
+        req = urllib.request.Request(base % rev, headers={"X-Forge-Token": state.token})
+        with urllib.request.urlopen(req) as r:
+            return r.headers["Cache-Control"], r.read()
+    cc, old = get(rev0)
+    assert "max-age" in cc                                  # unchanged maps stay cacheable
+    stroke = {"op": "paint", "material": "path", "points": [[p["W"] * 0.4, p["H"] * 0.4], [p["W"] * 0.6, p["H"] * 0.4]],
+              "radius": 200, "strength": 1}
+    r = call("edit", {"id": mid, "edits": [stroke], "symmetry": False})
+    assert r["rev"] > rev0
+    assert get(r["rev"])[1] != old                         # path paint is visible in the relief preview
+    r2 = call("edit", {"id": mid, "edits": [], "symmetry": False})
+    assert r2["rev"] > r["rev"] and get(r2["rev"])[1] == old    # undo: new revision, original picture
 
 
 def test_paint_fill_and_erase_through_the_api(api):
