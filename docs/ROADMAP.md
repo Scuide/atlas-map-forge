@@ -42,6 +42,7 @@ Edit Forge maps by hand, in three stages, always keeping the symmetry and re-run
 - Done (B, part 1): terrain brush tool (raise, lower, flatten, smooth) with radius and strength, undo per stroke, saved in .forge.json.
 - Done (B, part 2): ramp tool (A to B, width), mirrored/rotated with symmetry, saved in .forge.json.
 - Done (C, part 1): tree brush (add / remove in a circle, density), symmetric, saved in .forge.json. Next: rocks.
+- Done: preview zoom (1x to 8x towards the cursor), pan (middle mouse or Space + drag), double-click resets; grouped editor toolbar.
 - Next: B - flatten with a fixed target height in the UI.
 - Done (C, part 1): texture painting (paths, concrete, scorch marks, lava crust) with radius and strength, soft edges,
   mirrored/rotated with symmetry, one undo step per stroke, shown in the preview and in the built texture, saved in

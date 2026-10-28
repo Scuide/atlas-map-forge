@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Preview: zoom from 1x to 8x towards the cursor, pan with the middle mouse button or Space + drag, double-click resets the view. The editor toolbar is grouped (Place, Terrain, Paint, Features) with a Trees button.
 - New template Island Continents: two broad opposing landmasses with independent ground fronts, a deep fleet channel and amphibious landing routes (watermark code 30).
 - Editor: terrain brush (raise, lower, flatten, smooth) with radius and strength; one undo step per stroke; brushes are saved in .forge.json.
 - Editor: paint tool for ground texture (path, concrete, scorch marks, lava crust) with radius and strength; follows symmetry, one undo step per stroke, shows in the preview and the built map, saved in .forge.json. Lava crust is cosmetic only.

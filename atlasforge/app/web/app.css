@@ -375,4 +375,7 @@ button:disabled { opacity: .45; cursor: default; filter: none; }
 #edit-tools .brush-opts label { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
 #edit-tools .brush-opts input[type=range] { width: 80px; }
 .stage canvas.editing { cursor: crosshair; }
+.stage canvas.grab { cursor: grab; }
+#edit-tools .ed-lbl { color: var(--faint); font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; padding: 0 4px 0 6px; }
+#edit-tools .ed-sep { width: 1px; height: 18px; background: var(--line); margin: 0 6px; }
 #report li.warn { color: #ffd23c; }

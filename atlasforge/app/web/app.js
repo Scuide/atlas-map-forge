@@ -18,7 +18,7 @@ const S = {
   grid: null,          // { nx, nz, height: Int16Array, cells: Uint8Array }
   layers: { mexes: true, geos: true, starts: true, boxes: true, gates: true, hazard: true, grid: false, features: true },
   route: "",
-  view: { cx: 0, cy: 0, s: 0.1 },
+  view: { cx: 0, cy: 0, s: 0.1, fit: 0.1 },
   titleEdited: {},
   titles: {},
   job: null,
@@ -410,7 +410,7 @@ async function runPreview(refit) {
     S.img = { relief, reliefSize: 1024, hazard, gates, reach: {} };
     S.grid = { nx: m.grid[0], nz: m.grid[1], height: new Int16Array(height), cells: new Uint8Array(cells) };
     $("empty").classList.add("hidden");
-    $("readout").innerHTML = "Scroll to zoom, drag to move";
+    $("readout").innerHTML = "Scroll to zoom, drag to move, double-click to reset";
     const sameFrame = prev && prev.W === m.W && prev.H === m.H && !refit;
     if (!sameFrame) fit();
     if (S.route) await loadRoute(S.route);
@@ -512,7 +512,7 @@ function fit() {
   const top = $("toolbar").getBoundingClientRect().bottom - r.top + 12;   // keep the map clear of the toolbar
   const bottom = 56;
   const availH = r.height - top - bottom;
-  S.view.s = Math.min((r.width - 40) / S.map.W, availH / S.map.H);
+  S.view.s = S.view.fit = Math.min((r.width - 40) / S.map.W, availH / S.map.H);
   S.view.cx = S.map.W / 2;
   S.view.cy = S.map.H / 2 - (top + availH / 2 - r.height / 2) / S.view.s;
   draw();
@@ -522,14 +522,7 @@ function zoomAt(f, sx, sy) {
   if (!S.map) return;
   const r = cv.getBoundingClientRect();
   if (sx === undefined) { sx = r.width / 2; sy = r.height / 2; }
-  const v = S.view;
-  const minS = Math.min(r.width / S.map.W, r.height / S.map.H) * 0.4;
-  const ns = Math.min(Math.max(v.s * f, minS), 6);
-  const ex = v.cx + (sx - r.width / 2) / v.s;
-  const ey = v.cy + (sy - r.height / 2) / v.s;
-  v.cx = ex - (sx - r.width / 2) / ns;
-  v.cy = ey - (sy - r.height / 2) / ns;
-  v.s = ns;
+  S.view = viewZoomAt(S.view, r.width, r.height, f, sx, sy);
   draw();
   clearTimeout(zoomAt._t);
   zoomAt._t = setTimeout(maybeHiRes, 150);
@@ -537,11 +530,11 @@ function zoomAt(f, sx, sy) {
 
 function toScreen(x, z) {
   const r = cv.getBoundingClientRect();
-  return [(x - S.view.cx) * S.view.s + r.width / 2, (z - S.view.cy) * S.view.s + r.height / 2];
+  return viewToScreen(S.view, r.width, r.height, x, z);
 }
 function toMap(sx, sy) {
   const r = cv.getBoundingClientRect();
-  return [(sx - r.width / 2) / S.view.s + S.view.cx, (sy - r.height / 2) / S.view.s + S.view.cy];
+  return viewToMap(S.view, r.width, r.height, sx, sy);
 }
 
 let drawQueued = false;
@@ -770,15 +763,16 @@ function drawStarts() {
 
 // mouse: pan, zoom, readout
 let drag = null;
+S.space = false;                       // Space held: left-drag pans, whatever the edit tool is
 cv.addEventListener("pointerdown", (e) => {
+  if (e.button === 1) e.preventDefault();      // no browser autoscroll on middle click
   drag = { x: e.clientX, y: e.clientY, cx: S.view.cx, cy: S.view.cy };
   cv.setPointerCapture(e.pointerId);
   cv.classList.add("drag");
 });
 cv.addEventListener("pointermove", (e) => {
   if (drag) {
-    S.view.cx = drag.cx - (e.clientX - drag.x) / S.view.s;
-    S.view.cy = drag.cy - (e.clientY - drag.y) / S.view.s;
+    S.view = viewPan({ ...S.view, cx: drag.cx, cy: drag.cy }, e.clientX - drag.x, e.clientY - drag.y);
     draw();
   }
   readout(e);
@@ -786,16 +780,26 @@ cv.addEventListener("pointermove", (e) => {
 const endDrag = () => { drag = null; cv.classList.remove("drag"); maybeHiRes(); };
 cv.addEventListener("pointerup", endDrag);
 cv.addEventListener("pointercancel", endDrag);
-cv.addEventListener("pointerleave", () => { if (!drag) $("readout").innerHTML = "Scroll to zoom, drag to move"; });
+cv.addEventListener("pointerleave", () => { if (!drag) $("readout").innerHTML = "Scroll to zoom, drag to move, double-click to reset"; });
 cv.addEventListener("wheel", (e) => {
   e.preventDefault();
   const r = cv.getBoundingClientRect();
   zoomAt(Math.exp(-e.deltaY * 0.0016), e.clientX - r.left, e.clientY - r.top);
 }, { passive: false });
-cv.addEventListener("dblclick", (e) => {
-  const r = cv.getBoundingClientRect();
-  zoomAt(e.shiftKey ? 0.5 : 2, e.clientX - r.left, e.clientY - r.top);
+// double click resets the view (not while an add / paint tool is active: double clicks place things there)
+cv.addEventListener("dblclick", () => {
+  if (typeof ED !== "undefined" && ED.on && ED.tool !== "move") return;
+  fit();
+  maybeHiRes();
 });
+document.addEventListener("keydown", (e) => {
+  if (e.code !== "Space" || e.target.matches("input, textarea, select, button")) return;
+  e.preventDefault();
+  S.space = true;
+  cv.classList.add("grab");
+});
+document.addEventListener("keyup", (e) => { if (e.code === "Space") { S.space = false; cv.classList.remove("grab"); } });
+window.addEventListener("blur", () => { S.space = false; cv.classList.remove("grab"); });
 
 function readout(e) {
   const m = S.map, g = S.grid;

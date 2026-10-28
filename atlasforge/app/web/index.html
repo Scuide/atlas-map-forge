@@ -86,10 +86,12 @@
       <div class="tgroup" id="edit-tools">
         <button id="ed-toggle" title="Edit metal spots, geovents and start points (E)">Edit</button>
         <span class="ed-only hidden" id="ed-extra">
+          <span class="ed-lbl">Place</span>
           <button data-tool="move" class="on" title="Move: drag a spot (V)">Move</button>
           <button data-tool="mex" title="Add a metal spot: click (1)">Metal +</button>
           <button data-tool="geo" title="Add a geovent: click (2)">Geo +</button>
           <button data-tool="del" title="Delete: click a spot (X)">Delete</button>
+          <span class="ed-sep"></span><span class="ed-lbl">Terrain</span>
           <button data-tool="brush" title="Brush (B): drag on the map to raise, lower, flatten, smooth or ramp the terrain. R ramp, F flatten, [ ] radius, Shift+[ ] strength, Alt+click picks the flatten target height, Esc back to Move">Brush</button>
           <span class="brush-opts hidden" id="ed-brush-opts">
             <select id="ed-brush" title="Brush tool">
@@ -106,6 +108,7 @@
             <label class="small" title="Brush strength: 0 = no effect, 1 = full">Strength <input type="range" id="ed-strength" min="0" max="1" step="0.05" value="0.5"></label>
             <label class="small hidden" id="ed-target-wrap" title="Flatten target height; empty = the height under the first dab. Alt+click in the map picks it">Target height <input type="number" id="ed-target" step="1" placeholder="auto"></label>
           </span>
+          <span class="ed-sep"></span><span class="ed-lbl">Paint</span>
           <button data-tool="paint" title="Paint: drag on the map to paint paths, concrete, scorch marks or lava crust (P)">Paint</button>
           <span class="brush-opts hidden" id="ed-paint-opts">
             <select id="ed-pmat" title="Material">
@@ -117,6 +120,9 @@
             <label class="small" title="Stroke width: radius in elmos">Radius <input type="number" id="ed-pradius" min="8" max="1000" step="8" value="96"></label>
             <label class="small" title="Paint strength: 1 = fully covered"><input type="range" id="ed-pstrength" min="0.1" max="1" step="0.05" value="1"></label>
           </span>
+          <span class="ed-sep"></span><span class="ed-lbl">Features</span>
+          <button id="ed-trees" title="click to plant or clear trees in a circle. Switch Add / Remove in the Brush menu">Trees</button>
+          <span class="ed-sep"></span>
           <input type="number" id="ed-metal" min="0.1" max="9" step="0.1" value="2" title="Metal of the selected or the next new spot">
           <label class="switch small" title="Edit all mirror images / rotations together"><input type="checkbox" id="ed-sym" checked><span></span>Symmetry</label>
           <button id="ed-undo" title="Undo (Ctrl+Z)">Undo</button>
@@ -262,6 +268,7 @@
 
 <div class="infopop hidden" id="infopop" role="tooltip"></div>
 <div class="toast hidden" id="toast"></div>
+<script src="view.js"></script>
 <script src="app.js"></script>
 <script src="editor.js"></script>
 </body>

@@ -153,7 +153,9 @@ const edRedo = () => { if (S.redo.length) { edMove(S.redo, S.edits); ED.fresh = 
 function edUpdateUi() {
   $("ed-toggle").classList.toggle("on", ED.on);
   $("ed-extra").classList.toggle("hidden", !ED.on);
-  for (const b of document.querySelectorAll("#ed-extra [data-tool]")) b.classList.toggle("on", b.dataset.tool === ED.tool);
+  const treeMode = ED.tool === "brush" && edIsTreeTool();
+  for (const b of document.querySelectorAll("#ed-extra [data-tool]")) b.classList.toggle("on", b.dataset.tool === ED.tool && !(treeMode && b.dataset.tool === "brush"));
+  $("ed-trees").classList.toggle("on", treeMode);
   $("ed-brush-opts").classList.toggle("hidden", ED.tool !== "brush");
   $("ed-paint-opts").classList.toggle("hidden", ED.tool !== "paint");
   $("ed-target-wrap").classList.toggle("hidden", $("ed-brush").value !== "flatten");
@@ -239,7 +241,7 @@ const edPos = (e) => {
 const edClamp = (p) => [Math.min(Math.max(p[0], 0), S.map.W), Math.min(Math.max(p[1], 0), S.map.H)];
 
 cv.addEventListener("pointerdown", (e) => {
-  if (!ED.on || !S.map || e.button !== 0) return;
+  if (!ED.on || !S.map || e.button !== 0 || S.space) return;      // Space + drag pans
   const [sx, sy] = edPos(e);
   const hit = edPick(sx, sy);
   const [mx, mz] = edClamp(toMap(sx, sy));
@@ -506,6 +508,7 @@ function drawEditor() {
 // ------------------------------------------------------------------ toolbar and keys
 $("ed-toggle").onclick = () => { ED.on = !ED.on; ED.drag = ED.hover = null; edUpdateUi(); draw(); };
 for (const b of document.querySelectorAll("#ed-extra [data-tool]")) b.onclick = () => { ED.tool = b.dataset.tool; edUpdateUi(); };
+$("ed-trees").onclick = () => edBrushTool($("ed-brush").value.startsWith("trees-") ? $("ed-brush").value : "trees-add");
 $("ed-undo").onclick = edUndo;
 $("ed-redo").onclick = edRedo;
 $("ed-sym").onchange = () => { S.symmetry = $("ed-sym").checked; edSend(0); };
