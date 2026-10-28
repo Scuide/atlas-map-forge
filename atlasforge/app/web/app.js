@@ -899,6 +899,8 @@ $("btn-3d").onclick = () => {
   }
   const on = View3D.set(!View3D.on);
   $("btn-3d").classList.toggle("on", on);
+  // the 2D canvas, including its metal labels, must not show through the 3D view (SCU-88)
+  cv.classList.toggle("hidden3d", on);
   draw();
 };
 $("z-in").onclick = () => zoomAt(1.5);

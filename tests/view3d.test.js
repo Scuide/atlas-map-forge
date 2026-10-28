@@ -1,5 +1,6 @@
 // SCU-82: maths and mesh of the 3D preview (view3d.js)
 const assert = require("assert");
+global.document = {}; // the GL part of view3d.js only exists when a document is present (SCU-88 test)
 const v = require("../atlasforge/app/web/view3d.js");
 
 const nx = 5, nz = 4, h = new Int16Array(nx * nz).fill(10);
@@ -28,6 +29,13 @@ const mvp = v.v3Mul(v.v3Perspective(0.8, 1.5, 10, 100000), v.v3LookAt(v.v3Eye(v.
 const cl = (x, y, z) => [0, 1, 2, 3].map((r) => mvp[r] * x + mvp[4 + r] * y + mvp[8 + r] * z + mvp[12 + r]);
 const c = cl(4096, 0, 4096);
 assert.ok(Math.abs(c[0] / c[3]) < 1e-6 && Math.abs(c[1] / c[3]) < 1e-6 && c[3] > 0);
+
+// SCU-88: the GL context is opaque, so translucent water cannot show the 2D map behind it
+const asked = [];
+const fakeCanvas = { getContext: (...args) => { asked.push(args); return null; }, addEventListener() {} };
+assert.strictEqual(v.View3D.init(fakeCanvas), false);
+assert.deepStrictEqual(asked[0], ["webgl", { antialias: true, alpha: false }]);
+assert.deepStrictEqual(asked[1], ["experimental-webgl", { antialias: true, alpha: false }]);
 
 // ground height lookup
 assert.strictEqual(v.v3Ground(h, nx, nz, 12, 12), 10 * v.V3_EXAGGERATE);
