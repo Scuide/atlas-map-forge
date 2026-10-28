@@ -287,9 +287,25 @@ function edUpdateUi() {
   $("ed-undo").disabled = !S.edits.length;
   $("ed-redo").disabled = !S.redo.length;
   $("ed-count").textContent = S.edits.length ? `${S.edits.length} edit${S.edits.length > 1 ? "s" : ""}` : "";
+  edRenderBalance();
   cv.classList.toggle("editing", ED.on);
   $("ed-save").disabled = !S.map;
   if (S.map && S.map.sym) $("ed-sym").disabled = false;
+}
+
+// live metal balance per team / start position; the deviation from the average sets the colour
+function edRenderBalance() {
+  const box = $("ed-balance");
+  box.textContent = "";
+  const rows = ED.on && S.map && S.map.balance ? S.map.balance : [];
+  for (const r of rows) {
+    const a = Math.abs(r.dev);
+    const span = document.createElement("span");
+    span.className = "ed-bal " + (a <= 0.02 ? "ok" : a <= 0.10 ? "warn" : "bad");
+    const pct = r.dev ? ` (${r.dev > 0 ? "+" : ""}${Math.round(r.dev * 100)}%)` : "";
+    span.textContent = `${r.label}: ${r.metal.toFixed(1)}${pct}`;
+    box.append(span);
+  }
 }
 
 // ------------------------------------------------------------------ picking and dragging

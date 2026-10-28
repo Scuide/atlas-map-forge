@@ -39,6 +39,7 @@ from scipy import ndimage
 from .. import SQ, __version__
 from .. import config as C
 from .. import project
+from ..edits import metal_balance
 
 WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 MIME = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
@@ -185,6 +186,7 @@ class Forge:
             has_blocked=bool(d.blocked is not None and d.blocked.any()),
             height=[float(d.hm.min()), float(d.hm.max())],
             metal_total=round(float(sum(m["metal"] for m in d.mexes)), 1),
+            balance=metal_balance(d),
             features=[[round(x), round(z), "crystal" if n.startswith("forge_crystal") else
                        "rock" if n.startswith("forge_rock") else "tree" if n.startswith("treetype") else "wreck"]
                       for (n, x, z, _r) in d.features],

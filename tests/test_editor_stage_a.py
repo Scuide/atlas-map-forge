@@ -8,7 +8,7 @@ import pytest
 
 from atlasforge import forge
 from atlasforge.app.server import serve
-from atlasforge.edits import apply_edits, editor_checks, side_of
+from atlasforge.edits import apply_edits, editor_checks, metal_balance, side_of
 from atlasforge.symmetry import RotSymmetry
 
 QUIET = dict(log=lambda *a, **k: None)
@@ -279,3 +279,21 @@ def test_preview_with_edits_and_project_roundtrip(app):
     assert back["project"]["edits"] == edits and back["extra"] == {"mine": "kept"}
     with pytest.raises(urllib.error.HTTPError):
         call("project_load", {"text": json.dumps(dict(back["project"], version=99))})
+
+
+def test_metal_balance_follows_symmetric_edits(duel):
+    before = metal_balance(duel)
+    assert [b["side"] for b in before] == [0, 1]
+    assert abs(sum(b["metal"] for b in before) - sum(m["metal"] for m in duel.mexes)) < 0.05
+    m = duel.mexes[0]
+    d, p = apply_edits(duel, [{"op": "set_metal", "at": [m["x"], m["z"]], "metal": m["metal"] + 2.0}], symmetry=True)
+    assert not p
+    after = metal_balance(d)
+    deltas = [a["metal"] - b["metal"] for a, b in zip(after, before)]
+    assert all(abs(x - 2.0) < 1e-6 for x in deltas)        # the mirror image gets the same value: both sides +2
+    assert all(abs(a["dev"]) <= 1 for a in after)
+    avg = sum(a["metal"] for a in after) / len(after)
+    assert all(abs(a["dev"] - (a["metal"] - avg) / avg) < 1e-3 for a in after)
+    d1, _ = apply_edits(duel, [{"op": "set_metal", "at": [m["x"], m["z"]], "metal": m["metal"] + 2.0}], symmetry=False)
+    one = [a["metal"] - b["metal"] for a, b in zip(metal_balance(d1), before)]
+    assert sorted(round(x, 6) for x in one) == [0.0, 2.0]  # without symmetry only the picked side changes
