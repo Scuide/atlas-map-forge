@@ -122,7 +122,8 @@ const View3D = (() => {
   function init(canvas) {
     cv = canvas;
     try {
-      gl = cv.getContext("webgl", { antialias: true }) || cv.getContext("experimental-webgl");
+      // alpha:false keeps the framebuffer opaque, so the translucent water cannot show the 2D map behind the canvas (SCU-88)
+      gl = cv.getContext("webgl", { antialias: true, alpha: false }) || cv.getContext("experimental-webgl", { antialias: true, alpha: false });
       if (!gl) return false;
       gl.getExtension("OES_element_index_uint");
       if (!gl.getExtension("OES_element_index_uint")) return false;
@@ -240,3 +241,4 @@ const View3D = (() => {
     resetView() { cam = null; },
   };
 })();
+if (typeof module !== "undefined" && module.exports && View3D) module.exports.View3D = View3D;
