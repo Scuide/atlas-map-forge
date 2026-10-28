@@ -15,6 +15,8 @@ Edit entries (one per user action, positions in elmos, address the object the us
      "amount": a, "target": h}   (terrain brush from brushes.py; amount for raise/lower, target for flatten only)
     {"op": "brush", "tool": "ramp", "at": [x, z], "to": [x, z], "radius": w, "strength": s}
      (ramp from A = at to B = to, width w: heights go linearly from the ground at A to the ground at B)
+    {"op": "features", "kind": "trees", "mode": "add"|"remove", "at": [x, z], "radius": r, "density": d}
+     (trees in a disc: remove takes out the random and added trees in it, add plants trees on dry, flat ground)
 
 Objects are found by position (nearest within TOL elmos), not by index, so edits stay meaningful after the
 settings change. With symmetry on, an edit acts on the whole orbit of the clicked object (mirror image, or the
@@ -23,21 +25,29 @@ N rotations of a free-for-all map). Edits that cannot be applied are returned as
 import dataclasses
 import math
 
+import numpy as np
+
+from . import SQ
 from .symmetry import RotSymmetry, match_orbit, orbit, orbit_degenerate
+from .terrain import slope_deg
 
 TOL = 24.0            # elmos: how far from an object a click may be to address it
 MIN_GAP = 40.0        # elmos: closest allowed distance between two metal spots / geovents
 
 OPS = ("move_mex", "add_mex", "del_mex", "set_metal", "move_geo", "add_geo", "del_geo", "move_start", "set_box",
-       "brush")
+       "brush", "features")
 BRUSHES = ("raise", "lower", "flatten", "smooth", "ramp")
+FEATURE_KINDS = ("trees",)            # rocks: not yet (they need their feature defs in the archive)
+FEATURE_MODES = ("add", "remove")
+TREE_GAP = 40.0       # elmos: closest allowed distance between two added trees
 
 
 def copy_design(d):
     """Cheap copy for editing: the heightmap and masks are shared, only the editable lists are copied."""
     return dataclasses.replace(
         d, mexes=[dict(m) for m in d.mexes], geos=[tuple(g) for g in d.geos],
-        starts=[tuple(p) for p in d.starts], teams=[[tuple(p) for p in t] for t in d.teams], notes=list(d.notes))
+        starts=[tuple(p) for p in d.starts], teams=[[tuple(p) for p in t] for t in d.teams], notes=list(d.notes),
+        features=list(d.features))
 
 
 def side_of(sym, x, z):
@@ -133,6 +143,8 @@ def _apply_one(d, sym, e, on, fail):
         return _set_box(d, sym, e, on, fail)
     if op == "brush":
         return _brush(d, sym, e, on, fail)
+    if op == "features":
+        return _features(d, sym, e, on, fail)
     kind = op.split("_")[1] if op != "set_metal" else "mex"
     verb = op.split("_")[0] if op != "set_metal" else "set"
     if kind == "mex":
@@ -293,6 +305,94 @@ def _brush(d, sym, e, on, fail):
             hm = brushes.smooth(hm, cx, cz, radius, strength)
     d.hm = hm
     return None
+
+
+def feature_params(e):
+    """Validated (kind, mode, at, radius, density) of a features edit; ValueError when malformed."""
+    kind = e.get("kind", "trees")
+    if kind not in FEATURE_KINDS:
+        raise ValueError(f"kind: expected one of {', '.join(FEATURE_KINDS)}")
+    mode = e.get("mode")
+    if mode not in FEATURE_MODES:
+        raise ValueError("mode: expected add or remove")
+    at = _pt(e.get("at"), "at")
+    radius = e.get("radius")
+    if not isinstance(radius, (int, float)) or isinstance(radius, bool) or not math.isfinite(radius) or radius <= 0:
+        raise ValueError("radius: expected a number > 0")
+    density = e.get("density", 0.5)
+    if not isinstance(density, (int, float)) or isinstance(density, bool) or not 0 <= density <= 1:
+        raise ValueError("density: expected a number from 0 to 1")
+    return kind, mode, at, float(radius), float(density)
+
+
+def _features(d, sym, e, on, fail):
+    """Add or remove trees in a disc. Remove blocks the random trees in the disc (tree_block) and drops the added
+    trees there; add places trees at seeded random spots, each with its whole orbit, so the forest stays symmetric."""
+    kind, mode, at, radius, density = feature_params(e)
+    spots = _targets(sym, at, on)
+    if not all(_inside(sym, s) for s in spots):
+        return fail("outside the map")
+    why = _orbit_ok(sym, at, on)
+    if why:
+        return fail(why)
+    if mode == "remove":
+        _remove_trees(d, spots, radius)
+    else:
+        _add_trees(d, sym, at, radius, density, on)
+    return None
+
+
+def _remove_trees(d, spots, r):
+    nz, nx = d.hm.shape
+    tb = np.zeros(d.hm.shape, bool) if d.tree_block is None else d.tree_block.copy()
+    for cx, cz in spots:
+        i0, i1 = max(0, int((cz - r) / SQ)), min(nz - 1, int((cz + r) / SQ) + 1)
+        j0, j1 = max(0, int((cx - r) / SQ)), min(nx - 1, int((cx + r) / SQ) + 1)
+        ii, jj = np.meshgrid(np.arange(i0, i1 + 1), np.arange(j0, j1 + 1), indexing="ij")
+        inside = np.hypot(ii * SQ - cz, jj * SQ - cx) <= r
+        tb[ii[inside], jj[inside]] = True
+    d.tree_block = tb
+    d.features = [f for f in d.features
+                  if not (f[0].startswith("treetype") and any(math.hypot(f[1] - cx, f[2] - cz) <= r for cx, cz in spots))]
+
+
+def _add_trees(d, sym, at, radius, density, on):
+    """Plant about density * one tree per 40x40 elmos in the disc, on ground no steeper than 20 degrees and above
+    the water line, away from metal, geovents and start points. The seed comes from the design and the spot."""
+    n = int(round(density * math.pi * radius * radius / 1600.0))
+    if n <= 0:
+        return
+    rng = np.random.default_rng([int(d.seed), int(round(at[0])), int(round(at[1])), n])
+    hm = d.hm
+    nz, nx = hm.shape
+    sl = slope_deg(hm)
+    blockers = [(m["x"], m["z"], 120) for m in d.mexes] + [(g[0], g[1], 150) for g in d.geos] + \
+               [(s[0], s[1], 700) for s in d.starts]
+    placed = [(f[1], f[2]) for f in d.features if f[0].startswith("treetype")]
+    added = []
+    tries = 0
+    count = 0
+    while count < n and tries < n * 30:
+        tries += 1
+        a, rr = rng.uniform(0, 2 * math.pi), radius * math.sqrt(rng.uniform())
+        x, z = at[0] + rr * math.cos(a), at[1] + rr * math.sin(a)
+        if not (0 <= x <= sym.W and 0 <= z <= sym.H):
+            continue
+        i, j = min(nz - 1, int(z / SQ)), min(nx - 1, int(x / SQ))
+        if hm[i, j] < 6 or sl[i, j] > 20:
+            continue
+        copies = [c for c in _targets(sym, (x, z), on) if _inside(sym, c)]
+        if any(math.hypot(cx - bx, cz - bz) < br for cx, cz in copies for bx, bz, br in blockers):
+            continue
+        if any(math.hypot(cx - px, cz - pz) < TREE_GAP for cx, cz in copies for px, pz in placed):
+            continue
+        t = int(rng.integers(0, 16))
+        rot = float(rng.uniform(0, 65535))
+        for cx, cz in copies:
+            added.append((f"treetype{t}", float(cx), float(cz), rot))
+            placed.append((cx, cz))
+        count += 1
+    d.features = list(d.features) + added
 
 
 def _set_box(d, sym, e, on, fail):

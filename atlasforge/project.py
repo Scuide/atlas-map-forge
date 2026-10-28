@@ -28,8 +28,11 @@ _OPS = {
     "move_start": (("from", "to"), False),
     "set_box": ((), False),                              # checked separately below (team, poly, points)
     "brush": ((), False),                                # checked separately below (tool, at, radius, ...)
+    "features": ((), False),                             # checked separately below (kind, mode, at, radius, density)
 }
 BRUSH_TOOLS = ("raise", "lower", "flatten", "smooth", "ramp")
+FEATURE_KINDS = ("trees",)
+FEATURE_MODES = ("add", "remove")
 
 
 def _is_num(v) -> bool:
@@ -80,6 +83,19 @@ def validate_edits(edits) -> list:
                     raise ValueError(f"{p}.to: expected [x, z] for ramp")
             elif "to" in e:
                 raise ValueError(f"{p}.to: only for ramp")
+            continue
+        if op == "features":                               # kind, mode, centre, radius; density optional
+            if e.get("kind", "trees") not in FEATURE_KINDS:
+                raise ValueError(f"{p}.kind: expected one of {', '.join(FEATURE_KINDS)}")
+            if e.get("mode") not in FEATURE_MODES:
+                raise ValueError(f"{p}.mode: expected add or remove")
+            if not (isinstance(e.get("at"), (list, tuple)) and len(e["at"]) == 2
+                    and all(_is_num(c) for c in e["at"])):
+                raise ValueError(f"{p}.at: expected [x, z]")
+            if not (_is_num(e.get("radius")) and e["radius"] > 0):
+                raise ValueError(f"{p}.radius: expected a number > 0")
+            if "density" in e and not (_is_num(e["density"]) and 0 <= e["density"] <= 1):
+                raise ValueError(f"{p}.density: expected a number from 0 to 1")
             continue
         points, needs_metal = _OPS[op]
         for f in points:

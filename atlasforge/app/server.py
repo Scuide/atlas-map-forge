@@ -186,7 +186,8 @@ class Forge:
             height=[float(d.hm.min()), float(d.hm.max())],
             metal_total=round(float(sum(m["metal"] for m in d.mexes)), 1),
             features=[[round(x), round(z), "crystal" if n.startswith("forge_crystal") else
-                       "rock" if n.startswith("forge_rock") else "wreck"] for (n, x, z, _r) in d.features],
+                       "rock" if n.startswith("forge_rock") else "tree" if n.startswith("treetype") else "wreck"]
+                      for (n, x, z, _r) in d.features],
         ))
 
 
@@ -217,9 +218,12 @@ class Forge:
             for key in [k for k in e.layers if brushed or k[0].startswith("reach_")]:
                 del e.layers[key]
         out = self._design_payload(data["id"], e, d.seed, time.time() - t0)
+        feats = out.get("features")
         for k in ("values", "title", "description", "biome", "size", "W", "H", "grid", "height", "features",
                   "marks", "gates", "side_labels"):
             out.pop(k, None)                                   # unchanged by edits: keep the reply small
+        if any(isinstance(x, dict) and x.get("op") == "features" for x in edits):
+            out["features"] = feats                            # tree edits change the feature list
         return out
 
     # ------------------------------------------------------------------ project files (.forge.json)
