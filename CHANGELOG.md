@@ -5,6 +5,7 @@
 - New template Island Continents: two broad opposing landmasses with independent ground fronts, a deep fleet channel and amphibious landing routes (watermark code 30).
 - Editor: terrain brush (raise, lower, flatten, smooth) with radius and strength; one undo step per stroke; brushes are saved in .forge.json.
 - Editor: paint tool for ground texture (path, concrete, scorch marks, lava crust) with radius and strength; follows symmetry, one undo step per stroke, shows in the preview and the built map, saved in .forge.json. Lava crust is cosmetic only.
+- Editor: tree brush (Trees: add / remove) in a circle with radius and density; follows symmetry, one undo step, saved in .forge.json. Rocks are not yet editable.
 - Editor: ramp tool (two clicks or drag from A to B, adjustable width) with smooth height change between the two points; follows symmetry, one undo step.
 
 - New template Inland Sea: a continuous land rim around a navigable central lake; ground forces take the long shore route while fleets cross the lake (watermark code 29).

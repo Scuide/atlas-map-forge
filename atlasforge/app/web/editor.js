@@ -157,6 +157,7 @@ function edUpdateUi() {
   $("ed-brush-opts").classList.toggle("hidden", ED.tool !== "brush");
   $("ed-paint-opts").classList.toggle("hidden", ED.tool !== "paint");
   $("ed-target-wrap").classList.toggle("hidden", $("ed-brush").value !== "flatten");
+  $("ed-density-wrap").classList.toggle("hidden", $("ed-brush").value !== "trees-add");
   if (ED.tool !== "brush" || !edIsRampTool()) ED.ramp = null;      // a pending ramp start belongs to the ramp tool
   $("ed-undo").disabled = !S.edits.length;
   $("ed-redo").disabled = !S.redo.length;
@@ -265,6 +266,10 @@ cv.addEventListener("pointerdown", (e) => {
     e.stopImmediatePropagation();
     cv.setPointerCapture(e.pointerId);
     ED.paint = { pts: [[mx, mz]] };
+    draw();
+  } else if (ED.tool === "brush" && edIsTreeTool()) {  // trees: one click plants or clears the circle
+    e.stopImmediatePropagation();
+    edTreeCommit([mx, mz]);
     draw();
   } else if (ED.tool === "brush") {
     e.stopImmediatePropagation();
@@ -547,6 +552,15 @@ const edPaintStrength = () => Math.min(1, Math.max(0.1, Number($("ed-pstrength")
 const edBrushRadius = () => Math.min(2000, Math.max(8, Number($("ed-radius").value) || 200));
 const edBrushStrength = () => Math.min(1, Math.max(0, Number($("ed-strength").value)));
 const edIsRampTool = () => $("ed-brush").value === "ramp";
+const edIsTreeTool = () => $("ed-brush").value.startsWith("trees-");
+const edDensity = () => Math.min(1, Math.max(0, Number($("ed-density").value) || 0));
+
+// one features edit per click: trees added or removed in the circle of the radius (mirrored with the symmetry)
+function edTreeCommit(at) {
+  const mode = $("ed-brush").value === "trees-remove" ? "remove" : "add";
+  edCommit({ op: "features", kind: "trees", mode, at: [Math.round(at[0]), Math.round(at[1])],
+             radius: edBrushRadius(), density: edDensity() });
+}
 const edTarget = () => {                             // flatten target height, null = the height under each dab
   const v = $("ed-target").value;
   return v === "" || !Number.isFinite(Number(v)) ? null : Math.round(Number(v));
