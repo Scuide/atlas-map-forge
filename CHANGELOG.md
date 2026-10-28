@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Editor: help overlay (? key or ? button) lists every tool and shortcut; the tool tooltips come from the same table.
 - Editor: rectangle selection (drag on empty ground) to pick several metal spots, vents and start points, then move or delete them together; symmetric, one undo step.
 - Editor: stamp tool: drag a rectangle to copy terrain, click to paste; turn, mirror and blend the stamp; follows symmetry, one undo step, saved in .forge.json.
 - Editor: live metal balance per team (colour shows deviation from an even split).
