@@ -32,7 +32,7 @@ _OPS = {
     "features": ((), False),                             # checked separately below (kind, mode, at, radius, density)
 }
 BRUSH_TOOLS = ("raise", "lower", "flatten", "smooth", "ramp")
-FEATURE_KINDS = ("trees",)
+FEATURE_KINDS = ("trees", "rocks", "wrecks")
 FEATURE_MODES = ("add", "remove")
 
 

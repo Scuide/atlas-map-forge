@@ -17,8 +17,9 @@ Edit entries (one per user action, positions in elmos, address the object the us
      (ramp from A = at to B = to, width w: heights go linearly from the ground at A to the ground at B)
     {"op": "paint", "material": "path"|"concrete"|"scorch"|"lava", "points": [[x, z], ...], "radius": r,
      "strength": s}   (texture stroke along the polyline, soft edge; only the look changes, lava is cosmetic)
-    {"op": "features", "kind": "trees", "mode": "add"|"remove", "at": [x, z], "radius": r, "density": d}
-     (trees in a disc: remove takes out the random and added trees in it, add plants trees on dry, flat ground)
+    {"op": "features", "kind": "trees"|"rocks"|"wrecks", "mode": "add"|"remove", "at": [x, z], "radius": r,
+     "density": d}   (features in a disc: remove takes out the features of that kind in it, add places them on
+     dry, flat ground; rocks add their models to the archive when the map has none)
 
 Objects are found by position (nearest within TOL elmos), not by index, so edits stay meaningful after the
 settings change. With symmetry on, an edit acts on the whole orbit of the clicked object (mirror image, or the
@@ -30,6 +31,7 @@ import math
 import numpy as np
 
 from . import SQ
+from .decor import WRECKS_GIANT, WRECKS_LARGE, WRECKS_MEDIUM, WRECKS_SMALL
 from .symmetry import RotSymmetry, match_orbit, orbit, orbit_degenerate
 from .terrain import slope_deg
 
@@ -39,9 +41,18 @@ MIN_GAP = 40.0        # elmos: closest allowed distance between two metal spots 
 OPS = ("move_mex", "add_mex", "del_mex", "set_metal", "move_geo", "add_geo", "del_geo", "move_start", "set_box",
        "brush", "paint", "features")
 BRUSHES = ("raise", "lower", "flatten", "smooth", "ramp")
-FEATURE_KINDS = ("trees",)            # rocks: not yet (they need their feature defs in the archive)
+FEATURE_KINDS = ("trees", "rocks", "wrecks")
 FEATURE_MODES = ("add", "remove")
 TREE_GAP = 40.0       # elmos: closest allowed distance between two added trees
+FEATURE_AREA = {"trees": 1600.0, "rocks": 40000.0, "wrecks": 160000.0}   # elmos^2 per object at density 1
+FEATURE_SLOPE = {"trees": 20, "rocks": 30, "wrecks": 16}                # degrees, as decor.place
+# rocks as models.feature_pack names them (forge_rock_<size index><variant>), weights as decor.place
+ROCK_SIZES = (14, 26, 42, 64)
+ROCK_NAMES = [f"forge_rock_{k}{v}" for k in range(len(ROCK_SIZES)) for v in range(2)]
+ROCK_WEIGHTS = np.array([0.38, 0.38, 0.27, 0.27, 0.1, 0.1, 0.035, 0.035])
+# unit wrecks as decor.place picks them (the giant ones are left to the generator)
+WRECK_RADIUS = {n: r for n, _m, r in WRECKS_SMALL + WRECKS_MEDIUM + WRECKS_LARGE + WRECKS_GIANT}
+WRECK_POOL = [n for n, _m, _r in WRECKS_SMALL + WRECKS_MEDIUM + WRECKS_LARGE]
 
 
 def copy_design(d):
@@ -49,7 +60,7 @@ def copy_design(d):
     return dataclasses.replace(
         d, mexes=[dict(m) for m in d.mexes], geos=[tuple(g) for g in d.geos],
         starts=[tuple(p) for p in d.starts], teams=[[tuple(p) for p in t] for t in d.teams], notes=list(d.notes),
-        features=list(d.features))
+        features=list(d.features), extra_files=dict(d.extra_files))
 
 
 def side_of(sym, x, z):
@@ -397,9 +408,19 @@ def feature_params(e):
     return kind, mode, at, float(radius), float(density)
 
 
+def _is_kind(name, kind):
+    """Whether a feature name belongs to a kind: trees, rocks (crystals too) or wrecks (all other names)."""
+    if kind == "trees":
+        return name.startswith("treetype")
+    if kind == "rocks":
+        return name.startswith(("forge_rock_", "forge_crystal_"))
+    return not name.startswith(("treetype", "forge_"))
+
+
 def _features(d, sym, e, on, fail):
-    """Add or remove trees in a disc. Remove blocks the random trees in the disc (tree_block) and drops the added
-    trees there; add places trees at seeded random spots, each with its whole orbit, so the forest stays symmetric."""
+    """Add or remove trees, rocks or wrecks in a disc. Remove takes out the features of that kind in the disc (trees
+    are also blocked there); add places them at seeded random spots, each with its whole orbit, so the layout stays
+    symmetric."""
     kind, mode, at, radius, density = feature_params(e)
     spots = _targets(sym, at, on)
     if not all(_inside(sym, s) for s in spots):
@@ -408,30 +429,43 @@ def _features(d, sym, e, on, fail):
     if why:
         return fail(why)
     if mode == "remove":
-        _remove_trees(d, spots, radius)
+        _remove_features(d, spots, radius, kind)
     else:
-        _add_trees(d, sym, at, radius, density, on)
+        _add_features(d, sym, at, radius, density, on, kind)
     return None
 
 
-def _remove_trees(d, spots, r):
-    nz, nx = d.hm.shape
-    tb = np.zeros(d.hm.shape, bool) if d.tree_block is None else d.tree_block.copy()
-    for cx, cz in spots:
-        i0, i1 = max(0, int((cz - r) / SQ)), min(nz - 1, int((cz + r) / SQ) + 1)
-        j0, j1 = max(0, int((cx - r) / SQ)), min(nx - 1, int((cx + r) / SQ) + 1)
-        ii, jj = np.meshgrid(np.arange(i0, i1 + 1), np.arange(j0, j1 + 1), indexing="ij")
-        inside = np.hypot(ii * SQ - cz, jj * SQ - cx) <= r
-        tb[ii[inside], jj[inside]] = True
-    d.tree_block = tb
+def _remove_features(d, spots, r, kind):
+    if kind == "trees":
+        nz, nx = d.hm.shape
+        tb = np.zeros(d.hm.shape, bool) if d.tree_block is None else d.tree_block.copy()
+        for cx, cz in spots:
+            i0, i1 = max(0, int((cz - r) / SQ)), min(nz - 1, int((cz + r) / SQ) + 1)
+            j0, j1 = max(0, int((cx - r) / SQ)), min(nx - 1, int((cx + r) / SQ) + 1)
+            ii, jj = np.meshgrid(np.arange(i0, i1 + 1), np.arange(j0, j1 + 1), indexing="ij")
+            inside = np.hypot(ii * SQ - cz, jj * SQ - cx) <= r
+            tb[ii[inside], jj[inside]] = True
+        d.tree_block = tb
     d.features = [f for f in d.features
-                  if not (f[0].startswith("treetype") and any(math.hypot(f[1] - cx, f[2] - cz) <= r for cx, cz in spots))]
+                  if not (_is_kind(f[0], kind) and any(math.hypot(f[1] - cx, f[2] - cz) <= r for cx, cz in spots))]
 
 
-def _add_trees(d, sym, at, radius, density, on):
-    """Plant about density * one tree per 40x40 elmos in the disc, on ground no steeper than 20 degrees and above
-    the water line, away from metal, geovents and start points. The seed comes from the design and the spot."""
-    n = int(round(density * math.pi * radius * radius / 1600.0))
+def _feature_radius(name):
+    """Footprint radius of a placed feature, used to keep features apart: trees TREE_GAP / 2 each, rocks and wrecks
+    their own size (crystals approximately)."""
+    if name.startswith("treetype"):
+        return TREE_GAP / 2
+    if name.startswith("forge_rock_"):
+        return ROCK_SIZES[int(name[len("forge_rock_")])] * 1.2
+    return WRECK_RADIUS.get(name, 40.0)
+
+
+def _add_features(d, sym, at, radius, density, on, kind):
+    """Plant about density * one object per FEATURE_AREA[kind] elmos^2 in the disc, on ground no steeper than
+    FEATURE_SLOPE[kind] degrees and above the water line, away from metal, geovents and start points. Trees keep
+    TREE_GAP between each other; rocks and wrecks keep clear of each other and block the trees growing through
+    them. The seed comes from the design and the spot."""
+    n = int(round(density * math.pi * radius * radius / FEATURE_AREA[kind]))
     if n <= 0:
         return
     rng = np.random.default_rng([int(d.seed), int(round(at[0])), int(round(at[1])), n])
@@ -440,7 +474,8 @@ def _add_trees(d, sym, at, radius, density, on):
     sl = slope_deg(hm)
     blockers = [(m["x"], m["z"], 120) for m in d.mexes] + [(g[0], g[1], 150) for g in d.geos] + \
                [(s[0], s[1], 700) for s in d.starts]
-    placed = [(f[1], f[2]) for f in d.features if f[0].startswith("treetype")]
+    # trees keep apart from trees; rocks and wrecks from every other rock and wreck (not from the trees)
+    obstacles = [(f[1], f[2], _feature_radius(f[0])) for f in d.features if _is_kind(f[0], "trees") == (kind == "trees")]
     added = []
     tries = 0
     count = 0
@@ -451,20 +486,47 @@ def _add_trees(d, sym, at, radius, density, on):
         if not (0 <= x <= sym.W and 0 <= z <= sym.H):
             continue
         i, j = min(nz - 1, int(z / SQ)), min(nx - 1, int(x / SQ))
-        if hm[i, j] < 6 or sl[i, j] > 20:
+        if hm[i, j] < 6 or sl[i, j] > FEATURE_SLOPE[kind]:
             continue
         copies = [c for c in _targets(sym, (x, z), on) if _inside(sym, c)]
         if any(math.hypot(cx - bx, cz - bz) < br for cx, cz in copies for bx, bz, br in blockers):
             continue
-        if any(math.hypot(cx - px, cz - pz) < TREE_GAP for cx, cz in copies for px, pz in placed):
+        if kind == "trees":
+            name = f"treetype{int(rng.integers(0, 16))}"
+        elif kind == "rocks":
+            name = ROCK_NAMES[int(rng.choice(len(ROCK_NAMES), p=ROCK_WEIGHTS / ROCK_WEIGHTS.sum()))]
+        else:
+            name = WRECK_POOL[int(rng.integers(0, len(WRECK_POOL)))]
+        r_own = _feature_radius(name)
+        if any(math.hypot(cx - px, cz - pz) < r_own + pr for cx, cz in copies for px, pz, pr in obstacles):
             continue
-        t = int(rng.integers(0, 16))
         rot = float(rng.uniform(0, 65535))
         for cx, cz in copies:
-            added.append((f"treetype{t}", float(cx), float(cz), rot))
-            placed.append((cx, cz))
+            added.append((name, float(cx), float(cz), rot))
+            obstacles.append((cx, cz, r_own))
         count += 1
+    if not added:
+        return
     d.features = list(d.features) + added
+    if kind == "trees":
+        return
+    if kind == "rocks" and "features/forge_rocks.lua" not in d.extra_files:
+        # the rock models are written into the archive only for maps with rocks; the same files as decor.place
+        from .models import feature_pack
+        files, _ = feature_pack("", d.biome, np.random.default_rng(int(d.seed) + 778), crystals=False)
+        d.extra_files.update(files)
+    _block_trees(d, [(f[1], f[2], _feature_radius(f[0])) for f in added])
+
+
+def _block_trees(d, pts):
+    """No trees grow through new rocks and wrecks (the same cells as decor.place blocks at build time)."""
+    nz, nx = d.hm.shape
+    tb = np.zeros(d.hm.shape, bool) if d.tree_block is None else d.tree_block.copy()
+    for x, z, r in pts:
+        i, j = min(nz - 1, max(0, int(z / SQ))), min(nx - 1, max(0, int(x / SQ)))
+        rc = int(r / SQ) + 2
+        tb[max(0, i - rc):i + rc + 1, max(0, j - rc):j + rc + 1] = True
+    d.tree_block = tb
 
 
 def _set_box(d, sym, e, on, fail):
