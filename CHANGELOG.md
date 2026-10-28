@@ -24,6 +24,9 @@
 
 - New template Crater Basin: a contested crater with four traversable rim ramps, a continuous outer rotation route and mirrored economy (watermark code 26).
 
+## 0.4.22 - first pre-release
+
+- First public pre-release on GitHub (Windows program attached to the release); README download section.
 - Defaults: Grass, Rocks and Wrecks now default to 0 and Trees to 0.4 (fewer objects, better in-game FPS).
 - App: parameter groups are collapsible (click the group title, state remembered), ordered Map, Resources,
   Terrain, template groups, Advanced; the seed sits directly under Map size.

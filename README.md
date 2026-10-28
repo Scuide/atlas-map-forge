@@ -4,8 +4,15 @@ A map generator for [Zero-K](https://zero-k.info). It builds complete, ready-to-
 heightmap, high-resolution texture, minimap, metal spots, geovents, start boxes, trees, and optional
 map gadgets such as lava cliffs, lava tides and an erupting volcano.
 
-> **Status: early development (0.3).** Six map templates, a Windows app with a large map preview and the
-> command line. See the [roadmap](docs/ROADMAP.md).
+> **Status: pre-release (0.4).** 25 map templates, a Windows app with a large map preview and a placement
+> editor, and the command line. See the [roadmap](docs/ROADMAP.md).
+
+## Download
+
+Get `AtlasMapForge.exe` from the [releases page](https://github.com/Scuide/atlas-map-forge/releases): one
+file for Windows, no installation and no Python needed. The program is not code-signed yet, so Windows
+SmartScreen asks first: click **More info**, then **Run anyway**. On first start, enter your author name
+in Settings.
 
 ## What you get
 
@@ -122,20 +129,6 @@ instead of tanks and bots; the app shows a "Ships" route.
 Every template also takes `--seed` and checks the result: which unit classes reach the enemy, through
 which chokes, whether every metal spot is reachable, plus template-specific checks (for example "During an
 eruption the teams are cut apart: yes").
-
-## Is this a Forge map?
-
-Every map carries a hidden watermark in its heightmap (invisible, no effect on gameplay). It survives
-re-packing, renaming, a new texture or mapinfo and light edits of the heightmap:
-
-```
-atlasforge verify "Forge_Iron_Wall_v1.sdz"
-Forge_Iron_Wall_v1.sdz: made with Atlas Map Forge (confidence: certain, pattern score 105.1).
-  tool 0.4.0, template chokepoint, seed 3, built 2026-10-21, build id 2299eb6c
-```
-
-In the app: Settings, "Check a map file". Atlas Map Forge is open source, so someone who studies the code
-can remove or fake the mark on purpose; it reliably tells Forge maps apart from other maps.
 
 ## Procedural maps with all options
 

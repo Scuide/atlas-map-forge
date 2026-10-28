@@ -2,8 +2,19 @@ name: windows-app
 
 # Builds the one-file Windows program. Manual runs upload it as a workflow artifact;
 # a version tag (v0.3.0 ...) also creates a draft GitHub release with the program attached.
+# A manual run with "release_tag" set (e.g. v0.4.21) creates that tag on the built commit and publishes a
+# GitHub release with the program; notes come from docs/release-notes/<tag>.md.
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Publish a GitHub release with this tag (empty = artifact only)"
+        required: false
+        default: ""
+      prerelease:
+        description: "Mark the release as a pre-release"
+        type: boolean
+        default: true
   push:
     tags: ["v*"]
 
@@ -59,3 +70,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create ${{ github.ref_name }} dist/AtlasMapForge.exe --draft --title "Atlas Map Forge ${{ github.ref_name }}" --notes "See CHANGELOG.md."
+      - name: Publish release (manual run with release_tag)
+        if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+        run: |
+          notes="docs/release-notes/$TAG.md"
+          [ -f "$notes" ] || notes=/dev/null
+          pre=""
+          if [ "${{ inputs.prerelease }}" = "true" ]; then pre="--prerelease"; fi
+          gh release create "$TAG" dist/AtlasMapForge.exe --target "$GITHUB_SHA" $pre \
+            --title "Atlas Map Forge ${TAG#v}" --notes-file "$notes"
