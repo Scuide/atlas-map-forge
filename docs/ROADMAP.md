@@ -51,6 +51,7 @@ Edit Forge maps by hand, in three stages, always keeping the symmetry and re-run
 - Done (C, part 1): texture painting (paths, concrete, scorch marks, lava crust) with radius and strength, soft edges,
   mirrored/rotated with symmetry, one undo step per stroke, shown in the preview and in the built texture, saved in
   .forge.json. Lava is a look only: it does not hurt units.
+- Done (C, part 2): paint eraser and fills (polygon, height band with optional clicked-patch-only), symmetric, undoable.
 - Later: C - place or remove trees and rocks; optional 16-bit PNG heightmap import/export.
 
 ## More ways to play and more templates
