@@ -19,6 +19,9 @@ Edit entries (one per user action, positions in elmos, address the object the us
      (roughen: random heights of +-amount from seed k, same pattern at every mirror image)
     {"op": "brush", "tool": "terrace", "at": [x, z], "radius": r, "strength": s, "amount": h}
      (snap heights to steps of h elmos, amount is the terrace height and must be above 0)
+    {"op": "stamp", "src": [x0, z0, x1, z1], "to": [x, z], "rotate": 0|90|180|270, "flip": f, "blend": b}
+     (copy the heights of the rectangle src, earlier edits included, and paste them centred on to, turned
+     clockwise, mirrored left-right first when flip, with a soft edge of b elmos; blend 0 copies them exactly)
     {"op": "paint", "material": "path"|"concrete"|"scorch"|"lava", "points": [[x, z], ...], "radius": r,
      "strength": s}   (texture stroke along the polyline, soft edge; only the look changes, lava is cosmetic)
     {"op": "paint", "material": m, "fill": "poly", "points": [[x, z], ...], "strength": s}   (polygon of 3+ points)
@@ -49,7 +52,7 @@ TOL = 24.0            # elmos: how far from an object a click may be to address 
 MIN_GAP = 40.0        # elmos: closest allowed distance between two metal spots / geovents
 
 OPS = ("move_mex", "add_mex", "del_mex", "set_metal", "move_geo", "add_geo", "del_geo", "move_start", "set_box",
-       "brush", "paint", "features")
+       "brush", "stamp", "paint", "features")
 BRUSHES = ("raise", "lower", "flatten", "smooth", "ramp", "noise", "terrace")
 FEATURE_KINDS = ("trees", "rocks", "wrecks")
 FEATURE_MODES = ("add", "remove")
@@ -168,6 +171,8 @@ def _apply_one(d, sym, e, on, fail):
         return _set_box(d, sym, e, on, fail)
     if op == "brush":
         return _brush(d, sym, e, on, fail)
+    if op == "stamp":
+        return _stamp(d, sym, e, on, fail)
     if op == "paint":
         return _paint(d, sym, e, on, fail)
     if op == "features":
@@ -342,6 +347,94 @@ def _brush(d, sym, e, on, fail):
         else:
             hm = brushes.smooth(hm, cx, cz, radius, strength)
     d.hm = hm
+    return None
+
+
+STAMP_ROTATIONS = (0, 90, 180, 270)
+STAMP_MIN_CELLS = 2                     # grid cells per side of the source rectangle, at least
+
+
+def stamp_params(e):
+    """Validated (src, to, rotate, flip, blend) of a stamp edit; ValueError when malformed. src = (x0, z0, x1, z1)
+    with x0 < x1 and z0 < z1 (corners may come in any order), to = centre of the pasted copy, rotate in degrees
+    clockwise as seen on the map, flip = mirror left-right before rotating, blend = width of the soft edge in elmos."""
+    src = e.get("src")
+    if not (isinstance(src, (list, tuple)) and len(src) == 4 and all(_num(c) for c in src)):
+        raise ValueError("src: expected [x0, z0, x1, z1]")
+    x0, x1 = sorted((float(src[0]), float(src[2])))
+    z0, z1 = sorted((float(src[1]), float(src[3])))
+    if x1 - x0 < STAMP_MIN_CELLS * SQ or z1 - z0 < STAMP_MIN_CELLS * SQ:
+        raise ValueError(f"src: the rectangle must be at least {STAMP_MIN_CELLS * SQ} elmos on each side")
+    to = _pt(e.get("to"), "to")
+    rotate = e.get("rotate", 0)
+    if rotate not in STAMP_ROTATIONS or isinstance(rotate, bool):
+        raise ValueError("rotate: expected 0, 90, 180 or 270")
+    flip = e.get("flip", False)
+    if not isinstance(flip, bool):
+        raise ValueError("flip: expected true or false")
+    blend = e.get("blend", 0.0)
+    if not _num(blend) or blend < 0:
+        raise ValueError("blend: expected a number from 0")
+    return (x0, z0, x1, z1), to, int(rotate), flip, float(blend)
+
+
+def stamp_patch(hm, src, rotate, flip, blend):
+    """-> (heights, weights) of the stamp cut from hm: the cells inside src, mirrored left-right when flip, turned
+    rotate degrees clockwise (z grows downwards, so clockwise on the map), and a weight per cell that rises
+    smoothly from 0 at the patch border to 1 at blend elmos inside (1 everywhere for blend 0)."""
+    from .noise import smoothstep
+
+    x0, z0, x1, z1 = src
+    i0, i1 = max(0, int(math.ceil(z0 / SQ))), min(hm.shape[0] - 1, int(math.floor(z1 / SQ)))
+    j0, j1 = max(0, int(math.ceil(x0 / SQ))), min(hm.shape[1] - 1, int(math.floor(x1 / SQ)))
+    patch = np.array(hm[i0:i1 + 1, j0:j1 + 1], np.float64)
+    if flip:
+        patch = patch[:, ::-1]
+    patch = np.rot90(patch, -(rotate // 90))                     # rot90 turns counter-clockwise on screen (z down)
+    h, w = patch.shape
+    if blend <= 0:
+        return patch, np.ones((h, w))
+    a = np.arange(h)[:, None]
+    b = np.arange(w)[None, :]
+    edge = np.minimum(np.minimum(a, h - 1 - a), np.minimum(b, w - 1 - b)) * SQ
+    return patch, smoothstep(0.0, blend, edge.astype(np.float64))
+
+
+def _stamp(d, sym, e, on, fail):
+    """Copy the heights of a rectangle (with all earlier edits) and paste them centred on a point, turned and
+    mirrored as asked, with a soft edge of blend elmos. With symmetry on the pasted copy is mirrored (rotated) to
+    every side like the other terrain edits; parts beyond the map border are cut off."""
+    src, to, rotate, flip, blend = stamp_params(e)
+    if not (_inside(sym, src[:2]) and _inside(sym, src[2:])):
+        return fail("the copied rectangle is outside the map")
+    if not _inside(sym, to):
+        return fail("outside the map")
+    why = _orbit_ok(sym, to, on)
+    if why:
+        return fail(why)
+    hm = np.asarray(d.hm)
+    patch, wgt = stamp_patch(hm, src, rotate, flip, blend)
+    h, w = patch.shape
+    ti = int(round(to[1] / SQ - (h - 1) / 2))                    # top-left cell of the pasted copy
+    tj = int(round(to[0] / SQ - (w - 1) / 2))
+    a0, a1 = max(0, ti), min(hm.shape[0], ti + h)
+    b0, b1 = max(0, tj), min(hm.shape[1], tj + w)
+    if a1 <= a0 or b1 <= b0:
+        return fail("outside the map")
+    vals = np.zeros(hm.shape)                                    # the copy on the full grid, weight 0 elsewhere
+    mask = np.zeros(hm.shape)
+    vals[a0:a1, b0:b1] = patch[a0 - ti:a1 - ti, b0 - tj:b1 - tj]
+    mask[a0:a1, b0:b1] = wgt[a0 - ti:a1 - ti, b0 - tj:b1 - tj]
+    images = [(vals, mask)]
+    if on:
+        if isinstance(sym, RotSymmetry):
+            images += [(sym.rotate_grid(vals, k), sym.rotate_grid(mask, k)) for k in range(1, sym.n)]
+        else:
+            images.append((sym.mirror_grid(vals), sym.mirror_grid(mask)))
+    out = hm.astype(np.float64)
+    for v, m in images:
+        out = out * (1 - m) + v * m
+    d.hm = out.astype(hm.dtype)
     return None
 
 

@@ -190,3 +190,18 @@ def test_paint_fill_and_erase_through_the_api(api):
     r = call("edit", {"id": mid, "edits": [poly, erase], "symmetry": True})
     assert r["problems"] == []
     assert state.layer(mid, "relief") != filled            # the fill is gone again
+
+
+def test_stamp_edit_through_the_api_and_undo(api):
+    call, state, _ = api
+    p = call("preview", {"template": "chokepoint", "values": DUEL, "seed": 3})
+    mid = p["id"]
+    before = state.layer(mid, "relief")
+    W, H = p["W"], p["H"]
+    stamp = {"op": "stamp", "src": [W * 0.1, H * 0.1, W * 0.2, H * 0.2], "to": [W * 0.3, H * 0.6],
+             "rotate": 90, "flip": True, "blend": 32}
+    r = call("edit", {"id": mid, "edits": [stamp], "symmetry": True})
+    assert r["problems"] == []
+    assert state.layer(mid, "relief") != before            # new heights: the relief picture is rebuilt
+    call("edit", {"id": mid, "edits": [], "symmetry": True})
+    assert state.layer(mid, "relief") == before            # undo: back to the generated ground

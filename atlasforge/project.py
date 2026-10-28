@@ -28,6 +28,7 @@ _OPS = {
     "move_start": (("from", "to"), False),
     "set_box": ((), False),                              # checked separately below (team, poly, points)
     "brush": ((), False),                                # checked separately below (tool, at, radius, ...)
+    "stamp": ((), False),                                # checked separately below (src, to, rotate, flip, blend)
     "paint": ((), False),                                # checked separately below (material, points, radius)
     "features": ((), False),                             # checked separately below (kind, mode, at, radius, density)
 }
@@ -91,10 +92,10 @@ def validate_edits(edits) -> list:
             elif "to" in e:
                 raise ValueError(f"{p}.to: only for ramp")
             continue
-        if op == "paint":                                  # stroke, polygon fill or height band (edits.paint_params)
-            from .edits import paint_params
+        if op in ("paint", "stamp"):                       # edits.paint_params / edits.stamp_params
+            from .edits import paint_params, stamp_params
             try:
-                paint_params(e)
+                (paint_params if op == "paint" else stamp_params)(e)
             except ValueError as ex:
                 raise ValueError(f"{p}.{ex}") from None
             continue
