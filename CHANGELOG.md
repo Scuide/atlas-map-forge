@@ -8,6 +8,7 @@
 - Editor: paint tool for ground texture (path, concrete, scorch marks, lava crust) with radius and strength; follows symmetry, one undo step per stroke, shows in the preview and the built map, saved in .forge.json. Lava crust is cosmetic only.
 - Editor: tree brush (Trees: add / remove) in a circle with radius and density; follows symmetry, one undo step, saved in .forge.json. The same brush now places and removes rocks and wrecks (Rocks, Wrecks).
 - Editor: ramp tool (two clicks or drag from A to B, adjustable width) with smooth height change between the two points; follows symmetry, one undo step.
+- Editor: Noise (roughen, seeded and repeatable) and Terrace (snap heights to steps of a chosen height) brush modes; follow symmetry, one undo step per stroke, saved in .forge.json.
 
 - New template Inland Sea: a continuous land rim around a navigable central lake; ground forces take the long shore route while fleets cross the lake (watermark code 29).
 - New template Peninsula: opposing land tongues with defensible necks, exposed coasts and lateral landing routes (watermark code 28).
