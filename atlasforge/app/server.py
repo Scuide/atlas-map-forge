@@ -213,7 +213,7 @@ class Forge:
                 issues, ok, lines = [], e.base_ok, e.base_lines
             # a brush changes the terrain, a paint stroke the relief colours: every cached layer goes, also when the
             # last one was undone
-            brushed = any(isinstance(x, dict) and x.get("op") in ("brush", "paint") for x in edits + e.edits)
+            brushed = any(isinstance(x, dict) and x.get("op") in ("brush", "stamp", "paint") for x in edits + e.edits)
             e.design, e.edits, e.symmetry, e.problems, e.issues = d, list(edits), sym_on, problems, issues
             e.ok, e.lines = ok, lines
             for key in [k for k in e.layers if brushed or k[0].startswith(("reach_", "slope", "contours_"))]:
