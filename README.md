@@ -14,6 +14,13 @@ file for Windows, no installation and no Python needed. The program is not code-
 SmartScreen asks first: click **More info**, then **Run anyway**. On first start, enter your author name
 in Settings.
 
+**Linux (experimental, x86_64):** use `AtlasMapForge-linux-x86_64.tar.gz` when attached to a release.
+Extract it and run `./AtlasMapForge` from a terminal in the extracted folder. It opens the graphical
+interface in your existing browser; no Python installation, GTK or Qt is needed. Keep the terminal
+open and press Ctrl+C there to stop the app. Requires glibc 2.35 or newer (Ubuntu 22.04 or newer,
+or a compatible distribution); other distributions need testing. See the
+[Linux guide](docs/LINUX.md) for downloads, setup and troubleshooting.
+
 ## What you get
 
 - **Playable maps:** every map is checked with the engine's own slope rules. Ramps are carved
