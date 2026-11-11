@@ -25,9 +25,9 @@ report, build & install with progress. One-file Windows program built and self-t
 - Done: more biomes (jungle, swamp, industrial), a painted sky per map, engine grass, time of day.
 - Done: parameter groups collapse and keep their state; Map, Resources, Terrain, then the rest; seed under Map size.
 
-## 0.5 - map editing (in progress)
+## 0.5 - map editing (released as pre-release 0.5.0)
 
-In progress: stage A (placement, undo/redo, .forge.json).
+Stages A, B and C are in the app. Remaining: 16-bit PNG heightmap import/export.
 
 Edit Forge maps by hand, in three stages, always keeping the symmetry and re-running the checks:
 
@@ -48,12 +48,13 @@ Edit Forge maps by hand, in three stages, always keeping the symmetry and re-run
 - Done (B, part 5): contour and slope overlays in the preview (toggles, contour spacing, slope classes from movedef limits).
 - Done: edit list panel: all edits in order, click to highlight, switch off / on, delete; undoable, saved in .forge.json.
 - Done: preview zoom (1x to 8x towards the cursor), pan (middle mouse or Space + drag), double-click resets; grouped editor toolbar.
-- Next: B - flatten with a fixed target height in the UI.
+- Done: B - flatten with a fixed target height in the UI (Alt+click picks it).
+- Done: "Updating preview" indicator while an edit is applied.
 - Done (C, part 1): texture painting (paths, concrete, scorch marks, lava crust) with radius and strength, soft edges,
   mirrored/rotated with symmetry, one undo step per stroke, shown in the preview and in the built texture, saved in
   .forge.json. Lava is a look only: it does not hurt units.
 - Done (C, part 2): paint eraser and fills (polygon, height band with optional clicked-patch-only), symmetric, undoable.
-- Later: C - place or remove trees and rocks; optional 16-bit PNG heightmap import/export.
+- Later: optional 16-bit PNG heightmap import/export.
 
 ## More ways to play and more templates
 

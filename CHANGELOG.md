@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.5.0 - map editor
+
+- Editor: an "Updating preview" indicator (spinner with a tooltip) in the map while an edit is applied and the preview reloads; it appears after a short delay, so quick edits do not flicker.
+- Editor: the edit toolbar wraps onto more rows instead of running off the right edge on narrower windows (Stamp, Paint, Trees, Symmetry, Undo, Save and Open project were hidden at about 1500 px width).
 - Fix: after an edit the 2D map and the 3D view kept showing the old terrain, because the browser cached the layer images; layer URLs now carry a design revision. Paint "path" is now drawn in the preview.
 - Fix: Brush and Trees could not be selected and paint/stamp edits did not refresh the preview (a renamed function was still called). The editor now sends an edit before refreshing its UI, so a UI error can no longer block it; a test checks every ed*() call has a definition.
 - Editor: help overlay (? key or ? button) lists every tool and shortcut; the tool tooltips come from the same table.

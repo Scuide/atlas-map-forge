@@ -4,8 +4,8 @@ A map generator for [Zero-K](https://zero-k.info). It builds complete, ready-to-
 heightmap, high-resolution texture, minimap, metal spots, geovents, start boxes, trees, and optional
 map gadgets such as lava cliffs, lava tides and an erupting volcano.
 
-> **Status: pre-release (0.4).** 25 map templates, a Windows app with a large map preview and a placement
-> editor, and the command line. See the [roadmap](docs/ROADMAP.md).
+> **Status: pre-release (0.5).** 30 map templates, a Windows app with a large map preview and a map
+> editor (placement, terrain brushes, painting, features, 3D view), and the command line. See the [roadmap](docs/ROADMAP.md).
 
 ## Download
 
@@ -66,11 +66,21 @@ Without the `[app]` extra (pywebview), the app opens in your web browser instead
 
 ### Editor
 
-In the preview you can move, add and delete metal spots, geothermal vents and start points. Symmetry
-(mirror or rotation, including free-for-all) is applied to every edit, and live checks flag water, slope,
-distances and fairness. Ctrl+Z and Ctrl+Y undo and redo. **Save project** writes a `.forge.json` file
-(template, settings, seed and edits) that **Open project** loads again. Terrain brushes are planned for the next
-stage.
+Press **Edit** (E) in the preview to change a generated map by hand. Symmetry (mirror or rotation, including
+free-for-all) is applied to every edit, and the checks run again after each one.
+
+- **Place:** move, add and delete metal spots, geothermal vents and start points; drag start boxes; select
+  several objects with a rectangle and move or delete them together; live metal balance per team.
+- **Terrain:** brush (raise, lower, flatten with a target height, smooth, noise, terrace), ramp from A to B,
+  and a stamp that copies terrain and pastes it turned, mirrored or blended.
+- **Paint:** paths, concrete, scorch marks and lava crust, an eraser, polygon fill and height-band fill.
+- **Features:** add or remove trees, rocks and wrecks in a circle.
+- **View:** zoom up to 8x, contour and slope overlays, a rotatable 3D terrain view.
+- **Edit list:** every action in order; highlight, switch off or delete any of them. Ctrl+Z and Ctrl+Y undo
+  and redo. Press **?** for all tools and shortcuts.
+
+**Save project** writes a `.forge.json` file (template, settings, seed and edits) that **Open project** loads
+again.
 
 ## Install (command line)
 

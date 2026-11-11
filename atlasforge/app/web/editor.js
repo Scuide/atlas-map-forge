@@ -96,9 +96,18 @@ function editorAfterPreview(m, seed) {
 }
 
 // ------------------------------------------------------------------ sending edits
+// loading indicator in the preview while an edit is on its way and the layers reload
+function edBusy(on) {
+  const b = document.getElementById("ed-busy");
+  if (b) b.classList.toggle("on", on);
+}
+
 function edSend(delay = 80) {
   clearTimeout(ED.timer);
+  ED.queued = true;
+  edBusy(true);
   ED.timer = setTimeout(async () => {
+    ED.queued = false;
     const seq = ++ED.seq;
     try {
       const terrain = ED.terrain || S.edits.some(edAffectsRelief);
@@ -133,6 +142,7 @@ function edSend(delay = 80) {
       edUpdateUi();
       draw();
     } catch (e) { toast(e.message); ED.pending = null; draw(); }
+    finally { if (seq === ED.seq && !ED.queued) edBusy(false); }      // only the newest request ends the indicator
   }, delay);
 }
 

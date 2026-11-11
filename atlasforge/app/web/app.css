@@ -189,6 +189,15 @@ button:disabled { opacity: .45; cursor: default; filter: none; }
   animation: spin .8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+.spinner.small { width: 14px; height: 14px; border-width: 2px; }
+/* editor: shown while an edit is being applied and the preview reloads (delayed, so quick edits do not flicker) */
+.ed-busy {
+  position: absolute; left: 50%; bottom: 58px; transform: translate(-50%, 6px); display: flex; align-items: center; gap: 8px;
+  height: 32px; padding: 0 12px; border-radius: 8px; font-size: 12px; color: #ffd9b8; cursor: help;
+  background: rgba(14, 15, 18, .9); border: 1px solid rgba(255, 122, 26, .45); backdrop-filter: blur(6px);
+  opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .15s, transform .15s, visibility 0s .15s;
+}
+.ed-busy.on { opacity: 1; visibility: visible; pointer-events: auto; transform: translate(-50%, 0); transition: opacity .15s .2s, transform .15s .2s, visibility 0s .2s; }
 .empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--faint); }
 
 /* ---------------------------------------------------------------- right panel */
@@ -372,7 +381,8 @@ button:disabled { opacity: .45; cursor: default; filter: none; }
 .donecard .actions { justify-content: center; margin-top: 14px; }
 
 /* ---------------------------------------------------------------- editor (stage A) */
-#edit-tools .ed-only { display: flex; align-items: center; gap: 2px; }
+#edit-tools { flex-wrap: wrap; max-width: 100%; row-gap: 4px; }
+#edit-tools .ed-only { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; row-gap: 4px; }
 #edit-tools input[type=number] { width: 52px; height: 24px; margin: 0 4px; background: #14161a; color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 0 4px; font-size: 12px; }
 #edit-tools .switch { margin: 0 6px; font-size: 12px; color: var(--muted); }
 #edit-tools button:disabled { opacity: .35; cursor: default; }
@@ -382,7 +392,7 @@ button:disabled { opacity: .45; cursor: default; filter: none; }
 .ed-bal.ok { color: #6fd36f; }
 .ed-bal.warn { color: #e8b03a; }
 .ed-bal.bad { color: #ef5a5a; }
-#edit-tools .brush-opts { display: flex; align-items: center; gap: 4px; }
+#edit-tools .brush-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 #edit-tools .brush-opts label { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
 #edit-tools .brush-opts input[type=range] { width: 80px; }
 .stage canvas.editing { cursor: crosshair; }
