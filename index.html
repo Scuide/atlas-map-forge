@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atlas Map Forge: Zero-K map generator and map editor</title>
+<meta name="description" content="Free, open-source Zero-K map generator and map editor. Pick one of 30 templates, adjust the settings, edit terrain by hand and build a complete, playable Zero-K map. Windows and Linux.">
+<meta name="keywords" content="Zero-K map generator, Zero-K map editor, Zero-K maps, random map generator, Spring RTS map generator, Recoil engine, SpringRTS maps, RTS map maker">
+<link rel="canonical" href="https://scuide.github.io/atlas-map-forge/">
+<link rel="icon" href="site/img/favicon.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Atlas Map Forge: Zero-K map generator and map editor">
+<meta property="og:description" content="Build complete, playable Zero-K maps from 30 templates and edit them by hand. Free, open source, Windows and Linux.">
+<meta property="og:url" content="https://scuide.github.io/atlas-map-forge/">
+<meta property="og:image" content="https://scuide.github.io/atlas-map-forge/site/img/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Atlas Map Forge", "applicationCategory": "GameApplication", "operatingSystem": "Windows, Linux", "softwareVersion": "0.5.0", "description": "Free, open-source map generator and map editor for the RTS Zero-K. Builds complete, playable Zero-K maps from templates.", "url": "https://scuide.github.io/atlas-map-forge/", "downloadUrl": "https://github.com/Scuide/atlas-map-forge/releases/tag/v0.5.0", "license": "https://www.gnu.org/licenses/gpl-2.0.html", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "author": {"@type": "Person", "name": "Scuide"}, "screenshot": "https://scuide.github.io/atlas-map-forge/site/img/editor.jpg"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Is Atlas Map Forge free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. It is open source under the GPL 2.0 or later, and the Windows and Linux programs are free downloads."}}, {"@type": "Question", "name": "Do I need to install anything?", "acceptedAnswer": {"@type": "Answer", "text": "No. On Windows you start AtlasMapForge.exe; on Linux you unpack the archive and start ./AtlasMapForge, which opens the app in your web browser. Python is not needed."}}, {"@type": "Question", "name": "Where do the maps go?", "acceptedAnswer": {"@type": "Answer", "text": "The Forge finds your Zero-K folder (Steam or the standalone version) and builds the map straight into its maps folder, so it shows up in the Zero-K lobby right away."}}, {"@type": "Question", "name": "Can I play generated maps online?", "acceptedAnswer": {"@type": "Answer", "text": "Yes, in passworded rooms. New maps are \"unsupported\" on zero-k.info until the Zero-K team approves them."}}, {"@type": "Question", "name": "Why does Windows warn me?", "acceptedAnswer": {"@type": "Answer", "text": "The program is not code-signed yet. Click \"More info\", then \"Run anyway\". Every release is built and tested automatically on GitHub from the public source code."}}, {"@type": "Question", "name": "Can I change a generated map by hand?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. The editor shapes terrain, paints paths and scorch marks, places trees, rocks and wrecks, and moves metal spots, geovents, start points and start boxes. Symmetry and the reachability checks are kept for every edit."}}]}</script>
+<style>
+@font-face { font-family: "Inter Display"; font-weight: 900; src: url("atlasforge/app/web/InterDisplay-Black.otf") format("opentype"); font-display: swap; }
+:root {
+  --bg: #111215; --panel: #17191d; --panel-2: #1d2025; --line: #2a2e35; --text: #e9e7e3; --muted: #a3a8b0;
+  --faint: #6b7079; --ember: #ff7a1a; --ember-hot: #ffb04a; --ok: #5fd38a; --cyan: #46c8ff;
+  --ui: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 var(--ui); }
+a { color: var(--ember-hot); }
+img { max-width: 100%; height: auto; display: block; }
+.wrap { max-width: 1160px; margin: 0 auto; padding: 0 20px; }
+header.top { border-bottom: 1px solid var(--line); background: #0c0d10; }
+header.top .wrap { display: flex; align-items: center; gap: 18px; height: 60px; }
+.brand { display: flex; align-items: center; gap: 10px; font: 900 18px "Inter Display", var(--ui); letter-spacing: .04em; color: var(--text); text-decoration: none; }
+.brand b { color: var(--ember); font-weight: 900; }
+.brand .gem { width: 22px; height: 22px; transform: rotate(45deg); border-radius: 4px; background: linear-gradient(135deg, var(--ember-hot), #c2410c); }
+nav { margin-left: auto; display: flex; gap: 20px; font-size: 14px; }
+nav a { color: var(--muted); text-decoration: none; }
+nav a:hover { color: var(--text); }
+.hero { padding: 64px 0 40px; background: radial-gradient(1200px 500px at 70% -10%, rgba(255,122,26,.16), transparent 60%); }
+.hero h1 { font: 900 clamp(34px, 6vw, 62px)/1.04 "Inter Display", var(--ui); margin: 0 0 14px; letter-spacing: .01em; }
+.hero h1 span { display: block; font-size: .5em; color: var(--ember); letter-spacing: .03em; margin-top: 10px; }
+.hero p.lead { font-size: clamp(17px, 2.2vw, 20px); color: var(--muted); max-width: 720px; margin: 0 0 28px; }
+.buttons { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.btn { display: inline-flex; align-items: center; gap: 10px; padding: 13px 20px; border-radius: 9px; font-weight: 700; text-decoration: none; border: 1px solid var(--line); color: var(--text); background: var(--panel-2); }
+.btn.primary { background: linear-gradient(180deg, #ff9a3c, var(--ember)); color: #1a0d03; border-color: transparent; }
+.btn small { font-weight: 500; opacity: .75; }
+.note { color: var(--faint); font-size: 14px; margin-top: 14px; }
+.shot { margin-top: 40px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+section { padding: 56px 0; border-top: 1px solid var(--line); }
+h2 { font: 900 clamp(26px, 3.6vw, 36px)/1.15 "Inter Display", var(--ui); margin: 0 0 10px; letter-spacing: .01em; }
+.sub { color: var(--muted); margin: 0 0 30px; max-width: 760px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+.card h3 { margin: 0 0 6px; font-size: 17px; }
+.card p { margin: 0; color: var(--muted); font-size: 15px; }
+.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.steps li { counter-increment: s; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px 18px 64px; position: relative; color: var(--muted); }
+.steps li::before { content: counter(s); position: absolute; left: 20px; top: 16px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; color: #1a0d03; background: var(--ember); }
+.steps b { color: var(--text); display: block; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.two figure { margin: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
+.two figcaption { padding: 10px 14px; color: var(--muted); font-size: 14px; }
+.tpls { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.tpl { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.tpl img { width: 100%; aspect-ratio: 1; object-fit: cover; }
+.tpl div { padding: 10px 12px 12px; }
+.tpl h3 { margin: 0; font-size: 15px; }
+.tpl .meta { margin: 2px 0 6px; color: var(--faint); font-size: 13px; }
+.tpl .tags { margin: 0 0 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+.tpl .tags span { font-size: 11px; padding: 1px 7px; border-radius: 5px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); }
+.tpl .desc { margin: 0; font-size: 13px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; margin-bottom: 10px; }
+summary { cursor: pointer; font-weight: 700; }
+details p { color: var(--muted); margin: 10px 0 0; }
+footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--faint); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 18px; justify-content: space-between; }
+@media (max-width: 760px) {
+  nav { display: none; }
+  .two { grid-template-columns: 1fr; }
+  .hero { padding-top: 40px; }
+}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="./"><span class="gem"></span>ATLAS MAP <b>FORGE</b></a>
+  <nav><a href="#features">Features</a><a href="#editor">Editor</a><a href="#templates">Templates</a><a href="#faq">FAQ</a><a href="https://github.com/Scuide/atlas-map-forge">GitHub</a></nav>
+</div></header>
+
+<main>
+<div class="hero"><div class="wrap">
+  <h1>Atlas Map Forge<span>Zero-K map generator and map editor</span></h1>
+  <p class="lead">Build complete, playable maps for the RTS <a href="https://zero-k.info">Zero-K</a> in minutes: pick one of 30 templates, adjust the settings, shape the terrain by hand and press Build. The map lands in your Zero-K maps folder, ready to play.</p>
+  <div class="buttons">
+    <a class="btn primary" href="https://github.com/Scuide/atlas-map-forge/releases/download/v0.5.0/AtlasMapForge.exe">Download for Windows <small>v0.5.0 &middot; .exe</small></a>
+    <a class="btn" href="https://github.com/Scuide/atlas-map-forge/releases/download/v0.5.0/AtlasMapForge-linux-x86_64.tar.gz">Linux <small>.tar.gz</small></a>
+    <a class="btn" href="https://github.com/Scuide/atlas-map-forge">Source on GitHub</a>
+  </div>
+  <p class="note">Free and open source (GPL 2.0 or later). One file, no installation, no Python needed. Pre-release: feedback is welcome.</p>
+  <div class="shot"><img src="site/img/editor.jpg" width="1600" height="960" alt="Atlas Map Forge app: a Zero-K map in the editor with metal spots, start boxes, chokes and the check report"></div>
+</div></div>
+
+<section id="features"><div class="wrap">
+  <h2>What it does</h2>
+  <p class="sub">A complete map, not just a heightmap: texture, minimap, metal spots, geothermal vents, start boxes, trees and optional map gadgets, packed as a ready-to-play .sdz file.</p>
+  <div class="grid">
+    <div class="card"><h3>30 templates</h3><p>Land, sea, chokepoints, rivers, islands, free-for-all for 3 to 8 players, co-op chicken defence, a volcano with eruptions and an asteroid in space.</p></div>
+    <div class="card"><h3>Fair by design</h3><p>Terrain, metal and start boxes are mirrored or rotated, so every side gets exactly the same.</p></div>
+    <div class="card"><h3>Checked like the engine</h3><p>A report shows whether tanks, bots, spiders, hovers, amphibians and ships can reach the enemy and every metal spot, using the engine's own slope rules.</p></div>
+    <div class="card"><h3>12 biomes</h3><p>Temperate, autumn, desert, arctic, jungle, swamp, industrial, alien, moon, volcanic, ashland and asteroid, each with its own sky, light and grass.</p></div>
+    <div class="card"><h3>Every setting explained</h3><p>Size, seed, time of day, metal, geovents, wind, tidal strength, trees, rocks, wrecks, erosion and each template's own options, with a short explanation for each.</p></div>
+    <div class="card"><h3>Straight into the game</h3><p>The Zero-K folder is found automatically; the built map shows up in the Zero-K lobby.</p></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2>How it works</h2>
+  <ol class="steps">
+    <li><b>Pick a template</b>Filter by 1v1, teams, free-for-all, co-op, land or sea.</li>
+    <li><b>Adjust and edit</b>Change the settings or roll a new seed; refine the map by hand in the editor.</li>
+    <li><b>Build and play</b>One click builds the .sdz map into your Zero-K maps folder.</li>
+  </ol>
+</div></section>
+
+<section id="editor"><div class="wrap">
+  <h2>A map editor built in</h2>
+  <p class="sub">Change a generated map before you build it. Every edit follows the map's symmetry and the checks run again after each one. Undo, redo and project files (.forge.json) included.</p>
+  <div class="two">
+    <figure><img src="site/img/3d.jpg" width="938" height="690" loading="lazy" alt="3D terrain view of a Zero-K river delta map in Atlas Map Forge"><figcaption>3D view: rotate and zoom the terrain with metal spots and start points.</figcaption></figure>
+    <figure><img src="site/img/slope.jpg" width="938" height="690" loading="lazy" alt="Slope overlay showing where Zero-K units can drive and climb"><figcaption>Slope map: where all units, only bots and spiders, or nothing can go.</figcaption></figure>
+  </div>
+  <div class="grid" style="margin-top:16px">
+    <div class="card"><h3>Terrain</h3><p>Raise, lower, flatten to a height, smooth, roughen and terrace; ramps from A to B; a stamp that copies terrain, turned or mirrored.</p></div>
+    <div class="card"><h3>Paint</h3><p>Paths, concrete, scorch marks and lava crust, with an eraser, polygon fill and height-band fill.</p></div>
+    <div class="card"><h3>Objects</h3><p>Move metal spots, geovents, start points and start boxes, also several at once; add or remove trees, rocks and wrecks.</p></div>
+    <div class="card"><h3>Overview</h3><p>Live metal balance per team, an edit list with on and off per edit, contour lines and zoom up to 8x.</p></div>
+  </div>
+</div></section>
+
+<section id="templates"><div class="wrap">
+  <h2>30 map templates</h2>
+  <p class="sub">Every template has its own settings, and every seed gives a different map.</p>
+  <ul class="tpls">
+<li class="tpl"><img src="atlasforge/app/web/thumbs/skirmish.jpg" alt="Procedural Skirmish map preview" width="320" height="320" loading="lazy"><div><h3>Procedural Skirmish</h3><p class="meta">1v1 to 4v4</p><p class="tags"><span>1v1</span><span>Teams</span></p><p class="desc">Classic 1v1 or team map from noise terrain: hills, plateaus, canyons, islands or craters. Ramps are carved automatically so tanks reach every base and metal spot.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/chokepoint.jpg" alt="Chokepoint Front map preview" width="320" height="320" loading="lazy"><div><h3>Chokepoint Front</h3><p class="meta">1v1 to 3v3</p><p class="tags"><span>1v1</span><span>Teams</span></p><p class="desc">West vs East, split by a long rock barrier. A few gates lead through: level ground for everyone, rock humps only bots can climb, or water channels for hovers and amphibians.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/river.jpg" alt="River Crossing map preview" width="320" height="320" loading="lazy"><div><h3>River Crossing</h3><p class="meta">1v1 to 3v3</p><p class="tags"><span>1v1</span><span>Teams</span></p><p class="desc">West vs East across a river or a lava lake. Low fords cross it; with lava tides the fords flood every few minutes (on-screen countdown) while a causeway in the middle stays safe.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/arena.jpg" alt="Arena (4 players) map preview" width="320" height="320" loading="lazy"><div><h3>Arena (4 players)</h3><p class="meta">2v2 or 4-player FFA</p><p class="tags"><span>Teams</span><span>FFA</span></p><p class="desc">Four bases, each inside a rock ring with gates. Safe economy inside, open ground outside and a rich centre. Plays as 2v2 or as a 4-player free-for-all.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/volcano.jpg" alt="Volcano map preview" width="320" height="320" loading="lazy"><div><h3>Volcano</h3><p class="meta">2v2 or 4-player FFA</p><p class="tags"><span>Teams</span><span>FFA</span></p><p class="desc">A volcano island in a sea of lava, ringed by islands with four bases (20x20). Every few minutes the volcano erupts: lava bombs rain on the slopes and the rising lava floods every causeway.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/chicken.jpg" alt="Chicken Defense map preview" width="320" height="320" loading="lazy"><div><h3>Chicken Defense</h3><p class="meta">1-4 players vs chickens</p><p class="tags"><span>Co-op</span></p><p class="desc">Co-op against chickens. Players start inside nested ring walls whose gates alternate, so chickens walk the longest way and players can fall back ring by ring.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/open_sea.jpg" alt="Open Sea map preview" width="320" height="320" loading="lazy"><div><h3>Open Sea</h3><p class="meta">1v1 to 3v3</p><p class="tags"><span>1v1</span><span>Teams</span><span>Sea</span></p><p class="desc">Coastal bases face a broad ocean with underwater expansion fields. Ships control the open water while amphibians and hovers raid the beaches.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/archipelago.jpg" alt="Archipelago map preview" width="320" height="320" loading="lazy"><div><h3>Archipelago</h3><p class="meta">1v1 to 3v3</p><p class="tags"><span>1v1</span><span>Teams</span><span>Sea</span></p><p class="desc">Home islands and scattered expansion islands divide a deep sea into winding fleet routes. Capture island economy with amphibians and defend underwater resources with ships.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/straits.jpg" alt="Island Straits map preview" width="320" height="320" loading="lazy"><div><h3>Island Straits</h3><p class="meta">1v1 to 3v3</p><p class="tags"><span>1v1</span><span>Teams</span><span>Sea</span></p><p class="desc">Long central islands split the sea into fleet passages between opposing coastal bases. Fight for the straits and use amphibious landings to capture the central islands.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/three_lanes.jpg" alt="Three Lanes map preview" width="320" height="320" loading="lazy"><div><h3>Three Lanes</h3><p class="meta">1v1 to 4v4</p><p class="tags"><span>1v1</span><span>Teams</span></p><p class="desc">Three parallel battle lanes share a rear staging area. Rocky ridges divide the fronts; side crossings let armies switch lanes and threaten exposed expansion fields.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/coastal_front.jpg" alt="Coastal Front map preview" width="320" height="320" loading="lazy"><div><h3>Coastal Front</h3><p class="meta">1v1 to 4v4</p><p class="tags"><span>1v1</span><span>Teams</span><span>Sea</span></p><p class="desc">A continuous mainland front runs beside a broad coastal sea. Fight across land, raid the shoreline with ships, or land amphibious forces behind the front.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/atoll.jpg" alt="Atoll map preview" width="320" height="320" loading="lazy"><div><h3>Atoll</h3><p class="meta">1v1 to 4v4</p><p class="tags"><span>1v1</span><span>Teams</span><span>Sea</span></p><p class="desc">Opposing island arcs surround a contested lagoon. Two deep entrances link the lagoon to the outer ocean; control the inside route or sail around the island flanks.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/ffa_ring.jpg" alt="FFA Ring map preview" width="320" height="320" loading="lazy"><div><h3>FFA Ring</h3><p class="meta">3 to 8 players, free-for-all</p><p class="tags"><span>FFA</span></p><p class="desc">Free-for-all: every player gets an identical sector of a round battlefield. Rock ridges separate neighbours, with a pass between each pair; the richest metal waits in the centre, where all players meet. A mountain rim closes the map.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/asteroid.jpg" alt="Asteroid map preview" width="320" height="320" loading="lazy"><div><h3>Asteroid</h3><p class="meta">2 to 4 players</p><p class="tags"><span>1v1</span><span>Teams</span><span>FFA</span></p><p class="desc">A cratered asteroid floating in space: a high ring of rock around a lower central basin, rough flanks and a steep edge that drops into the void - units and buildings down there are destroyed. Low gravity, a starry sky. Every player gets an identical sector.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/highlands.jpg" alt="Procedural Highlands map preview" width="320" height="320" loading="lazy"><div><h3>Procedural Highlands</h3><p class="meta">1v1 to 4v4</p><p class="tags"><span>1v1</span><span>Teams</span></p><p class="desc">Seeded highland regions become irregular mesas, rounded massifs or stepped uplands. Valleys, expansion sites and automatically carved tank ramps change with every seed.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/watershed.jpg" alt="Procedural Watershed map preview" width="320" height="320" loading="lazy"><div><h3>Procedural Watershed</h3><p class="meta">1v1 to 4v4</p><p class="tags"><span>1v1</span><span>Teams</span></p><p class="desc">Seeded river branches carve braided channels, broad wetlands or dry ravines. Changing the seed reshapes the drainage network; automatic crossings keep land armies connected.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/dune_sea.jpg" alt="Procedural Dune Sea map preview" width="320" height="320" loading="lazy"><div><h3>Procedural Dune Sea</h3><p class="meta">1v1 to 4v4</p><p class="tags"><span>1v1</span><span>Teams</span></p><p class="desc">Changing winds and warped noise create long dune chains, crescent fields or intersecting star dunes. Seeded rocky uplands interrupt the sand; tanks receive natural valleys and automatic ramps.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/open_dunes.jpg" alt="Open Dunes map preview" width="320" height="320" loading="lazy"><div><h3>Open Dunes</h3><p class="meta">1v1 to 4v4</p><p class="tags"><span>1v1</span><span>Teams</span></p><p class="desc">Broad, low dune waves and open basins favour mobile armies and wide flanks. Seeded winds and small rocky outcrops change cover without a dominant barrier.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/twin_plateaus.jpg" alt="Twin Plateaus map preview" width="320" height="320" loading="lazy"><div><h3>Twin Plateaus</h3><p class="meta">1v1 to 4v4, two starting pads per team</p><p class="tags"><span>1v1</span><span>Teams</span></p><p class="desc">Each team starts on a high plateau with several deliberate ramps into a shared lowland. Defend the home height, contest lowland metal and switch pressure between the ramps.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/lake_district.jpg" alt="Lake District map preview" width="320" height="320" loading="lazy"><div><h3>Lake District</h3><p class="meta">1v1 to 4v4</p><p class="tags"><span>1v1</span><span>Teams</span></p><p class="desc">Several seeded lake basins interrupt a connected mainland. Dry central routes and an outer land belt keep armies moving, while amphibians can cross the lakes and raid exposed shores.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/river_delta.jpg" alt="River Delta map preview" width="320" height="320" loading="lazy"><div><h3>River Delta</h3><p class="meta">1v1 to 4v4</p><p class="tags"><span>1v1</span><span>Teams</span></p><p class="desc">A central river fans into several channels around contested delta islands. Cross at broad fords or raised causeways, switch between crossing fronts and use amphibious routes.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/fjord_coast.jpg" alt="Fjord Coast map preview" width="320" height="320" loading="lazy"><div><h3>Fjord Coast</h3><p class="meta">1v1 to 4v4</p><p class="tags"><span>1v1</span><span>Teams</span><span>Sea</span></p><p class="desc">Deep inlets cut into opposing mainlands and shelter local fleet approaches. Hold the bay mouths, raid the inner shores and use amphibious landings behind the headlands.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/chicken_mesa.jpg" alt="Chicken Mesa map preview" width="320" height="320" loading="lazy"><div><h3>Chicken Mesa</h3><p class="meta">1-4 players vs chickens</p><p class="tags"><span>Co-op</span></p><p class="desc">Defend one shared high mesa against chicken waves using several ramps. When the outer approaches fail, fall back to a central position.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/canyon_network.jpg" alt="Canyon Network map preview" width="320" height="320" loading="lazy"><div><h3>Canyon Network</h3><p class="meta">1v1 to 4v4</p><p class="tags"><span>1v1</span><span>Teams</span></p><p class="desc">A seeded network of branching ravines creates parallel routes, exposed junctions and deliberate cross-canyon passes. Each seed reshapes the canyon layout and changes where armies can switch fronts.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/mountain_spine.jpg" alt="Mountain Spine map preview" width="320" height="320" loading="lazy"><div><h3>Mountain Spine</h3><p class="meta">1v1 to 4v4</p><p class="tags"><span>1v1</span><span>Teams</span></p><p class="desc">A winding mountain ridge divides the battlefield. Tanks use broad low valleys, bots cross shorter passes, and spiders can flank over the steep sides; each seed changes the ridge and pass positions.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/crater_basin.jpg" alt="Crater Basin map preview" width="320" height="320" loading="lazy"><div><h3>Crater Basin</h3><p class="meta">1v1 to 4v4</p><p class="tags"><span>1v1</span><span>Teams</span></p><p class="desc">A contested crater basin sits inside a broad, traversable rim. Four marked ramps connect the basin to the rim, while a lower outer circuit supports flanking and mirrored resource expansion.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/fortress_front.jpg" alt="Fortress Front map preview" width="320" height="320" loading="lazy"><div><h3>Fortress Front</h3><p class="meta">1v1 to 4v4</p><p class="tags"><span>1v1</span><span>Teams</span></p><p class="desc">Mirrored forward positions face a shared battlefield. Each low defensive shoulder has several sorties, while paired expansions lie beyond the home perimeter.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/inland_sea.jpg" alt="Inland Sea map preview" width="320" height="320" loading="lazy"><div><h3>Inland Sea</h3><p class="meta">1v1 to 3v3</p><p class="tags"><span>1v1</span><span>Teams</span><span>Sea</span></p><p class="desc">A connected land rim circles a large inland sea. Ground forces take the long route around the shore while fleets cross the lake quickly between the opposing ports.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/peninsula.jpg" alt="Peninsula map preview" width="320" height="320" loading="lazy"><div><h3>Peninsula</h3><p class="meta">1v1 to 3v3</p><p class="tags"><span>1v1</span><span>Teams</span><span>Sea</span></p><p class="desc">Opposing peninsulas project into open water, with defensible necks, long exposed coasts and broad side-landing opportunities.</p></div></li>
+<li class="tpl"><img src="atlasforge/app/web/thumbs/island_continents.jpg" alt="Island Continents map preview" width="320" height="320" loading="lazy"><div><h3>Island Continents</h3><p class="meta">1v1 to 3v3</p><p class="tags"><span>1v1</span><span>Teams</span><span>Sea</span></p><p class="desc">Two broad continents give each side room for a substantial land front. A deep channel separates them, so fleets carry units to exposed shores and create new landing fronts.</p></div></li>
+  </ul>
+</div></section>
+
+<section id="faq"><div class="wrap">
+  <h2>Questions</h2>
+  <details><summary>Is Atlas Map Forge free?</summary><p>Yes. It is open source under the GPL 2.0 or later, and the Windows and Linux programs are free downloads.</p></details>
+<details><summary>Do I need to install anything?</summary><p>No. On Windows you start AtlasMapForge.exe; on Linux you unpack the archive and start ./AtlasMapForge, which opens the app in your web browser. Python is not needed.</p></details>
+<details><summary>Where do the maps go?</summary><p>The Forge finds your Zero-K folder (Steam or the standalone version) and builds the map straight into its maps folder, so it shows up in the Zero-K lobby right away.</p></details>
+<details><summary>Can I play generated maps online?</summary><p>Yes, in passworded rooms. New maps are &quot;unsupported&quot; on zero-k.info until the Zero-K team approves them.</p></details>
+<details><summary>Why does Windows warn me?</summary><p>The program is not code-signed yet. Click &quot;More info&quot;, then &quot;Run anyway&quot;. Every release is built and tested automatically on GitHub from the public source code.</p></details>
+<details><summary>Can I change a generated map by hand?</summary><p>Yes. The editor shapes terrain, paints paths and scorch marks, places trees, rocks and wrecks, and moves metal spots, geovents, start points and start boxes. Symmetry and the reachability checks are kept for every edit.</p></details>
+</div></section>
+</main>
+
+<footer><div class="wrap">
+  <span>Atlas Map Forge v0.5.0 &middot; made by Scuide (Ling Ling in game) &middot; not affiliated with the Zero-K team</span>
+  <span><a href="https://github.com/Scuide/atlas-map-forge">GitHub</a> &middot; <a href="https://github.com/Scuide/atlas-map-forge/issues">Report a problem</a> &middot; <a href="https://github.com/Scuide/atlas-map-forge/blob/main/CHANGELOG.md">Changelog</a> &middot; <a href="https://ko-fi.com/scuide">Support on Ko-fi</a></span>
+</div></footer>
+</body>
+</html>

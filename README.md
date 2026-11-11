@@ -1,8 +1,11 @@
-# Atlas Map Forge
+# Atlas Map Forge: Zero-K map generator and map editor
 
-A map generator for [Zero-K](https://zero-k.info). It builds complete, ready-to-play `.sdz` maps:
+Atlas Map Forge is a free, open-source map generator and map editor for [Zero-K](https://zero-k.info), the
+RTS on the Recoil (Spring) engine. It builds complete, ready-to-play `.sdz` maps:
 heightmap, high-resolution texture, minimap, metal spots, geovents, start boxes, trees, and optional
 map gadgets such as lava cliffs, lava tides and an erupting volcano.
+
+Website: **https://scuide.github.io/atlas-map-forge/**
 
 > **Status: pre-release (0.5).** 30 map templates, a Windows app with a large map preview and a map
 > editor (placement, terrain brushes, painting, features, 3D view), and the command line. See the [roadmap](docs/ROADMAP.md).
