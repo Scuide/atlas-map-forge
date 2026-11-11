@@ -161,7 +161,7 @@ def lua_string(s):
 
 
 def mapinfo_lua(name, desc, author, hmin, hmax, smtname, starts, biome, water_h, smfname, minimap_tex=None,
-                emission_tex=None, tool="Atlas Map Forge", sky_box=None, grass_shading=None):
+                emission_tex=None, tool="Atlas Map Forge", sky_box=None, grass_shading=None, maxmetal=3.0):
     """mapinfo.lua. minimap_tex: separate in-game minimap without badge (unitsync and zero-k.info always
     read the minimap embedded in the SMF, which carries the badge)."""
     minimap_line = f'\n    minimaptex   = "{minimap_tex}",' if minimap_tex else ""
@@ -213,7 +213,7 @@ local mapinfo = {{
   notdeformable   = false,
   gravity         = {int(b.get("gravity", 120))},
   tidalstrength   = {int(b.get("tidal", 12))},
-  maxmetal        = 3.0,
+  maxmetal        = {maxmetal:g},
   extractorradius = 80.0,
   voidwater       = {"true" if b.get("void") else "false"},
   voidground      = false,

@@ -99,6 +99,7 @@ async function init() {
   syncToolbar();
   renderGallery();
   renderWho();
+  renderGame();
   if (!hasAuthor()) setTimeout(openSettings, 400);           // first start: ask for the author name
   const last = recall("template", S.info.templates[0].id);
   selectTemplate(S.info.templates.find((t) => t.id === last) ? last : S.info.templates[0].id);
@@ -958,11 +959,14 @@ $("version").addEventListener("input", () => { refreshVersions.manual = true; ve
 function updateBuildButton() {
   const b = $("btn-build");
   const running = S.job && S.job.state === "running";
-  b.disabled = !S.map || S.busy || running || !hasAuthor();
+  const zkOnly = isBar() && S.tpl && (S.tpl.modes || []).includes("coop");
+  b.disabled = !S.map || S.busy || running || !hasAuthor() || zkOnly;
   b.classList.toggle("warn", !!S.map && !S.map.ok);
-  b.title = hasAuthor() ? "" : "Set your author name in Settings first";
+  b.title = !hasAuthor() ? "Set your author name in Settings first"
+    : zkOnly ? "Chicken defence maps work in Zero-K only. Switch the game in Settings." : "";
   b.textContent = running ? "Building..." : !hasAuthor() ? "Build map (author name needed)"
-    : S.map && !S.map.ok ? "Build anyway (check found problems)" : "Build map";
+    : zkOnly ? "Zero-K only (chicken defence)"
+    : S.map && !S.map.ok ? "Build anyway (check found problems)" : `Build map for ${isBar() ? "BAR" : "Zero-K"}`;
 }
 
 $("btn-build").onclick = async () => {
@@ -998,9 +1002,9 @@ async function pollJob(id) {
     r.className = "result";
     r.innerHTML = `<div class="ttl">${esc(res.name)} is ready</div>
       <code>${esc(res.file)}</code> &middot; ${(res.bytes / 1e6).toFixed(1)} MB &middot; ${Math.round(j.seconds)} s
-      ${res.installed ? `<p>Installed into Zero-K. In the lobby, switch off <b>Only show featured maps</b> to see it.</p>` : ""}
+      ${res.installed ? `<p>${installedNote(res)}</p>` : ""}${barBoxes(res)}
       ${res.warning ? `<p class="warnline">${esc(res.warning)}</p>` : ""}
-      <div class="acts"><button class="ghost" id="open-file">Show file</button>${res.installed ? `<button class="ghost" id="open-inst">Show in Zero-K maps</button>` : ""}</div>
+      <div class="acts"><button class="ghost" id="open-file">Show file</button>${res.installed ? `<button class="ghost" id="open-inst">Show in ${esc(res.game_name || "Zero-K")} maps</button>` : ""}</div>
       <div class="support">Enjoying Atlas Map Forge? Support me on Ko-fi to help development.
         <button class="kofi" id="kofi-result">Support on Ko-fi</button></div>`;
     $("kofi-result").onclick = openKofi;
@@ -1024,6 +1028,11 @@ function openSettings() {
   $("s-zerok").value = c.zerok || "";
   $("s-zerok").placeholder = st.zerok_found[0] || "not found - please choose the folder";
   $("s-zerok-found").textContent = st.zerok_found.length ? "Found automatically: " + st.zerok_found.join(", ") + " (leave empty to use it)" : "Zero-K was not found automatically.";
+  $("s-game").value = c.game || "zk";
+  $("s-bar").value = c.bar || "";
+  $("s-bar").placeholder = st.bar_found[0] || "not found - please choose the folder";
+  $("s-bar-found").textContent = st.bar_found.length ? "Found automatically: " + st.bar_found.join(", ") + " (leave empty to use it)" : "BAR was not found automatically.";
+  gameHelp();
   $("s-outdir").value = c.outdir || "";
   $("s-outdir").placeholder = st.default_outdir;
   $("s-projdir").value = c.projdir || "";
@@ -1041,18 +1050,32 @@ document.querySelectorAll("[data-pick]").forEach((b) => (b.onclick = async () =>
   const p = await window.pywebview.api.pick_folder(inp.value || inp.placeholder || "");
   if (p) inp.value = p;
 }));
+const GAME_HELP = {
+  zk: "Maps for Zero-K: start boxes, metal and lava as Zero-K reads them.",
+  bar: "Experimental. Maps for Beyond All Reason: metal values, wrecks and lava in BAR's format. BAR takes start boxes "
+    + "from the lobby, so after a build the app shows the !addBox commands for the host. Chicken defence templates are Zero-K only.",
+};
+function gameHelp() { $("s-game-help").textContent = GAME_HELP[$("s-game").value] || ""; }
+$("s-game").addEventListener("change", gameHelp);
+const isBar = () => !!(S.info && S.info.settings.game === "bar");
+function renderGame() {
+  $("install-lbl").textContent = "Install into " + (isBar() ? "BAR" : "Zero-K");
+  updateBuildButton();
+}
 $("s-cancel").onclick = () => $("settings").classList.add("hidden");
 $("s-save").onclick = async () => {
   try {
     const wasAdv = isAdvanced();
     const st = await api("config", {
       author: $("s-author").value.trim(), zerok: $("s-zerok").value.trim(), outdir: $("s-outdir").value.trim(),
+      game: $("s-game").value, bar: $("s-bar").value.trim(),
       projdir: $("s-projdir").value.trim(),
       advanced: $("s-advanced").checked,
     });
     S.info.settings = st;
     $("settings").classList.add("hidden");
     renderWho();
+    renderGame();
     if (wasAdv !== isAdvanced()) {
       for (const id of Object.keys(S.values)) clampValues(id);
       store("values", S.values);
@@ -1191,12 +1214,22 @@ function playDone() {
   } catch (e) { /* no sound is fine */ }
 }
 
+function installedNote(res) {
+  if (res.game === "bar") return "Installed into Beyond All Reason. Pick it in a skirmish or a custom battle. "
+    + "The map list shows its picture; size, type and description stay empty, BAR fills them only for maps in its online map database.";
+  return "Installed into Zero-K. In the lobby, switch off <b>Only show featured maps</b> to find it.";
+}
+// BAR reads start boxes from the lobby: the host types these commands into the battle room chat
+function barBoxes(res) {
+  if (res.game !== "bar" || !(res.bar_boxes || []).length) return "";
+  return `<p class="small">Start boxes: BAR takes them from the lobby. As host, type into the battle room chat:</p>`
+    + `<pre class="boxcmds">${esc(["!clearBox", ...res.bar_boxes].join("\n"))}</pre>`;
+}
 function showDone(res, seconds) {
   $("done-name").textContent = res.name;
   $("done-meta").textContent = `${(res.bytes / 1e6).toFixed(1)} MB \u00b7 built in ${Math.round(seconds)} s`;
-  $("done-note").innerHTML = res.installed
-    ? "Installed into Zero-K. In the lobby, switch off <b>Only show featured maps</b> to find it."
-    : esc(res.warning || "Saved to your output folder.");
+  $("done-note").innerHTML = (res.installed ? installedNote(res) : esc(res.warning || "Saved to your output folder."))
+    + barBoxes(res);
   const shot = $("done-shot");
   try {
     const src = S.img && S.img.relief;
@@ -1210,7 +1243,7 @@ function showDone(res, seconds) {
   } catch (e) { shot.classList.add("hidden"); }
   const acts = $("done-acts");
   acts.innerHTML = `<button class="ghost" id="done-file">Show file</button>`
-    + (res.installed ? `<button class="ghost" id="done-inst">Show in Zero-K maps</button>` : "");
+    + (res.installed ? `<button class="ghost" id="done-inst">Show in ${esc(res.game_name || "Zero-K")} maps</button>` : "");
   $("done-file").onclick = () => api("open", { path: res.path }).catch((e) => toast(e.message));
   if (res.installed) $("done-inst").onclick = () => api("open", { path: res.installed }).catch((e) => toast(e.message));
   $("done").classList.remove("hidden");

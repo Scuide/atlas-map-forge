@@ -106,22 +106,31 @@ class Forge:
 
     # ------------------------------------------------------------------ settings
     def settings(self):
+        from ..games import GAMES, find_bar
         from ..install import find_zerok
         cfg = C.load()
         found = find_zerok()
-        return dict(config=dict(cfg.__dict__, prefix=C.PREFIX), zerok_found=found, zerok=cfg.zerok or (found[0] if found else ""),
+        bar_found = find_bar()
+        bar = cfg.bar or (bar_found[0] if bar_found else "")
+        zerok = cfg.zerok or (found[0] if found else "")
+        return dict(config=dict(cfg.__dict__, prefix=C.PREFIX), zerok_found=found, zerok=zerok,
+                    bar_found=bar_found, bar=bar, game=cfg.game, game_name=GAMES[cfg.game],
+                    target=bar if cfg.game == "bar" else zerok,
                     outdir=cfg.outdir or C.default_outdir(), default_outdir=C.default_outdir(),
                     projdir=cfg.projdir or C.default_projdir(), default_projdir=C.default_projdir())
 
     def set_config(self, data):
         cfg = C.load()
-        for k in ("author", "zerok", "outdir", "projdir"):
+        for k in ("author", "zerok", "outdir", "projdir", "bar", "game"):
             if k in data and data[k] is not None:
                 setattr(cfg, k, str(data[k]).strip())
         if "advanced" in data:
             cfg.advanced = bool(data["advanced"])
         if cfg.zerok and not os.path.isdir(cfg.zerok):
             raise ValueError(f"Zero-K folder not found: {cfg.zerok}")
+        if cfg.bar and not os.path.isdir(cfg.bar):
+            raise ValueError(f"BAR folder not found: {cfg.bar}")
+        cfg.validate()
         C.save(cfg)
         return self.settings()
 
@@ -378,7 +387,7 @@ class Forge:
         from ..install import existing_versions
         cfg = C.load()
         s = self.settings()
-        folders = [s["outdir"]] + ([os.path.join(s["zerok"], "maps")] if s["zerok"] else [])
+        folders = [s["outdir"]] + [os.path.join(f, "maps") for f in (s["zerok"], s["bar"]) if f]
         have = existing_versions(cfg, title, folders)
         return dict(existing=have, suggested=(max(have) + 1) if have else 1,
                     name_preview=cfg.map_name(title, (max(have) + 1) if have else 1))
@@ -388,8 +397,16 @@ class Forge:
         if not self.build_lock.acquire(blocking=False):
             raise RuntimeError("A map is already being built. Please wait until it is finished.")
         try:
-            C.load().require_author()
+            cfg = C.load().require_author()
             e = self.entry(data["id"])
+            from ..games import zk_only
+            from ..templates import get as get_template
+            try:
+                tpl = get_template(e.design.template)
+            except KeyError:
+                tpl = None
+            if cfg.game == "bar" and tpl is not None and zk_only(tpl):
+                raise ValueError("Chicken defence maps work in Zero-K only. Switch the game to Zero-K in Settings.")
             title = (data.get("title") or e.design.title).strip()
             if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 '\-.()]{0,47}", title):
                 raise ValueError("Map title: 1-48 letters, digits, spaces and ' - . ( ) only.")
@@ -428,16 +445,28 @@ class Forge:
             outdir = s["outdir"]
             os.makedirs(outdir, exist_ok=True)
             job.phase = "Placing trees"
-            info = forge.build(e.design, outdir=outdir, config=cfg, title=title, version=version, log=log)
+            info = forge.build(e.design, outdir=outdir, config=cfg, title=title, version=version, log=log,
+                               game=cfg.game)
             info["installed"] = None
             info["warning"] = None
+            info["game_name"] = s["game_name"]
+            if cfg.game == "bar":
+                from ..formats import startboxes_lua
+                from ..games import bar_box_commands
+                d = e.design
+                W, H = (d.hm.shape[1] - 1) * SQ, (d.hm.shape[0] - 1) * SQ
+                try:
+                    info["bar_boxes"] = bar_box_commands(d.startboxes or startboxes_lua(d.sym, d.starts), W, H)
+                except Exception:
+                    info["bar_boxes"] = []
             if do_install:
-                if not s["zerok"]:
-                    info["warning"] = ("Not installed: the Zero-K folder was not found. Set it in Settings, "
+                if not s["target"]:
+                    info["warning"] = (f"Not installed: the {s['game_name']} folder was not found. Set it in Settings, "
                                        "the map is in your output folder.")
                 else:
-                    job.phase = "Installing into Zero-K"
-                    info["installed"] = install(info["path"], s["zerok"], log=log)
+                    job.phase = f"Installing into {s['game_name']}"
+                    info["installed"] = install(info["path"], s["target"], log=log,
+                                                lobby="byar" if cfg.game == "bar" else "zk")
             job.result = _json_safe(info)
             job.progress, job.phase, job.state = 1.0, "Done", "done"
         except Exception as ex:                                  # report, never crash the app
@@ -470,7 +499,7 @@ class Forge:
     # ------------------------------------------------------------------ file manager
     def open_path(self, path):
         s = self.settings()
-        allowed = [os.path.abspath(s["outdir"]), os.path.abspath(s["projdir"])] +             ([os.path.abspath(s["zerok"])] if s["zerok"] else [])
+        allowed = [os.path.abspath(s["outdir"]), os.path.abspath(s["projdir"])] +             ([os.path.abspath(f) for f in (s["zerok"], s["bar"]) if f])
         p = os.path.abspath(path)
         if not any(p == a or p.startswith(a + os.sep) for a in allowed):
             raise PermissionError("Only the output, project and Zero-K folders can be opened.")

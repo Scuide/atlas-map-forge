@@ -101,8 +101,9 @@ def read_map(sdz):
     return name, dxt1_decode(d[mini_ptr:mini_ptr + 524288], 1024, 1024)
 
 
-def install(sdz, zerok_dir, lobby_images=True, log=print):
-    """Copy the map into <zerok_dir>/maps and write the Chobby minimap override + thumbnail."""
+def install(sdz, zerok_dir, lobby_images=True, log=print, lobby="zk"):
+    """Copy the map into <zerok_dir>/maps and write the Chobby minimap override + thumbnail.
+    lobby: Chobby game config folder, "zk" for Zero-K, "byar" for Beyond All Reason."""
     maps = os.path.join(zerok_dir, "maps")
     os.makedirs(maps, exist_ok=True)
     dst = os.path.join(maps, os.path.basename(sdz))
@@ -110,7 +111,7 @@ def install(sdz, zerok_dir, lobby_images=True, log=print):
     log(f"  installed {dst}")
     if lobby_images:
         name, mini = read_map(sdz)
-        base = os.path.join(zerok_dir, "LuaMenu", "configs", "gameConfig", "zk")
+        base = os.path.join(zerok_dir, "LuaMenu", "configs", "gameConfig", lobby)
         ov, th = os.path.join(base, "minimapOverride"), os.path.join(base, "minimapThumbnail")
         os.makedirs(ov, exist_ok=True); os.makedirs(th, exist_ok=True)
         img = Image.fromarray(mini)

@@ -106,14 +106,29 @@ def _cmd_build(a):
     if not ok and not a.force:
         print("Not built because the check found problems (use --force to build anyway).", file=sys.stderr)
         return 1
-    info = forge.build(d, outdir=a.out, config=cfg, title=a.title, version=a.version)
+    game = a.game or cfg.game
+    try:
+        info = forge.build(d, outdir=a.out, config=cfg, title=a.title, version=a.version, game=game)
+    except ValueError as ex:
+        print(ex, file=sys.stderr)
+        return 2
     if a.install is not None:
+        from .games import GAMES, find_bar
         from .install import find_zerok, install
-        target = a.install or (find_zerok() or [None])[0]
+        found = find_bar() if game == "bar" else find_zerok()
+        target = a.install or (cfg.bar if game == "bar" else cfg.zerok) or (found or [None])[0]
         if not target:
-            print("Zero-K folder not found, use --install <folder>", file=sys.stderr)
+            print(f"{GAMES[game]} folder not found, use --install <folder>", file=sys.stderr)
             return 2
-        install(info["path"], target)
+        install(info["path"], target, lobby="byar" if game == "bar" else "zk")
+    if game == "bar":
+        from .formats import startboxes_lua
+        from .games import bar_box_commands
+        from . import SQ
+        W, H = (d.hm.shape[1] - 1) * SQ, (d.hm.shape[0] - 1) * SQ
+        print("Start boxes for the BAR lobby (host):")
+        for line in bar_box_commands(d.startboxes or startboxes_lua(d.sym, d.starts), W, H):
+            print("  " + line)
     print(json.dumps(info, indent=1))
     print("\n" + C.SUPPORT_TEXT)
     return 0
@@ -193,7 +208,10 @@ def main(argv=None):
             p.add_argument("--out", default=".")
             p.add_argument("--author", help="author name for this map (default: the saved one)")
             p.add_argument("--force", action="store_true", help="build even if the check finds problems")
-            p.add_argument("--install", nargs="?", const="", default=None, metavar="ZEROK_DIR")
+            p.add_argument("--install", nargs="?", const="", default=None, metavar="GAME_DIR",
+                           help="install after building (game folder optional, found automatically)")
+            p.add_argument("--game", choices=("zk", "bar"), default=None,
+                           help="target game: zk (Zero-K, default) or bar (Beyond All Reason); default: the saved setting")
             p.set_defaults(func=_cmd_build)
 
     p = sub.add_parser("procedural", help="build a procedural skirmish map")

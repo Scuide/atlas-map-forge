@@ -17,6 +17,7 @@ from .archive import build_archive
 from .checks import report
 from .config import ForgeConfig
 from .noise import smoothstep
+from .templates import all_templates
 
 
 def make(template_id, values=None, seed=1, log=print, advanced=False):
@@ -214,8 +215,14 @@ def preview(design, size=1024, overlays=True):
 
 
 # ----------------------------------------------------------------------------- build
-def build(design, outdir=".", config=None, title=None, version=1, name=None, log=print, preview=True):
-    """Write the .sdz. Map name = config.map_name(title or design.title, version) unless name is given."""
+def build(design, outdir=".", config=None, title=None, version=1, name=None, log=print, preview=True, game="zk"):
+    """Write the .sdz. Map name = config.map_name(title or design.title, version) unless name is given.
+    game: "zk" or "bar" (Beyond All Reason, see games.py)."""
+    from . import games
+    game = games.check(game)
+    tpl = next((t for t in all_templates() if t.id == design.template), None)
+    if game == "bar" and tpl is not None and games.zk_only(tpl):
+        raise ValueError("Chicken defence maps work in Zero-K only.")
     cfg = config or ForgeConfig()
     name = name or cfg.map_name(title or design.title, version)
     paint = design.paint
@@ -231,4 +238,4 @@ def build(design, outdir=".", config=None, title=None, version=1, name=None, log
                          tree_block=design.tree_block, startboxes=design.startboxes, extra_files=design.extra_files,
                          features=design.features, random_trees=design.random_trees, paint=paint,
                          preview_marks=design.marks, preview_start_colors=design.start_colors,
-                         keep_clear=design.keep_clear)
+                         keep_clear=design.keep_clear, game=game)

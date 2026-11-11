@@ -223,7 +223,7 @@
         </div>
       </div>
       <div class="note hidden" id="version-note"></div>
-      <label class="switch small"><input type="checkbox" id="install" checked><span></span>Install into Zero-K</label>
+      <label class="switch small"><input type="checkbox" id="install" checked><span></span><span id="install-lbl">Install into Zero-K</span></label>
       <button class="forge wide" id="btn-build" disabled>Build map</button>
       <div class="progress hidden" id="progress">
         <div class="bar"><i id="bar"></i></div>
@@ -257,9 +257,15 @@
   <div class="card">
     <h2 id="set-title">Settings</h2>
     <div class="field"><label for="s-author">Author name <span class="hint">shown on every map you build; required</span></label><input id="s-author" maxlength="40" placeholder="Your name"></div>
+    <div class="field"><label for="s-game">Game <span class="hint">which game the maps are built for</span></label>
+      <select id="s-game"><option value="zk">Zero-K</option><option value="bar">Beyond All Reason (BAR), experimental</option></select>
+      <div class="help" id="s-game-help"></div></div>
     <div class="field"><label for="s-zerok">Zero-K folder</label>
       <div class="pathrow"><input id="s-zerok" spellcheck="false"><button class="ghost" data-pick="s-zerok">Browse</button></div>
       <div class="hint" id="s-zerok-found"></div></div>
+    <div class="field" id="s-bar-field"><label for="s-bar">BAR folder <span class="hint">the data folder with maps/ inside</span></label>
+      <div class="pathrow"><input id="s-bar" spellcheck="false"><button class="ghost" data-pick="s-bar">Browse</button></div>
+      <div class="hint" id="s-bar-found"></div></div>
     <div class="field"><label for="s-outdir">Output folder <span class="hint">built .sdz files go here</span></label>
       <div class="pathrow"><input id="s-outdir" spellcheck="false"><button class="ghost" data-pick="s-outdir">Browse</button></div></div>
     <div class="field"><label for="s-projdir">Project folder <span class="hint">saved .forge.json files go here</span></label>

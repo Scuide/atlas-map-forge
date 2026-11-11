@@ -39,6 +39,8 @@ class ForgeConfig:
     outdir: str = ""                 # where built maps are written; empty = default_outdir()
     projdir: str = ""                # where saved .forge.json projects are written; empty = default_projdir()
     advanced: bool = False           # advanced mode: wider parameter limits, maps may break
+    game: str = "zk"                 # target game: "zk" (Zero-K) or "bar" (Beyond All Reason)
+    bar: str = ""                    # BAR data folder (with maps/); empty = find automatically
 
     prefix = PREFIX                  # fixed, not a setting
     badge = BADGE
@@ -54,6 +56,8 @@ class ForgeConfig:
         a = self.author
         if any(c in a for c in '"\\\n') or len(a) > 40:
             raise ValueError("Author name: at most 40 characters, no quotes, backslashes or line breaks")
+        if self.game not in ("zk", "bar"):
+            raise ValueError("Game: zk (Zero-K) or bar (Beyond All Reason)")
         return self
 
     def require_author(self):

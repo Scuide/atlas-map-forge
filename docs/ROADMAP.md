@@ -104,6 +104,13 @@ Quick-start guide with pictures, template gallery, talk to the Zero-K moderators
 
 ## Later
 
-- Beyond All Reason (BAR) profile: metal map values, BAR movement rules for the checks, start boxes for
-  BAR's map database, BAR wrecks, lava through BAR's `mapconfig/lava.lua`, a game switch in the app.
+- Beyond All Reason (BAR):
+  - Done (phase 1, experimental): game switch in Settings and CLI, metal map with spot values, BAR wrecks,
+    `mapconfig/lava.lua`, no chicken gadgets, install into the BAR data folder, `!addBox` lines for the host.
+  - Next (phase 2): checks with BAR movement rules (tanks 27-33, bots 54, hovers, ships), start positions
+    in mapinfo.lua per team, BAR-specific defaults (metal per spot, map sizes).
+  - Done: metal calibrated in game (spot value = BAR's shown metal), lobby picture and thumbnail.
+  - Phase 3: BAR's lobby takes size, type, description and start boxes only from its online map database
+    (beyond-all-reason/maps-metadata, local overrides are not read); submitting Forge maps there needs the
+    maps on BAR's map server.
 - Online configurator with preview; in-game generation from a seed.

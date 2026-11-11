@@ -410,3 +410,7 @@ button:disabled { opacity: .45; cursor: default; filter: none; }
 .edit-list .ed-lab { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .edit-list button { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 0 4px; font-size: 12px; }
 .edit-list button:hover { color: var(--text); }
+
+/* BAR: start box commands for the lobby host */
+pre.boxcmds { text-align: left; margin: 6px 0 0; padding: 8px 10px; border-radius: 6px; background: #14161a; border: 1px solid var(--line); font: 12px var(--mono); color: var(--text); white-space: pre-wrap; user-select: all; }
+#s-game { width: 100%; height: 34px; background: #14161a; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 0 8px; }

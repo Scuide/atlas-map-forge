@@ -50,13 +50,20 @@ def _pool(n, job):
 
 def build_archive(name, hm, sym, starts, mexes, geos, biome, rng, outdir, desc, config=None, log=print,
                   preview=True, extra=None, tree_block=None, startboxes=None, extra_files=None, features=None,
-                  random_trees=True, preview_marks=None, preview_start_colors=None, paint=None, workers=None, keep_clear=None):
+                  random_trees=True, preview_marks=None, preview_start_colors=None, paint=None, workers=None, keep_clear=None,
+                  game="zk"):
     """Build <outdir>/<name>.sdz. Returns an info dict.
     config: ForgeConfig (author, badge); desc is used as given (call config.describe() before if wanted).
     paint: optional dict of 0..1 fields (heightmap resolution) for PAINT_LAYERS.
     extra_files: {archive path: str|bytes} e.g. map gadgets and their config.
-    keep_clear: bool grid without random trees (e.g. carved ramps)."""
+    keep_clear: bool grid without random trees (e.g. carved ramps).
+    game: "zk" (Zero-K) or "bar" (Beyond All Reason): metal map, wrecks, lava file and gadgets (see games.py)."""
+    from . import games
+    game = games.check(game)
     cfg = config or ForgeConfig()
+    if game == "bar":
+        features = games.bar_features(features)
+        extra_files = games.bar_files(extra_files)
     nz, nx = hm.shape[0] - 1, hm.shape[1] - 1
     if not np.isfinite(hm).all():
         raise ValueError(f"heightmap contains {int((~np.isfinite(hm)).sum())} invalid values (NaN/inf)")
@@ -80,6 +87,8 @@ def build_archive(name, hm, sym, starts, mexes, geos, biome, rng, outdir, desc, 
     mi, mj = np.mgrid[0:nz // 2, 0:nx // 2]
     for m in mexes:
         metal[np.hypot(mi * 16 + 8 - m["z"], mj * 16 + 8 - m["x"]) < 40] = 255
+    if game == "bar":                                                       # BAR reads spot values from the metal map
+        metal = games.bar_metal_map(metal.shape, mexes)
     typemap = np.zeros((nz // 2, nx // 2), np.uint8)
     if biome.get("void"):                                                   # space: terrain type 255, impassable
         typemap[hmq[:-1:2, :-1:2][:nz // 2, :nx // 2] < 0] = 255
@@ -163,7 +172,8 @@ def build_archive(name, hm, sym, starts, mexes, geos, biome, rng, outdir, desc, 
         z.writestr("mapinfo.lua", mapinfo_lua(name, desc, cfg.author, hmin, hmax, smt_name, starts, biome, water_h,
                                               fname + ".smf", minimap_tex="minimap_ingame.dds" if badge else None,
                                               emission_tex=emis_name, tool=TOOL_NAME, sky_box=sky_name,
-                                              grass_shading=shading_name))
+                                              grass_shading=shading_name,
+                                              maxmetal=games.BAR_MAXMETAL if game == "bar" else 3.0))
         if badge:
             # DDS is loaded vertically flipped (OpenGL convention), the SMF minimap is not: write upside down
             z.writestr("maps/minimap_ingame.dds", dds_bytes(np.ascontiguousarray(mini_clean[::-1]), "DXT1"))
@@ -180,7 +190,7 @@ def build_archive(name, hm, sym, starts, mexes, geos, biome, rng, outdir, desc, 
 
     info = dict(name=name, file=os.path.basename(sdz), path=os.path.abspath(sdz), size=[ux, uz], **(extra or {}),
                 mexes=len(mexes), geos=len(geos), trees=len(trees), hmin=round(hmin, 1), hmax=round(hmax, 1),
-                bytes=os.path.getsize(sdz))
+                bytes=os.path.getsize(sdz), game=game)
     if preview:
         info["preview"] = os.path.abspath(os.path.join(outdir, fname + "_preview.png"))
         make_preview(mini_img, mexes, geos, starts, sym, info["preview"], marks=preview_marks,
