@@ -88,3 +88,11 @@ end
 return { [0] = { nameLong = "Base 1" } }'''
     b = startboxes(src)
     assert b[0]["name"] == "West" and b[0]["polygons"][0][2] == [5.0, 5.0] and b[0]["startpoints"] == [[10.0, 20.0]]
+
+
+def test_every_template_has_a_gallery_picture():
+    import os
+    from atlasforge.templates import all_templates
+    web = os.path.join(os.path.dirname(__file__), "..", "atlasforge", "app", "web", "thumbs")
+    missing = [t.id for t in all_templates() if not os.path.exists(os.path.join(web, t.id + ".jpg"))]
+    assert not missing, f"no gallery picture (python tools/make_thumbs.py {' '.join(missing)})"
