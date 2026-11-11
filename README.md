@@ -10,7 +10,8 @@ map gadgets such as lava cliffs, lava tides and an erupting volcano.
 ## Download
 
 Get `AtlasMapForge.exe` from the [releases page](https://github.com/Scuide/atlas-map-forge/releases): one
-file for Windows, no installation and no Python needed. The program is not code-signed yet, so Windows
+file for Windows, no installation and no Python needed. For Linux there is `AtlasMapForge-linux-x86_64.tar.gz`
+(unpack, start `./AtlasMapForge`; the app opens in your web browser). The program is not code-signed yet, so Windows
 SmartScreen asks first: click **More info**, then **Run anyway**. On first start, enter your author name
 in Settings.
 

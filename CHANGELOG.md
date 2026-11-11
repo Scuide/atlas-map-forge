@@ -4,6 +4,7 @@
 
 ## 0.5.0 - map editor
 
+- Linux program: the release now also has `AtlasMapForge-linux-x86_64.tar.gz` (one file, opens in the web browser, built on Ubuntu 22.04 and self-tested with a full map build).
 - App: the five new templates (Crater Basin, Fortress Front, Inland Sea, Peninsula, Island Continents) had no picture in the template gallery; a test now checks every template has one.
 - Editor: an "Updating preview" indicator (spinner with a tooltip) in the map while an edit is applied and the preview reloads; it appears after a short delay, so quick edits do not flicker.
 - Editor: the edit toolbar wraps onto more rows instead of running off the right edge on narrower windows (Stamp, Paint, Trees, Symmetry, Undo, Save and Open project were hidden at about 1500 px width).
