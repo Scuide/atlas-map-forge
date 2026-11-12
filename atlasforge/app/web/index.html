@@ -16,6 +16,12 @@
     <span class="ver" id="ver"></span>
     <span class="adv-badge hidden" id="adv-badge" title="Advanced mode: safe limits are off">ADVANCED</span>
   </div>
+  <div class="gamepick" role="radiogroup" aria-label="Game the map is built for"
+       title="Which game the map is built for. Zero-K and Beyond All Reason use the same map format; metal, wrecks, lava and the install folder differ.">
+    <span class="gp-lbl">Map for</span>
+    <label><input type="radio" name="game" value="zk"><span>Zero-K</span></label>
+    <label><input type="radio" name="game" value="bar"><span>Beyond All Reason</span></label>
+  </div>
   <div class="top-right">
     <button class="kofi" id="btn-kofi" title="Support the development on Ko-fi">
       <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M4 6h12a1 1 0 0 1 1 1v1h1.5a3.5 3.5 0 0 1 0 7H16.6A6 6 0 0 1 11 19H9a6 6 0 0 1-6-6V7a1 1 0 0 1 1-1Zm13 4v3h1.5a1.5 1.5 0 0 0 0-3H17Zm-7.6 1.1c-.9-.9-2.4-.3-2.4 1 0 1.3 1.9 2.5 3 3.3 1.1-.8 3-2 3-3.3 0-1.3-1.5-1.9-2.4-1l-.6.6-.6-.6Z"/></svg>
@@ -223,7 +229,7 @@
         </div>
       </div>
       <div class="note hidden" id="version-note"></div>
-      <label class="switch small"><input type="checkbox" id="install" checked><span></span><span id="install-lbl">Install into Zero-K</span></label>
+      <label class="switch small"><input type="checkbox" id="install" checked><span></span><i id="install-lbl" class="swtext">Install into Zero-K</i></label>
       <button class="forge wide" id="btn-build" disabled>Build map</button>
       <div class="progress hidden" id="progress">
         <div class="bar"><i id="bar"></i></div>

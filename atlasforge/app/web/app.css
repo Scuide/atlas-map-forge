@@ -42,6 +42,22 @@ button, input, select { font: inherit; color: inherit; }
 .word b { color: var(--ember); font-weight: 900; text-shadow: 0 0 12px rgba(255, 122, 26, .45); }
 .ver { color: var(--faint); font-size: 12px; margin-left: 2px; }
 .top-right { display: flex; align-items: center; gap: 12px; }
+/* game switch, centred over the map column (the side columns have the same width) */
+.top { position: relative; }
+.gamepick {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 2px;
+  padding: 3px; border-radius: 9px; background: #14161a; border: 1px solid var(--line);
+}
+.gamepick .gp-lbl { color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .07em; padding: 0 8px 0 6px; }
+.gamepick label { cursor: pointer; }
+.gamepick input { position: absolute; opacity: 0; pointer-events: none; }
+.gamepick label span {
+  display: block; padding: 5px 14px; border-radius: 6px; font-size: 12.5px; font-weight: 600; color: var(--muted);
+  transition: background .12s, color .12s;
+}
+.gamepick label:hover span { color: var(--text); }
+.gamepick input:checked + span { background: linear-gradient(180deg, #ff9a3c, var(--ember)); color: #1a0d03; }
+.gamepick input:focus-visible + span { outline: 2px solid var(--ember); outline-offset: 1px; }
 .who { color: var(--muted); font-size: 12.5px; }
 
 /* ---------------------------------------------------------------- layout */
@@ -414,3 +430,5 @@ button:disabled { opacity: .45; cursor: default; filter: none; }
 /* BAR: start box commands for the lobby host */
 pre.boxcmds { text-align: left; margin: 6px 0 0; padding: 8px 10px; border-radius: 6px; background: #14161a; border: 1px solid var(--line); font: 12px var(--mono); color: var(--text); white-space: pre-wrap; user-select: all; }
 #s-game { width: 100%; height: 34px; background: #14161a; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 0 8px; }
+.switch i.swtext { font-style: normal; }
+@media (max-width: 1280px) { .gamepick .gp-lbl { display: none; } }

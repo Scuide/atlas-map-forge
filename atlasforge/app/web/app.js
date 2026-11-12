@@ -1060,7 +1060,19 @@ $("s-game").addEventListener("change", gameHelp);
 const isBar = () => !!(S.info && S.info.settings.game === "bar");
 function renderGame() {
   $("install-lbl").textContent = "Install into " + (isBar() ? "BAR" : "Zero-K");
+  for (const r of document.querySelectorAll('input[name="game"]')) r.checked = r.value === (isBar() ? "bar" : "zk");
   updateBuildButton();
+}
+// the game switch in the top bar saves the same setting as Settings > Game
+for (const r of document.querySelectorAll('input[name="game"]')) {
+  r.addEventListener("change", async () => {
+    if (!r.checked) return;
+    try {
+      S.info.settings = await api("config", { game: r.value });
+      renderGame();
+      refreshVersions();
+    } catch (e) { toast(e.message); renderGame(); }
+  });
 }
 $("s-cancel").onclick = () => $("settings").classList.add("hidden");
 $("s-save").onclick = async () => {
