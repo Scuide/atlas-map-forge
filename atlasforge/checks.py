@@ -16,25 +16,36 @@ TANK_SLOPE = 18        # movedef maxSlope of tanks and hovers (see move_slope)
 BOT_SLOPE = 36         # movedef maxSlope of bots and amphibians
 PROFILES = ("land", "naval")
 
+# movement rules per game: movedef maxSlope (the engine allows 1.5 x this in real slope) and water depths.
+# Zero-K: see above. Beyond All Reason (gamedata/movedefs.lua, the lightest move class of each kind):
+# TANK2 27 / 20 deep, HOVER2 33, BOT2 54 / 20 deep, ABOT 54 amphibious, TBOT3 all-terrain 20 deep, BOAT3 8 deep.
+RULES = {
+    "zk": dict(tank=TANK_SLOPE, hover=TANK_SLOPE, bot=BOT_SLOPE, tank_depth=22, bot_depth=16, spider_depth=22,
+               ship_depth=SHIP_DEPTH),
+    "bar": dict(tank=27, hover=33, bot=54, tank_depth=20, bot_depth=20, spider_depth=20, ship_depth=8.0),
+}
 
-def unit_masks(hm):
-    """Bool grids: where each movement class can stand and drive."""
+
+def unit_masks(hm, game="zk"):
+    """Bool grids: where each movement class can stand and drive (game: "zk" or "bar")."""
+    r = RULES.get(game or "zk", RULES["zk"])
     sl = move_slope(hm)
     return {
-        "tanks": (sl < TANK_SLOPE) & (hm > -22),
-        "bots": (sl < BOT_SLOPE) & (hm > -16),
-        "spiders": hm > -22,
-        "amphibians": sl < BOT_SLOPE,
-        "hovers": (sl < TANK_SLOPE) | (hm < 0),
-        "ships": hm < -SHIP_DEPTH,
+        "tanks": (sl < r["tank"]) & (hm > -r["tank_depth"]),
+        "bots": (sl < r["bot"]) & (hm > -r["bot_depth"]),
+        "spiders": hm > -r["spider_depth"],
+        "amphibians": sl < r["bot"],
+        "hovers": (sl < r["hover"]) | (hm < 0),
+        "ships": hm < -r["ship_depth"],
     }
 
 
-def slope_classes(hm):
+def slope_classes(hm, game="zk"):
     """Slope overlay: 0 = every ground unit may pass (green), 1 = only bots and spiders (yellow),
     2 = nothing passes (red). Same slope limits as unit_masks; water is not considered."""
+    r = RULES.get(game or "zk", RULES["zk"])
     sl = move_slope(hm)
-    return np.where(sl < TANK_SLOPE, 0, np.where(sl < BOT_SLOPE, 1, 2)).astype(np.uint8)
+    return np.where(sl < r["tank"], 0, np.where(sl < r["bot"], 1, 2)).astype(np.uint8)
 
 
 def contour_mask(hm, step):
@@ -68,7 +79,7 @@ def unreachable_mexes(hm, mexes, start, cls="tanks"):
 
 
 def report(hm, team0, team1, mexes=(), gates=None, blocked=None, enemy="the enemy", movement_profile="land",
-           naval_starts=None, others=()):
+           naval_starts=None, others=(), game="zk"):
     """Plain-English check report.
     team0/team1: start points per team; gates: optional [(name, bool mask)] of choke areas;
     blocked: optional bool grid that no ground unit survives (e.g. lava); enemy: wording for team 1.
@@ -80,10 +91,10 @@ def report(hm, team0, team1, mexes=(), gates=None, blocked=None, enemy="the enem
     if movement_profile not in PROFILES:
         raise ValueError(f"unknown movement profile {movement_profile!r}, expected one of {PROFILES}")
     if movement_profile == "naval":
-        return _report_naval(hm, team0, team1, mexes, gates, blocked, enemy, naval_starts)
+        return _report_naval(hm, team0, team1, mexes, gates, blocked, enemy, naval_starts, game)
     lines = []
     ok = True
-    masks = unit_masks(hm)
+    masks = unit_masks(hm, game)
     for cls in CLASSES:
         m = masks[cls] if blocked is None else masks[cls] & ~blocked
         reach = connected(m, team0[0], team1[0]) and all(connected(m, team0[0], t[0]) for t in others)
@@ -119,8 +130,9 @@ def report(hm, team0, team1, mexes=(), gates=None, blocked=None, enemy="the enem
     return ok, lines
 
 
-def _report_naval(hm, team0, team1, mexes, gates, blocked, enemy, naval_starts):
-    masks = unit_masks(hm)
+def _report_naval(hm, team0, team1, mexes, gates, blocked, enemy, naval_starts, game="zk"):
+    masks = unit_masks(hm, game)
+    ship_depth = RULES.get(game or "zk", RULES["zk"])["ship_depth"]
     if blocked is not None:
         masks = {k: m & ~blocked for k, m in masks.items()}
     lines, ok = [], True
@@ -153,7 +165,7 @@ def _report_naval(hm, team0, team1, mexes, gates, blocked, enemy, naval_starts):
         bad = [m for m in mexes if lab[int(m["z"] / SQ), int(m["x"] / SQ)] != a or a == 0]
         lines.append(f"Metal spots unreachable for amphibian constructors: {len(bad)} of {len(mexes)}")
         ok &= not bad
-        wet_m = [m for m in mexes if hm[int(m["z"] / SQ), int(m["x"] / SQ)] < -SHIP_DEPTH]
+        wet_m = [m for m in mexes if hm[int(m["z"] / SQ), int(m["x"] / SQ)] < -ship_depth]
         if wet_m:
             slab, _ = ndimage.label(ships)
             s0 = slab[cell(p0)]

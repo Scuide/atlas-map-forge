@@ -86,3 +86,18 @@ def test_install_bar_lobby_pictures(tmp_path):
     base = bar / "LuaMenu" / "configs" / "gameConfig" / "byar"
     assert (bar / "maps" / info["file"]).exists()
     assert list((base / "minimapOverride").glob("*.jpg")) and list((base / "minimapThumbnail").glob("*.png"))
+
+
+def test_bar_movement_rules():
+    from atlasforge.checks import slope_classes, unit_masks
+    d = forge.make("skirmish", {"size": 8, "erosion": 0, "rocks": 0, "wrecks": 0}, seed=5, **QUIET)
+    zk, bar = unit_masks(d.hm, "zk"), unit_masks(d.hm, "bar")
+    assert bar["tanks"].sum() > zk["tanks"].sum() and bar["bots"].sum() >= zk["bots"].sum()
+    assert (slope_classes(d.hm, "bar") <= slope_classes(d.hm, "zk")).all()
+    ok, lines = forge.check(d, game="bar")
+    assert any("Tanks" in l for l in lines)
+
+
+def test_bar_eruption_effects():
+    out = games.bar_files({"mapconfig/atlas_eruption.lua": "-- x\nreturn {\n\tcenter = { 1, 2 },\n}\n"})
+    assert 'explo = "lavasplash"' in out["mapconfig/atlas_eruption.lua"]

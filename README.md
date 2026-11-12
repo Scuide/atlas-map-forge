@@ -7,8 +7,9 @@ map gadgets such as lava cliffs, lava tides and an erupting volcano.
 
 Website: **https://scuide.github.io/atlas-map-forge/**
 
-> **Status: pre-release (0.5).** 30 map templates, a Windows app with a large map preview and a map
-> editor (placement, terrain brushes, painting, features, 3D view), and the command line. See the [roadmap](docs/ROADMAP.md).
+> **Status: pre-release (0.6).** 30 map templates, a Windows and Linux app with a large map preview and a map
+> editor (placement, terrain brushes, painting, features, 3D view), and the command line. New: maps for
+> [Beyond All Reason](https://www.beyondallreason.info) (experimental). See the [roadmap](docs/ROADMAP.md).
 
 ## Download
 
@@ -32,9 +33,20 @@ in Settings.
   small FORGE badge in the map browser (not in game). The author name is the only setting and is
   required to build maps.
 
+## Beyond All Reason (experimental)
+
+Switch **Map for** at the top of the app (or Settings > Game, or `atlasforge build <template> --game bar`) to
+build maps for Beyond All Reason. BAR uses the same map format; the Forge writes the metal spots, wrecks and
+lava the way BAR reads them, checks reachability with BAR's movement rules and installs the map into BAR's
+data folder with its lobby picture. Known limits:
+
+- BAR takes start boxes from its lobby: after a build the app shows the `!addBox` commands for the host.
+- Size, type and description in BAR's map list come only from BAR's online map database, so they stay empty.
+- Chicken defence templates are Zero-K only.
+
 ## The app
 
-![Atlas Map Forge app](docs/app.png)
+![Atlas Map Forge app](docs/app.jpg)
 
 1. Pick a template on the left and move the sliders. The preview updates in about a second.
 2. Look at the map: scroll to zoom, drag to move. Switch metal spots, start boxes, chokes and dangerous

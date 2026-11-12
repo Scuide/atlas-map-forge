@@ -26,6 +26,12 @@ local rhym = lavaConf and lavaConf.tideRhym or {}
 local spGetGameRulesParam = Spring.GetGameRulesParam
 local abs, floor, sqrt, cos, sin, pi = math.abs, math.floor, math.sqrt, math.cos, math.sin, math.pi
 local CX, CZ = conf.center[1], conf.center[2]
+-- effect names (CEGs) of the game; the map config may name others (Beyond All Reason has no Zero-K effects)
+local CEG = conf.cegs or {}
+local CEG_SMOKE = CEG.smoke or "blacksmoke"
+local CEG_EXPLO = CEG.explo or "lava_explo"
+local CEG_BURST = CEG.burst or "lavaburst_generic"
+local CEG_FIRE = CEG.fire or "napalm_firewalker_small"
 
 -- shared tide state machine (runs in synced and unsynced)
 local lastLevel, phase, nextChange, holdHigh = nil, "start", nil, false
@@ -101,14 +107,14 @@ end
 
 local function Impact(x, z)
 	local y = spGetGroundHeight(x, z)
-	spSpawnCEG("lava_explo", x, y + 10, z)
-	spSpawnCEG("napalm_firewalker_small", x, y + 5, z)
+	spSpawnCEG(CEG_EXPLO, x, y + 10, z)
+	spSpawnCEG(CEG_FIRE, x, y + 5, z)
 	local R0 = conf.bombRadius
 	local n = math.floor(R0 / 60)                      -- bigger impacts: a ring of splashes
 	for k = 1, n do
 		local a = (k / n + math.random() * 0.1) * 2 * pi
 		local rx, rz = x + 0.55 * R0 * cos(a), z + 0.55 * R0 * sin(a)
-		spSpawnCEG(k % 2 == 0 and "lava_explo" or "napalm_firewalker_small", rx, spGetGroundHeight(rx, rz) + 8, rz)
+		spSpawnCEG(k % 2 == 0 and CEG_EXPLO or CEG_FIRE, rx, spGetGroundHeight(rx, rz) + 8, rz)
 	end
 	Spring.PlaySoundFile("sounds/explosion/ex_large4.wav", 3, x, y, z, "sfx")
 	local R = conf.bombRadius
@@ -138,15 +144,15 @@ function gadget:GameFrame(f)
 	local cy = conf.summitHeight
 	-- crater activity
 	if st == "calm" and f % 45 == 0 then
-		spSpawnCEG("blacksmoke", CX + math.random(-150, 150), cy, CZ + math.random(-150, 150))
+		spSpawnCEG(CEG_SMOKE, CX + math.random(-150, 150), cy, CZ + math.random(-150, 150))
 	elseif st == "warn" and f % 12 == 0 then
-		spSpawnCEG("lavaburst_generic", CX + math.random(-200, 200), cy - 120, CZ + math.random(-200, 200))
-		if f % 36 == 0 then spSpawnCEG("blacksmoke", CX, cy, CZ) end
+		spSpawnCEG(CEG_BURST, CX + math.random(-200, 200), cy - 120, CZ + math.random(-200, 200))
+		if f % 36 == 0 then spSpawnCEG(CEG_SMOKE, CX, cy, CZ) end
 	elseif (st == "rise" or st == "flood") then
 		if f % 6 == 0 then
-			spSpawnCEG("lava_explo", CX + math.random(-250, 250), cy - 100, CZ + math.random(-250, 250))
+			spSpawnCEG(CEG_EXPLO, CX + math.random(-250, 250), cy - 100, CZ + math.random(-250, 250))
 		end
-		if f % 30 == 0 then spSpawnCEG("blacksmoke", CX, cy + 50, CZ) end
+		if f % 30 == 0 then spSpawnCEG(CEG_SMOKE, CX, cy + 50, CZ) end
 		bombAcc = bombAcc + 1 / 30
 		while bombAcc >= conf.bombEverySeconds do
 			bombAcc = bombAcc - conf.bombEverySeconds

@@ -53,6 +53,10 @@ BAR_WRECKS = {
     "striderscorpion_dead": "corsumo_dead",  # 1118
 }
 
+# volcano eruption effects in BAR (effects/*.lua of the game): smoke, lava explosion, lava burst, fire
+BAR_ERUPTION_CEGS = ('\tcegs = { smoke = "blacksmoke", explo = "lavasplash", burst = "lavasplash", '
+                     'fire = "burnfire" },\n')
+
 ZK_ONLY_FILES = ("LuaRules/Gadgets/map_chicken_zones.lua", "mapconfig/chicken_zones.lua")
 
 
@@ -136,6 +140,10 @@ def bar_files(files):
     """Map archive extra files for BAR: drop Zero-K-only gadgets, add BAR's lava file next to Zero-K's
     (the tide warning gadget keeps reading lava_config.lua)."""
     out = {k: v for k, v in (files or {}).items() if k not in ZK_ONLY_FILES}
+    er = out.get("mapconfig/atlas_eruption.lua")
+    if er is not None:                                   # eruption effects: BAR has other effect names
+        er = er.decode() if isinstance(er, bytes) else er
+        out["mapconfig/atlas_eruption.lua"] = er.replace("return {\n", "return {\n" + BAR_ERUPTION_CEGS, 1)
     zk = out.get("mapconfig/lava_config.lua")
     if zk is not None:
         out["mapconfig/lava.lua"] = bar_lava_lua(zk.decode() if isinstance(zk, bytes) else zk)

@@ -1063,6 +1063,10 @@ function renderGame() {
   for (const r of document.querySelectorAll('input[name="game"]')) r.checked = r.value === (isBar() ? "bar" : "zk");
   updateBuildButton();
 }
+// another game has other movement rules: run the checks, reach and slope overlays again (edits are kept)
+function gameChanged() {
+  if (S.map && S.tpl) runPreview(false);
+}
 // the game switch in the top bar saves the same setting as Settings > Game
 for (const r of document.querySelectorAll('input[name="game"]')) {
   r.addEventListener("change", async () => {
@@ -1071,6 +1075,7 @@ for (const r of document.querySelectorAll('input[name="game"]')) {
       S.info.settings = await api("config", { game: r.value });
       renderGame();
       refreshVersions();
+      gameChanged();
     } catch (e) { toast(e.message); renderGame(); }
   });
 }
@@ -1084,10 +1089,12 @@ $("s-save").onclick = async () => {
       projdir: $("s-projdir").value.trim(),
       advanced: $("s-advanced").checked,
     });
+    const gameBefore = S.info.settings.game;
     S.info.settings = st;
     $("settings").classList.add("hidden");
     renderWho();
     renderGame();
+    if (st.game !== gameBefore) gameChanged();
     if (wasAdv !== isAdvanced()) {
       for (const id of Object.keys(S.values)) clampValues(id);
       store("values", S.values);

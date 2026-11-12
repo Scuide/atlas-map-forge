@@ -65,6 +65,9 @@ def page(tag, n_templates):
          "until the Zero-K team approves them."),
         ("Why does Windows warn me?", "The program is not code-signed yet. Click \"More info\", then \"Run anyway\". "
          "Every release is built and tested automatically on GitHub from the public source code."),
+        ("Does it make maps for Beyond All Reason?", "Yes, experimental since version 0.6. Pick Beyond All Reason "
+         "at the top of the app. BAR takes start boxes from its lobby, so the app shows the !addBox commands for the "
+         "host, and size, type and description in BAR's map list stay empty for maps outside BAR's map database."),
         ("Can I change a generated map by hand?", "Yes. The editor shapes terrain, paints paths and scorch marks, "
          "places trees, rocks and wrecks, and moves metal spots, geovents, start points and start boxes. Symmetry "
          "and the reachability checks are kept for every edit."),
@@ -79,7 +82,7 @@ def page(tag, n_templates):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Atlas Map Forge: Zero-K map generator and map editor</title>
 <meta name="description" content="Free, open-source Zero-K map generator and map editor. Pick one of {n_templates} templates, adjust the settings, edit terrain by hand and build a complete, playable Zero-K map. Windows and Linux.">
-<meta name="keywords" content="Zero-K map generator, Zero-K map editor, Zero-K maps, random map generator, Spring RTS map generator, Recoil engine, SpringRTS maps, RTS map maker">
+<meta name="keywords" content="Zero-K map generator, Zero-K map editor, Zero-K maps, Beyond All Reason map generator, BAR maps, random map generator, Spring RTS map generator, Recoil engine, SpringRTS maps, RTS map maker">
 <link rel="canonical" href="{SITE}">
 <link rel="icon" href="site/img/favicon.png">
 <meta property="og:type" content="website">
@@ -185,6 +188,7 @@ footer .wrap {{ display: flex; flex-wrap: wrap; gap: 18px; justify-content: spac
     <div class="card"><h3>Checked like the engine</h3><p>A report shows whether tanks, bots, spiders, hovers, amphibians and ships can reach the enemy and every metal spot, using the engine's own slope rules.</p></div>
     <div class="card"><h3>12 biomes</h3><p>Temperate, autumn, desert, arctic, jungle, swamp, industrial, alien, moon, volcanic, ashland and asteroid, each with its own sky, light and grass.</p></div>
     <div class="card"><h3>Every setting explained</h3><p>Size, seed, time of day, metal, geovents, wind, tidal strength, trees, rocks, wrecks, erosion and each template's own options, with a short explanation for each.</p></div>
+    <div class="card"><h3>Beyond All Reason too</h3><p>Switch "Map for" to Beyond All Reason (experimental): metal, wrecks, lava and the reachability checks follow BAR's rules, and the map is installed into BAR.</p></div>
     <div class="card"><h3>Straight into the game</h3><p>The Zero-K folder is found automatically; the built map shows up in the Zero-K lobby.</p></div>
   </div>
 </div></section>

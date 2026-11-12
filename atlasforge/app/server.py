@@ -150,7 +150,7 @@ class Forge:
         t0 = time.time()
         with self.make_lock:
             d = forge.make(tid, data.get("values") or {}, seed=seed, log=log.append, advanced=C.load().advanced)
-            ok, lines = forge.check(d)
+            ok, lines = forge.check(d, game=C.load().game)
         did = uuid.uuid4().hex[:12]
         print(f"preview {tid} seed {seed}: {time.time() - t0:.1f} s", flush=True)
         e = Entry(d, ok, lines)
@@ -217,7 +217,7 @@ class Forge:
             d, problems = apply_edits(e.base, edits, sym_on)
             if edits:
                 with self.make_lock:
-                    ok, lines = forge.check(d)
+                    ok, lines = forge.check(d, game=C.load().game)
                 issues = editor_checks(d, sym_on)
                 ok = ok and not any(i["level"] == "error" for i in issues)
                 lines = lines + [("ERROR: " if i["level"] == "error" else "WARNING: ") + i["text"] for i in issues]
@@ -316,7 +316,7 @@ class Forge:
         if name == "height":                                   # int16 elmos, row-major (z, x)
             return "application/octet-stream", np.clip(np.round(d.hm), -32768, 32767).astype("<i2").tobytes()
         if name == "cells":                                    # bit k: class k can stand here (lava excluded)
-            masks = unit_masks(d.hm)
+            masks = unit_masks(d.hm, C.load().game)
             bits = np.zeros(n, np.uint8)
             for k, cls in enumerate(CLASSES):
                 m = masks[cls] if d.blocked is None else masks[cls] & ~d.blocked
@@ -347,7 +347,7 @@ class Forge:
                 rgba[edge] = (255, 214, 64, 150)
             return "image/png", _png(rgba)
         if name == "slope":
-            cls = slope_classes(d.hm)
+            cls = slope_classes(d.hm, C.load().game)
             rgba[cls == 0] = (60, 220, 90, 90)
             rgba[cls == 1] = (255, 210, 50, 140)
             rgba[cls == 2] = (230, 40, 40, 170)
@@ -365,7 +365,7 @@ class Forge:
             cls = name[6:]
             if cls not in CLASSES + ("ships",):
                 raise KeyError(name)
-            m = unit_masks(d.hm)[cls]
+            m = unit_masks(d.hm, C.load().game)[cls]
             if d.blocked is not None:
                 m = m & ~d.blocked
             lab, _ = ndimage.label(m)

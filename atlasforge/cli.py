@@ -72,9 +72,9 @@ def _design_from_args(a):
     return forge.make(a.template, _parse_sets(a.set), seed=a.seed, advanced=adv)
 
 
-def _print_report(d):
+def _print_report(d, game="zk"):
     from . import forge
-    ok, lines = forge.check(d)
+    ok, lines = forge.check(d, game=game)
     print("Check:", "OK" if ok else "PROBLEMS FOUND")
     for line in lines:
         print("  " + line)
@@ -102,7 +102,7 @@ def _cmd_build(a):
         print(ex, file=sys.stderr)
         return 2
     d = _design_from_args(a)
-    ok = _print_report(d)
+    ok = _print_report(d, a.game or cfg.game)
     if not ok and not a.force:
         print("Not built because the check found problems (use --force to build anyway).", file=sys.stderr)
         return 1
