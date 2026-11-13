@@ -110,6 +110,11 @@ Quick-start guide with pictures, template gallery, talk to the Zero-K moderators
   - Done (phase 2, 0.6.0): checks, reach and slope overlays with BAR movement rules; game switch in the top
     bar; volcano eruption effects for BAR. Later: BAR-specific defaults (metal per spot, map sizes).
   - Done: metal calibrated in game (spot value = BAR's shown metal), lobby picture and thumbnail.
+  - Done (0.6.0): BAR map checklist basics: .sd7, wind <= 30, tidal <= 25, sun from the north,
+    power-of-two splat distribution.
+  - Later (map quality for BAR reviews, bigger files and longer builds): detail normal map 1:1 with the
+    texture (512 x size, up to 8K), specular map (256 x size), skybox as DDS cubemap 2K per side, texture
+    cues for BAR's vehicle / bot / all-terrain slopes, normal maps for rock features, optional topolines.
   - Phase 3: BAR's lobby takes size, type, description and start boxes only from its online map database
     (beyond-all-reason/maps-metadata, local overrides are not read); submitting Forge maps there needs the
     maps on BAR's map server.

@@ -359,8 +359,9 @@ def cached_material(kind, gen):
     return data
 
 
-def material_files(hm, TF, biome, mexes, geos, rng, log=print):
-    """Files under maps/: DNTS materials, splat distribution, detail normals."""
+def material_files(hm, TF, biome, mexes, geos, rng, log=print, pot_splat=False):
+    """Files under maps/: DNTS materials, splat distribution, detail normals.
+    pot_splat: splat distribution with power-of-two sides (Beyond All Reason's map guide)."""
     nz, nx = hm.shape[0] - 1, hm.shape[1] - 1
     log("  materials (DNTS, splat, detail normals)")
     kind = GROUND_MAT.get(biome.get("name", ""), biome.get("ground", "grass"))
@@ -370,8 +371,15 @@ def material_files(hm, TF, biome, mexes, geos, rng, log=print):
         "dnts_ground.png": cached_material(kind, GENERATORS[kind]),
         "dnts_shore.png": cached_material("shore", GENERATORS["shore"]),
         "splat_dummy.png": png_bytes(np.full((8, 8, 3), 128, np.uint8)),
-        "splat_distribution.png": png_bytes(splat_weights(hm, TF, mexes, geos, rng, 2)),
+        "splat_distribution.png": None,
     }
+    sw = splat_weights(hm, TF, mexes, geos, rng, 2)
+    if pot_splat:
+        from .games import pot_size
+        h_, w_ = sw.shape[:2]
+        from PIL import Image
+        sw = np.asarray(Image.fromarray(sw).resize((pot_size(w_), pot_size(h_)), Image.BILINEAR))
+    files["splat_distribution.png"] = png_bytes(sw)
     res = 4 if max(nx, nz) <= 1024 else 2
     # Recoil flips DDS vertically on load (CBitmap::Load, flipDDS), so store it upside down; for a normal
     # map this also reverses the row direction -> invert the G channel (dh/drow).

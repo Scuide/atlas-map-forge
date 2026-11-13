@@ -97,6 +97,68 @@ def bar_spot_metal(metal_map, x, z):
     return float(metal_map[disc].sum()) * BAR_MAXMETAL / 1000
 
 
+# ----------------------------------------------------------------------------- BAR map checklist
+# https://www.beyondallreason.info/guide/map-checklist: wind 0-30, tidal 0-25, sun over the northern part of
+# the map; https://www.beyondallreason.info/guide/mapping-1-file-structure-prerequisites: archive .sd7,
+# splat distribution with power-of-two sides (at least 2048).
+BAR_MAX_WIND = 30
+BAR_MAX_TIDAL = 25
+
+
+def bar_biome(biome):
+    """Biome settings inside BAR's limits: wind, tidal, sun from the north (negative z = north)."""
+    b = dict(biome)
+    if "wind" in b:
+        lo, hi = b["wind"]
+        b["wind"] = (min(int(lo), BAR_MAX_WIND), min(int(hi), BAR_MAX_WIND))
+    b["tidal"] = min(int(b.get("tidal", 12)), BAR_MAX_TIDAL)
+    sx, sy, sz = b.get("sundir", (-0.4, 0.75, -0.5))
+    b["sundir"] = (sx, sy, -abs(sz))
+    return b
+
+
+def pot_size(n, lo=2048, hi=4096):
+    """Smallest power of two >= n, between lo and hi."""
+    p = lo
+    while p < n and p < hi:
+        p *= 2
+    return p
+
+
+def write_sd7(zip_path, sd7_path, log=print):
+    """Repack a finished .sdz (zip) as .sd7 (7-Zip, LZMA2), the archive format BAR asks for."""
+    import zipfile
+
+    import py7zr
+    with zipfile.ZipFile(zip_path) as z, py7zr.SevenZipFile(sd7_path, "w",
+                                                            filters=[{"id": py7zr.FILTER_LZMA2, "preset": 3}]) as s:
+        for n in z.namelist():
+            s.writestr(z.read(n), n)
+    log(f"  packed as {os.path.basename(sd7_path)}")
+
+
+def read_archive(path):
+    """{name: bytes} of a .sdz or .sd7 map archive."""
+    if path.lower().endswith(".sd7"):
+        import tempfile
+
+        import py7zr
+        out = {}
+        with tempfile.TemporaryDirectory() as tmp:
+            with py7zr.SevenZipFile(path) as s:
+                names = [n for n in s.getnames()]
+                s.extractall(path=tmp)
+            for n in names:
+                f = os.path.join(tmp, n)
+                if os.path.isfile(f):
+                    with open(f, "rb") as fh:
+                        out[n] = fh.read()
+        return out
+    import zipfile
+    with zipfile.ZipFile(path) as z:
+        return {n: z.read(n) for n in z.namelist()}
+
+
 # ----------------------------------------------------------------------------- lava
 def bar_lava_lua(zk_conf):
     """Turn a Zero-K mapconfig/lava_config.lua (as written by gadgets.lava_config) into BAR's

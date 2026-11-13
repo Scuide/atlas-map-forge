@@ -64,6 +64,7 @@ def build_archive(name, hm, sym, starts, mexes, geos, biome, rng, outdir, desc, 
     if game == "bar":
         features = games.bar_features(features)
         extra_files = games.bar_files(extra_files)
+        biome = games.bar_biome(biome)
     nz, nx = hm.shape[0] - 1, hm.shape[1] - 1
     if not np.isfinite(hm).all():
         raise ValueError(f"heightmap contains {int((~np.isfinite(hm)).sum())} invalid values (NaN/inf)")
@@ -180,13 +181,21 @@ def build_archive(name, hm, sym, starts, mexes, geos, biome, rng, outdir, desc, 
         z.write(smf_path, f"maps/{fname}.smf")
         z.write(smt_path, f"maps/{smt_name}", compresslevel=1)
         z.writestr("maps/detailtex.bmp", detail_bmp(rng))
-        for fn_, data_ in material_files(hmq, TF, biome, mexes, geos, rng, log).items():
+        for fn_, data_ in material_files(hmq, TF, biome, mexes, geos, rng, log, pot_splat=game == "bar").items():
             z.writestr("maps/" + fn_, data_)
         for fn_, data_ in (extra_files or {}).items():
             z.writestr(fn_, data_)
         z.writestr("mapconfig/map_metal_layout.lua", metal_layout_lua(mexes))
         z.writestr("mapconfig/map_startboxes.lua", startboxes or startboxes_lua(sym, starts))
     os.remove(smf_path); os.remove(smt_path)
+    if game == "bar":                                            # BAR asks for .sd7 archives
+        try:
+            sd7 = sdz[:-4] + ".sd7"
+            games.write_sd7(sdz, sd7, log)
+            os.remove(sdz)
+            sdz = sd7
+        except ImportError:
+            log("  py7zr is not installed: kept the .sdz (BAR loads it too)")
 
     info = dict(name=name, file=os.path.basename(sdz), path=os.path.abspath(sdz), size=[ux, uz], **(extra or {}),
                 mexes=len(mexes), geos=len(geos), trees=len(trees), hmin=round(hmin, 1), hmax=round(hmax, 1),

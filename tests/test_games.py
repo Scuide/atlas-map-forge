@@ -61,13 +61,22 @@ def test_chicken_maps_are_zero_k_only(tmp_path):
 
 
 def test_build_for_bar(tmp_path):
-    d = forge.make("chokepoint", {"size": 12, "erosion": 0, "grass": 0, "rocks": 0, "wrecks": 0.6}, seed=2, **QUIET)
+    d = forge.make("chokepoint", {"size": 12, "erosion": 0, "grass": 0, "rocks": 0, "wrecks": 0.6, "wind": "storm",
+                                  "sun": "noon", "tidal": 25}, seed=2, **QUIET)
     info = forge.build(d, outdir=str(tmp_path), config=ForgeConfig(author="T"), game="bar", preview=False, **QUIET)
-    assert info["game"] == "bar"
-    with zipfile.ZipFile(info["path"]) as z:
-        mi = z.read("mapinfo.lua").decode()
-        smf = z.read([n for n in z.namelist() if n.endswith(".smf")][0])
+    assert info["game"] == "bar" and info["path"].endswith(".sd7")
+    files = games.read_archive(info["path"])
+    mi = files["mapinfo.lua"].decode()
+    smf = files[[n for n in files if n.endswith(".smf")][0]]
     assert re.search(r"maxmetal\s*=\s*1,", mi)
+    # BAR map checklist: wind 0-30, tidal 0-25, sun from the north, splat sides a power of two
+    assert int(re.search(r"maxwind\s*=\s*(\d+)", mi).group(1)) <= 30
+    assert int(re.search(r"tidalstrength\s*=\s*(\d+)", mi).group(1)) <= 25
+    assert float(re.search(r"sundir\s*=\s*\{[^,]+,[^,]+,\s*(-?[\d.]+)", mi).group(1)) <= 0
+    from PIL import Image
+    import io
+    w, h = Image.open(io.BytesIO(files["maps/splat_distribution.png"])).size
+    assert w >= 2048 and h >= 2048 and w & (w - 1) == 0 and h & (h - 1) == 0
     h = struct.unpack("<16s7i2f7i", smf[:80])
     nx, nz, metal_ptr = h[3], h[4], h[14]
     mm = np.frombuffer(smf[metal_ptr:metal_ptr + (nx // 2) * (nz // 2)], np.uint8).reshape(nz // 2, nx // 2)
@@ -84,7 +93,7 @@ def test_install_bar_lobby_pictures(tmp_path):
     bar = tmp_path / "bar"
     install(info["path"], str(bar), lobby="byar", log=lambda *a: None)
     base = bar / "LuaMenu" / "configs" / "gameConfig" / "byar"
-    assert (bar / "maps" / info["file"]).exists()
+    assert (bar / "maps" / info["file"]).exists() and info["file"].endswith(".sd7")
     assert list((base / "minimapOverride").glob("*.jpg")) and list((base / "minimapThumbnail").glob("*.png"))
 
 
@@ -101,3 +110,9 @@ def test_bar_movement_rules():
 def test_bar_eruption_effects():
     out = games.bar_files({"mapconfig/atlas_eruption.lua": "-- x\nreturn {\n\tcenter = { 1, 2 },\n}\n"})
     assert 'explo = "lavasplash"' in out["mapconfig/atlas_eruption.lua"]
+
+
+def test_bar_biome_limits():
+    b = games.bar_biome({"wind": (18, 35), "tidal": 40, "sundir": (0.0, 0.9, 0.4)})
+    assert b["wind"] == (18, 30) and b["tidal"] == 25 and b["sundir"][2] == -0.4
+    assert games.pot_size(2560) == 4096 and games.pot_size(1024) == 2048 and games.pot_size(9000) == 4096

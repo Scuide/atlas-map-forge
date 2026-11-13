@@ -4,6 +4,7 @@
 
 ## 0.6.0 - Beyond All Reason (experimental)
 
+- BAR maps follow BAR's map checklist: `.sd7` archive, wind at most 30, tidal at most 25, sun over the northern half of the map, splat distribution with power-of-two sides (at least 2048).
 - Checks follow the chosen game: "Where can it go?", the slope overlay and the check report use BAR's movement rules for BAR (tanks 27, hovers 33, bots and amphibians 54 movedef slope, 20 elmos water depth for land units, ships from 8 elmos); switching the game runs them again and keeps manual edits.
 - Volcano eruption effects use effects BAR has (smoke, lava splash, fire) when the map is built for BAR.
 - App: game switch (Zero-K / Beyond All Reason) in the top bar, centred over the map; it changes the same setting as Settings > Game. Fixed: the "Install into ..." label was drawn as a second switch.

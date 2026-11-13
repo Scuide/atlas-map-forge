@@ -10,7 +10,6 @@ import re
 import shutil
 import struct
 import sys
-import zipfile
 
 import numpy as np
 from PIL import Image
@@ -91,11 +90,11 @@ def lobby_name(name):
 
 def read_map(sdz):
     """-> (map name, 1024x1024 minimap RGB from the SMF)"""
-    with zipfile.ZipFile(sdz) as z:
-        mi = z.read("mapinfo.lua").decode("utf8", "replace")
-        name = re.search(r'\bname\s*=\s*"([^"]+)"', mi).group(1)
-        smf = [n for n in z.namelist() if n.lower().endswith(".smf")][0]
-        d = z.read(smf)
+    from .games import read_archive
+    files = read_archive(sdz)                               # .sdz (Zero-K) or .sd7 (Beyond All Reason)
+    mi = files["mapinfo.lua"].decode("utf8", "replace")
+    name = re.search(r'\bname\s*=\s*"([^"]+)"', mi).group(1)
+    d = files[[n for n in files if n.lower().endswith(".smf")][0]]
     h = struct.unpack("<16s7i2f7i", d[:80])
     mini_ptr = h[13]
     return name, dxt1_decode(d[mini_ptr:mini_ptr + 524288], 1024, 1024)
@@ -127,7 +126,7 @@ def existing_versions(cfg, title, folders):
     the output folder). Two different files with the same map name cause download conflicts in Zero-K,
     so a changed map needs a new version number."""
     stem = cfg.map_name(title, 0).rsplit(" v", 1)[0].replace(" ", "_")   # "Forge_Iron_Wall"
-    pat = re.compile(re.escape(stem) + r"_v(\d+)\.sdz$", re.IGNORECASE)
+    pat = re.compile(re.escape(stem) + r"_v(\d+)\.sd[z7]$", re.IGNORECASE)
     found = set()
     for f in folders:
         if f and os.path.isdir(f):
